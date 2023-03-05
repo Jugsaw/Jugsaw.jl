@@ -11,9 +11,9 @@
         - A world of ready-to-use applications?
 -->
 
-## The problem we want to solve
+## The Problem We Want to Solve
 
-### A common case
+### A Common Case
 
 Alice is user new to quantum computing. She is familiar with the Python
 programming language. And she wants to try some algorithms implemented in Julia.
@@ -29,12 +29,12 @@ TODO:
 
 ### 
 
-### The scope of the problem we want to solve
+### The Scope of the Problem We Want to Solve
 
 - Domains/Subjects
 - Programming Languages
 
-## Existing solutions
+## Existing Solutions
 
 TODO: list the pros and cons of each existing solution.
 
@@ -42,24 +42,58 @@ TODO: list the pros and cons of each existing solution.
 - HuggingFace
 - Stipple.jl
 
-## Proposed solution
+## Proposed Solution
+
+### Key Concepts
+
+#### Developer
+#### User
+#### Application
+#### Job
+#### Jug(stateful computation unit)
+#### Saw(stateless computation unit)
+#### Data Model
+#### Future
 
 ### Core Components
 
-#### Jugsaw SDK
-#### Jugsaw Runtime
-#### Jugsaw Proto
-#### Jugsaw Frontend
-
 TODO: Add images to explain how they are assembled in our product.
 
-### Key features
+#### Jugsaw SDK
+
+For now we'll focus on the Julia SDK. But the ideas should also apply to SDK in
+other languages in the future.
+
+Basically, the SDK contains two parts: the **client** side and the **server** side.
+
+##### Jugsaw Client
+
+- Submit job
+- Fetch data from [`Future`](@ref)
+- (De)Serializer
+
+##### Jugsaw Server
+
+- [`Jug`](@ref)/[`Saw`](@ref) manager, register
+
+#### Jugsaw Runtime
+
+- Scheduling
+- Auto-scaling
+
+#### Jugsaw Proto
+
+#### Jugsaw Frontend
+
+- Communication strategy
+
+### Key Features
 
 #### Pluggable
 
-### The ecosystem around Jugsaw
+### The Ecosystem Around Jugsaw
 
-## Comparison with other products
+## Comparison with Other Products
 
 - [HuggingFace Spaces](https://huggingface.co/spaces)
 - [Ray](https://docs.ray.io/)
@@ -67,11 +101,16 @@ TODO: Add images to explain how they are assembled in our product.
 
 ## FAQ
 
-## Why do you choose to work on this field?
+### Why do You Choose to Work on This Field?
 
 - Our aspiration
 - The potential market size
 
-## Why **you**?
+### Why **You**?
 
-## Why Julia?
+### Why Julia?
+
+
+## References
+
+- [Ray AIR Technical Whitepaper](https://docs.google.com/document/d/1bYL-638GN6EeJ45dPuLiPImA8msojEDDKiBx3YzB4_s/preview#heading=h.ru1taexewu7i)
