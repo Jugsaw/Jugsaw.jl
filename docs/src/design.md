@@ -74,7 +74,13 @@ Basically, the SDK contains two parts: the **client** side and the **server** si
 
 ##### Jugsaw Server
 
-- [`Jug`](@ref)/[`Saw`](@ref) manager, register
+- [`Jug`](@ref)/[`Saw`](@ref) manager
+    - (De)Activate Jug/Saw
+    - Dispatch requests
+    - State Monitoring
+
+!!! note
+    The manager is **STATIC** at the moment. This means that, once started, the manager can only handle requests to predefined [Jug](@ref)s or [Saw](@ref)s.
 
 #### Jugsaw Runtime
 
