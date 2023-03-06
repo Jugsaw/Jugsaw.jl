@@ -66,12 +66,6 @@ other languages in the future.
 
 Basically, the SDK contains two parts: the **client** side and the **server** side.
 
-##### Jugsaw Client
-
-- Submit job
-- Fetch data from [`Future`](@ref)
-- (De)Serializer
-
 ##### Jugsaw Server
 
 - [`Jug`](@ref)/[`Saw`](@ref) manager
@@ -81,6 +75,66 @@ Basically, the SDK contains two parts: the **client** side and the **server** si
 
 !!! note
     The manager is **STATIC** at the moment. This means that, once started, the manager can only handle requests to predefined [Jug](@ref)s or [Saw](@ref)s.
+
+**Example:**
+
+```julia
+# app.jl
+
+## Jug
+greet(name::String="World")::String = "Hello, $name!"
+
+## Saw
+Base.@kwdef struct Counter
+    name::String = greet()
+    n::Ref{Int} = Ref(0)
+end
+
+(c::Counter)(x::Int=1)::String = c.n[] += x
+```
+
+```julia
+# manager.jl
+using Jugsaw
+
+register(Jug, greet)
+register(Saw, Counter)
+
+serve()
+```
+
+```yaml
+- name: hello-world
+- version: v0.1.0
+```
+
+##### Jugsaw Client
+
+- Submit job
+- Fetch data from [`Future`](@ref)
+- (De)Serializer
+
+```julia
+using Jugsaw
+
+open(Client(endpoint="https://api.jugsaw.co"), app="hello-world") do app
+    # Saw
+    msg = app.greet()
+    println(msg[])
+
+    # Jug
+    counter = app.Counter()
+    counter()
+    counter(2)
+    println(counter(3)[])
+
+    # JugSaw
+    x = app.Counter(name=app.greet())
+    x()
+    x(2)
+    println(string(x)[])
+end
+```
 
 #### Jugsaw Runtime
 
