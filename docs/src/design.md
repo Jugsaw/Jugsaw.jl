@@ -11,9 +11,9 @@
         - A world of ready-to-use applications?
 -->
 
-## The problem we want to solve
+## The Problem We Want to Solve
 
-### A common case
+### A Common Case
 
 Alice is user new to quantum computing. She is familiar with the Python
 programming language. And she wants to try some algorithms implemented in Julia.
@@ -29,12 +29,12 @@ TODO:
 
 ### 
 
-### The scope of the problem we want to solve
+### The Scope of the Problem We Want to Solve
 
 - Domains/Subjects
 - Programming Languages
 
-## Existing solutions
+## Existing Solutions
 
 TODO: list the pros and cons of each existing solution.
 
@@ -42,24 +42,118 @@ TODO: list the pros and cons of each existing solution.
 - HuggingFace
 - Stipple.jl
 
-## Proposed solution
+## Proposed Solution
+
+### Key Concepts
+
+#### Developer
+#### User
+#### Application
+#### Job
+#### Jug(stateful computation unit)
+#### Saw(stateless computation unit)
+#### Data Model
+#### Future
 
 ### Core Components
 
-#### Jugsaw SDK
-#### Jugsaw Runtime
-#### Jugsaw Proto
-#### Jugsaw Frontend
-
 TODO: Add images to explain how they are assembled in our product.
 
-### Key features
+#### Jugsaw SDK
+
+For now we'll focus on the Julia SDK. But the ideas should also apply to SDK in
+other languages in the future.
+
+Basically, the SDK contains two parts: the **client** side and the **server** side.
+
+##### Jugsaw Server
+
+- [`Jug`](@ref)/[`Saw`](@ref) manager
+    - (De)Activate Jug/Saw
+    - Dispatch requests
+    - State Monitoring
+
+!!! note
+    The manager is **STATIC** at the moment. This means that, once started, the manager can only handle requests to predefined [Jug](@ref)s or [Saw](@ref)s.
+
+**Example:**
+
+```julia
+# app.jl
+
+## Jug
+greet(name::String="World")::String = "Hello, $name!"
+
+## Saw
+Base.@kwdef struct Counter
+    name::String = greet()
+    n::Ref{Int} = Ref(0)
+end
+
+(c::Counter)(x::Int=1)::String = c.n[] += x
+```
+
+```julia
+# manager.jl
+using Jugsaw
+
+register(Jug, greet)
+register(Saw, Counter)
+
+serve()
+```
+
+```yaml
+- name: hello-world
+- version: v0.1.0
+```
+
+##### Jugsaw Client
+
+- Submit job
+- Fetch data from [`Future`](@ref)
+- (De)Serializer
+
+```julia
+using Jugsaw
+
+open(Client(endpoint="https://api.jugsaw.co"), app="hello-world") do app
+    # Saw
+    msg = app.greet()
+    println(msg[])
+
+    # Jug
+    counter = app.Counter()
+    counter()
+    counter(2)
+    println(counter(3)[])
+
+    # JugSaw
+    x = app.Counter(name=app.greet())
+    x()
+    x(2)
+    println(string(x)[])
+end
+```
+
+#### Jugsaw Runtime
+
+- Scheduling
+- Auto-scaling
+
+#### Jugsaw Proto
+
+#### Jugsaw Frontend
+
+- Communication strategy
+
+### Key Features
 
 #### Pluggable
 
-### The ecosystem around Jugsaw
+### The Ecosystem Around Jugsaw
 
-## Comparison with other products
+## Comparison with Other Products
 
 - [HuggingFace Spaces](https://huggingface.co/spaces)
 - [Ray](https://docs.ray.io/)
@@ -67,11 +161,16 @@ TODO: Add images to explain how they are assembled in our product.
 
 ## FAQ
 
-## Why do you choose to work on this field?
+### Why do You Choose to Work on This Field?
 
 - Our aspiration
 - The potential market size
 
-## Why **you**?
+### Why **You**?
 
-## Why Julia?
+### Why Julia?
+
+
+## References
+
+- [Ray AIR Technical Whitepaper](https://docs.google.com/document/d/1bYL-638GN6EeJ45dPuLiPImA8msojEDDKiBx3YzB4_s/preview#heading=h.ru1taexewu7i)
