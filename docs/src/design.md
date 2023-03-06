@@ -46,13 +46,30 @@ TODO: list the pros and cons of each existing solution.
 
 ### Key Concepts
 
-#### Developer
+#### Contributor
+
+Contributors are those who are familiar with a specific library. They can develop applications with the help of [Jugsaw SDK](@ref) and deploy them on our app store.
+
 #### User
+
+Different from [**Contributor**](@ref), general users do not need to understand all the underlying implementation details.
+
+For entry level users, they are more interested in interacting with the [**Application**](@ref)s through the web portal. 
+
+For experienced users, they can take an [Application](@ref) as a black box and reliably embed it in their own code logic. For some complex algorithms, they may even compose an arbitrary computation graph and schedule it on our cluster.
+
 #### Application
+
+An application is usually a collection of [Jug](@ref)s or [Saw](@ref)s. [Developer](@ref)s can specify the required resource to run the application. Our system may automatically create several instances based on the number of queueing requests.
+
 #### Job
+
 #### Jug(stateful computation unit)
+
 #### Saw(stateless computation unit)
+
 #### Data Model
+
 #### Future
 
 ### Core Components
@@ -104,8 +121,12 @@ serve()
 ```
 
 ```yaml
+# config.yaml
 - name: hello-world
 - version: v0.1.0
+- authors:
+  - Alice
+  - Bob
 ```
 
 ##### Jugsaw Client
@@ -146,6 +167,10 @@ end
 #### Jugsaw Frontend
 
 - Communication strategy
+- Embedding in other tools
+    - Jupyter Notebook
+    - Pluto
+    - Documenter.jl
 
 ### Key Features
 
