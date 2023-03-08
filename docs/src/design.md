@@ -27,8 +27,6 @@ TODO:
 - @GiggleLiu enrich this story
 - Insert an image here for better understanding.
 
-### 
-
 ### The Scope of the Problem We Want to Solve
 
 - Domains/Subjects
@@ -60,17 +58,41 @@ For experienced users, they can take an [Application](@ref) as a black box and r
 
 #### Application
 
-An application is usually a collection of [Jug](@ref)s or [Saw](@ref)s. [Developer](@ref)s can specify the required resource to run the application. Our system may automatically create several instances based on the number of queueing requests.
+An application is usually a collection of [Jug](@ref)s or [Saw](@ref)s which share the same runtime environment. [Developer](@ref)s can specify the required resources to run the application. Our system may automatically create several instances based on the number of queueing requests.
 
 #### Job
 
-#### Jug(stateful computation unit)
+To initiate the computation, [User](@ref)s need to submit a **Job** either through SDK or on the web portal.
 
-#### Saw(stateless computation unit)
+A job describes the target [`Jug`](@ref)/[`Saw`](@ref) and corresponding arguments.
+
+```json
+{
+    "target": {
+        "app": "hello-world",
+        "method": "greet"
+    },
+    "arguments": [
+        "world"
+    ]
+}
+```
+
+The result of an job is a [Future](@ref).
+
+#### Jug
+
+A **Jug** is a stateful computation unit. Each Jug is associated with a unique id.
+
+#### Saw
+
+A **Saw** is a stateless computation unit. Unlike [Jug](@ref), there's no id associated with it.
 
 #### Data Model
 
 #### Future
+
+A **Future** in Jugsaw is similar to the `Future` in Julia (or a kind of `AbstractRemoteRef` to be more specific). It is just an ID. Users can fetch the result from it with SDK.
 
 ### Core Components
 
@@ -154,6 +176,10 @@ open(Client(endpoint="https://api.jugsaw.co"), app="hello-world") do app
     x()
     x(2)
     println(string(x)[])
+
+    # Utils
+    signature(app.greet)
+    signature(app.count)
 end
 ```
 
