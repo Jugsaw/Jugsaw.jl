@@ -1,0 +1,27 @@
+@host = 127.0.0.1
+@port = 3500
+
+###
+
+# check system status
+GET http://{{host}}:{{port}}/v1.0/metadata
+
+###
+
+# Check agent is alive
+
+PUT http://{{host}}:{{port}}/v1.0/actors/greet/1/method/x
+content-type: application/json
+
+"JUGSAW"
+
+###
+
+# Check agent is alive
+
+# PUT http://{{host}}:8081/actors/greet/1/method/
+# content-type: application/json
+
+PUT http://{{host}}:8081/actors/greet/jinguo/method/x
+
+"abc"
