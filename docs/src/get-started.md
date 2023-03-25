@@ -1,7 +1,17 @@
 # Get started
 ![](framework.png)
 
-1. Deploy a Jugsaw app and run the Jugsaw app.
+* Developers can register a Jugsaw app on the Jugsaw website.
+* Users (including the developer) can use Jugsaw intances for launching applications.
+* A Jugsaw instance will be created automatically at the first call. An instance tied to a Jugsaw app is shared by default.
+
+### Terms explained
+* The *Jugsaw Website* is [https://www.jugsaw.co](https://www.jugsaw.co).
+* A *Jugsaw App* is a set of funciton registered on the Jugsaw website.
+* An *instance* is a living or hibernated container running a Julia session (it may or may not tied to a specific app, which I am not sure).
+The wake up time of a hibernated container is under 0.5s (goal).
+* An *endpoint* is the URI of a computational resource vendor, which can be a localhost, a shared EC2 or a cluster.
+
 ## Deploy a Jugsaw App
 
 First, you should have a Jugsaw account. You may get one from [https://www.jugsaw.co](https://www.jugsaw.co).
@@ -52,10 +62,6 @@ Note: It's important to keep your secrets secure and not include them in your co
 </details>
 
 ## Run a Jugsaw App
-### Terms
-* *instance* is a living or hibernated container running a Julia session.
-The wake up time of a hibernated container is under 0.5s (goal).
-* *endpoint* is the URI of a computational resource vendor, which can be a localhost, a shared EC2 or a cluster.
 
 ### Using shared nodes
 **Rules**
