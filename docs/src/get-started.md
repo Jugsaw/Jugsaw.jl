@@ -2,7 +2,7 @@
 ![](framework.png)
 
 * Developers can register a Jugsaw app on the Jugsaw website.
-* Users (including the developer) can use Jugsaw intances for launching applications.
+* Users (including the developer) can use Jugsaw intances for launching applications on an endpoint.
 * A shared Jugsaw instance will be created automatically at the first launch of an app.
 
 ### Terms explained
@@ -14,8 +14,8 @@ The wake up time of a hibernated container is under 0.5s (goal).
 
 ## Deploy a Jugsaw App
 
-First, you should have a Jugsaw account. You may get one from [https://www.jugsaw.co](https://www.jugsaw.co).
-To setup a new Jugsaw App, you should go through the following process
+To deploy a Jugsaw app, you must have a Jugsaw account. One may get a free account from [https://www.jugsaw.co](https://www.jugsaw.co).
+To setup a new Jugsaw App, a Julia developer should go through the following process
 
 1: Create a Jugsaw App in any folder of a Github repository.
 ```julia
@@ -38,8 +38,6 @@ julia> readdir("jugsaw")
     1. Go to [https://www.jugsaw.co/apps](https://www.jugsaw.co/apps).
     2. Click "Create a new Jugsaw App".
     3. Enter the Github repo and the subfolder containing your Jugsaw App.
-
-Once your Jugsaw App is ready, you will recieve an email notification.
 
 <details>
   <summary>Alternative: using Github Actions</summary>
@@ -64,13 +62,7 @@ Note: It's important to keep your secrets secure and not include them in your co
 ## Run a Jugsaw App
 
 ### Using shared nodes
-**Rules**
-* If uuid is not specified, then the function will be executed on the shared instance (if any).
-* If uuid is specified, then the specific instance will be used (may throw `InstanceNotExistError`).
-* Unless `keep` is true, an instance will be killed after being inactive for 20min.
-
-A free tier user can keep at most 10 instances at the same time.
-Please go to the [control panel]() to free some instances if you see a `InstanceQuotaError` or subscribe our [Jugsaw premium]().
+The following is an example of launching a Jugsaw app on the shared endpoint with the Julia language (we have multiple clients).
 
 ```julia
 julia> using JugsawClient
@@ -96,13 +88,17 @@ julia> println(msg["exit code"])   # exit code
 0
 ```
 
+**Rules**
+* If uuid is not specified, then the function will be executed on the shared instance (if any).
+* If uuid is specified, then the specific instance will be used (may throw `InstanceNotExistError`).
+* Unless `keep` is true, an instance will be killed after being inactive for 20min.
+
+A free tier user can keep at most 10 instances at the same time.
+Please go to the [control panel]() to free some instances if you see a `InstanceQuotaError` or subscribe our [Jugsaw premium]().
+
 ### Using cluster nodes
 
-**Rules**
-* Cluster Jugsaw call is stateless.
-* There might be an overhead in using clusters. Cluster pull the reqested app from `jugsaw.co` to local, create a `singularity` instance, and launch the job.
-* The result is not returned directly, instead, one should use the returned URI to access the result and manage the jobs.
-
+The following is an example of launching a Jugsaw app on a cluster with Julia language (we have multiple clients).
 ```julia
 julia> using JugsawClient
 
@@ -122,3 +118,8 @@ julia> msg = open(JugsawClient.ClusterNode(
 julia> println(msg["exit code"])   # exit code
 0
 ```
+
+**Rules**
+* Cluster Jugsaw call is stateless.
+* There might be an overhead in using clusters. Cluster pull the reqested app from `jugsaw.co` to local, create a `singularity` instance, and launch the job.
+* The result is not returned directly, instead, one should use the returned URI to access the result and manage the jobs.
