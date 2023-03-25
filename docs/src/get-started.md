@@ -3,7 +3,7 @@
 
 * Developers can register a Jugsaw app on the Jugsaw website.
 * Users (including the developer) can use Jugsaw intances for launching applications.
-* A Jugsaw instance will be created automatically at the first call. An instance tied to a Jugsaw app is shared by default.
+* A shared Jugsaw instance will be created automatically at the first launch of an app.
 
 ### Terms explained
 * The *Jugsaw Website* is [https://www.jugsaw.co](https://www.jugsaw.co).
