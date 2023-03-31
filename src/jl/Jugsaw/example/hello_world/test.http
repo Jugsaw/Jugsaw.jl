@@ -22,6 +22,12 @@ content-type: application/json
 # PUT http://{{host}}:8081/actors/greet/1/method/
 # content-type: application/json
 
-PUT http://{{host}}:8081/actors/greet/jinguo/method/x
+POST http://{{host}}:8081/actors/greet/jinguo/method/
 
 "abc"
+
+#####
+
+POST http://{{host}}:8081/actors/greet/jinguo/method/fetch
+
+"b6a74f72-2881-4fdc-b086-5aa812c5944c"
