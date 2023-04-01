@@ -61,7 +61,7 @@ version = "1.12.0"
 
 [[Jugsaw]]
 deps = ["Distributed", "HTTP", "JSON3", "UUIDs"]
-path = "../.."
+path = "../../src/jl/Jugsaw"
 uuid = "506f6749-58fa-473a-ada6-eb0172fb6950"
 version = "0.1.0"
 
