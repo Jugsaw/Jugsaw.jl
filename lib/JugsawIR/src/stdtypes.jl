@@ -1,21 +1,5 @@
 #!!! design choice: function name space is local, type name space is global.
-#!!! protect the names of existing types.
-# Jugsaw function call app.fname(args, kwargs)
-struct JugsawFunctionCall{argsT, kwargsT}
-    app::String
-    fname::Symbol
-    args::argsT
-    kwargs::kwargsT
-end
-
-# Jugsaw function specification
-struct JugsawFunctionSpec{argsT, kwargsT}
-    app::String
-    fname::Symbol
-    args::argsT
-    kwargs::kwargsT
-end
-
+#!!! TODO: protect the names of existing types.
 ###### Array element types that can be compressed with base64 encoding.
 const ArrayPrimitiveTypes = Union{Bool, Char,
     Int8, Int16, Int32, Int64, Int128,
@@ -25,6 +9,7 @@ const ArrayPrimitiveTypes = Union{Bool, Char,
 
 ###### Data types that can be used without definition
 # note: function is not allowed, only JugsawFunction is allowed.
+# TODO: add array types
 const BasicTypes = Union{ArrayPrimitiveTypes, DataType}
 
 # the string representation of basic types
@@ -32,14 +17,17 @@ type_strings!(res, type::Union) = (push!(res, type2str(type.a)); type_strings!(r
 type_strings!(res, type::DataType) = (push!(res, type2str(type)); res)
 function type2str(::Type{T}) where T
     if length(T.parameters) > 0
-        typename = "$(String(T.name.name)){$(join([p isa Type ? type2str(p) : string(p) for p in T.parameters], ", "))}"
+        typename = "$(String(T.name.name)){$(join([p isa Type ? type2str(p) : (p isa Symbol ? ":$p" : string(p)) for p in T.parameters], ", "))}"
     else
         typename = "$(String(T.name.name))"
     end
     return typename
 end
+
+# all derived types are represented with basic types, so they must include all primitive types in Julia
 const basic_types = type_strings!(String[], BasicTypes)
 
+###################### types in Jugsaw stdlib ##########################
 """
     Graph
 
@@ -60,3 +48,18 @@ struct Graph
 end
 Base.:(==)(g1::Graph, g2::Graph) = g1.nv == g2.nv && g1.edges == g2.edges
 
+# Jugsaw function call app.fname(args, kwargs)
+struct JugsawFunctionCall{argsT, kwargsT}
+    app::String
+    fname::Symbol
+    args::argsT
+    kwargs::kwargsT
+end
+
+# Jugsaw function specification
+struct JugsawFunctionSpec{argsT, kwargsT}
+    app::String
+    fname::Symbol
+    args::argsT
+    kwargs::kwargsT
+end

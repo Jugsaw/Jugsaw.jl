@@ -25,7 +25,7 @@ end
 # parsetype(m::Module, ::Type{T1}, target::Vector) where T1 <: NamedTuple = parsetype(m, T1, Dict(target))
 
 # Dict -> Any
-function parsetype(m::Module, ::Type{Any}, target::Dict{T2}) where {T2}
+function parsetype(m::Module, ::Type{Any}, target::AbstractDict{T2}) where {T2}
     if haskey(target, "__type__")
         specified_type = str2type(m, target["__type__"])
         if specified_type !== Any
@@ -41,7 +41,7 @@ function parsetype(m::Module, ::Type{Any}, target::Dict{T2}) where {T2}
     return Dict(res)
 end
 # Dict -> Dict
-function parsetype(m::Module, ::Type{Dict{T1, T2}}, target::Dict) where {T1, T2}
+function parsetype(m::Module, ::Type{Dict{T1, T2}}, target::AbstractDict) where {T1, T2}
     d = Dict{T1, T2}()
     for (k, v) in target
         d[T1(k)] = parsetype(m, T2, v)
@@ -49,15 +49,19 @@ function parsetype(m::Module, ::Type{Dict{T1, T2}}, target::Dict) where {T1, T2}
     return d
 end
 # Dict -> generic types
-function parsetype(m::Module, ::Type{T}, target::Dict{T2}) where {T, T2}
+function parsetype(m::Module, ::Type{T}, target::AbstractDict{T2}) where {T, T2}
     cumstomized_parsetype(m, T, target)
 end
 #   -> primitive arrays
-function cumstomized_parsetype(m::Module, ::Type{Array{T, N}}, target::Dict) where {T<:ArrayPrimitiveTypes, N}
+function cumstomized_parsetype(m::Module, ::Type{Array{T, N}}, target::AbstractDict) where {T<:ArrayPrimitiveTypes, N}
     reshape(collect(reinterpret(T, base64decode(target["storage"]))), target["size"]...)
 end
 #   -> generic types
-@generated function cumstomized_parsetype(m::Module, ::Type{T}, target::Dict{T2}) where {T, T2}
+@generated function cumstomized_parsetype(m::Module, ::Type{T}, target::AbstractDict{T2}) where {T, T2}
+    #   -> data types
+    if T == DataType
+        return :(str2type(m, target["name"]))
+    end
     # quote node because the key can be a Symbol
     fields = fieldnames(T)
     Expr(:new, T, Any[:(parsetype(m, $(T.types[i]), target[$(QuoteNode(T2(fields[i])))])) for i=1:length(T.types)]...)
