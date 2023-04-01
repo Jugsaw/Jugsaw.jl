@@ -19,15 +19,30 @@ content-type: application/json
 
 # Check agent is alive
 
-# PUT http://{{host}}:8081/actors/greet/1/method/
-# content-type: application/json
-
+# @name greet
 POST http://{{host}}:8081/actors/greet/jinguo/method/
 
-"abc"
+"Jinguo"
 
 #####
 
+@greet_res_ref = {{greet.response.body.*}}
+
 POST http://{{host}}:8081/actors/greet/jinguo/method/fetch
 
-"b6a74f72-2881-4fdc-b086-5aa812c5944c"
+"{{greet_res_ref}}"
+
+###
+
+# @name count
+POST http://{{host}}:8081/actors/Counter/juntian/method/
+
+5
+
+#####
+
+@count_res_ref = {{count.response.body.*}}
+
+POST http://{{host}}:8081/actors/Counter/juntian/method/fetch
+
+"{{count_res_ref}}"

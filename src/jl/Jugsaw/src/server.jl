@@ -144,6 +144,5 @@ HTTP.register!(ROUTER, "POST", "/actors/{actor_type_name}/{actor_id}/method/fetc
 HTTP.register!(ROUTER, "DELETE", "/actors/{actor_type_name}/{actor_id}", deactivate)
 
 
-function serve()
-    HTTP.serve!(ROUTER)
-end
+serve() = HTTP.serve(ROUTER)
+serve!() = HTTP.serve!(ROUTER)
