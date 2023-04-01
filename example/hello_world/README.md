@@ -11,7 +11,7 @@ docker build -t jugsaw/helloworld -f example/hello_world/Dockerfile .
 Then run the docker.
 
 ```bash
-docker run jugsaw/helloworld
+docker run --network="host" jugsaw/helloworld
 ```
 
 (In the future, above steps can be skipped because we'll deploy examples on the cloud.)
