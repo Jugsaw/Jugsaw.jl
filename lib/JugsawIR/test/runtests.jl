@@ -3,6 +3,23 @@ using JugsawIR: @parsetype, json4, parse4
 using JugsawIR
 using JSON
 
+function convert_json(obj)
+    io = IOBuffer()
+    jio = JugsawIR.JSON4Context(io)
+    JSON.begin_array(jio)
+    JSON.show_json(jio, JSON.StandardSerialization(), obj)
+    JSON.end_array(jio)
+    return String(take!(io)), jio.extra_types
+end
+
+@testset "DataType" begin
+    c = "[\"Complex{Float64}\"]"
+    @test json4(ComplexF64) == c
+    @test parse4(c) == Any[ComplexF64]
+    ref3 = "[{\"__type__\":\"DataType\",\"name\":\"RefValue{Int64}\",\"fieldtypes\":[\"Int64\"]}, {\"__type__\":\"RefValue{Int64}\",\"x\":3}]"
+    @test json4(Ref(3)) == ref3
+end
+
 @testset "parsetype" begin
     c(x) = JSON.parse(JSON.json(x))
     argtype = Tuple{Int32, Float32, Tuple{Int, String}, String, Bool, Dict{String, ComplexF32}, Dict{String, ComplexF32}, ComplexF32, Vector{ComplexF64}}
