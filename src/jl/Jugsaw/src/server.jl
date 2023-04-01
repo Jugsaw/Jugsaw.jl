@@ -7,6 +7,13 @@ using Distributed: Future
 
 #####
 
+"""
+    @register actor [key=val...]
+
+Register the `actor` in a global registry. Note that the `actor` is not
+initialized immediately. This macro will create a lambda function `() -> actor`
+implicitly and the actor will only be initialized on the first execution.
+"""
 macro register(exs...)
     a = exs[1]
     name = if a isa Symbol
@@ -30,6 +37,10 @@ struct StateStore
     store::Dict{String,Future}
 end
 
+"""
+This is a simple in-memory state store which holds the results from the actor calls.
+We may add many different kinds of state store later (local file or Database).
+"""
 STATE_STORE = StateStore(Dict{String,String}())
 
 Base.setindex!(s::StateStore, v::Future, k) = s.store[k] = v
@@ -38,6 +49,16 @@ Base.getindex(s::StateStore, k) = s.store[k][]
 
 #####
 
+"""
+Describe how to create an actor instance.
+
+More configs will be added later:
+
+- Sync or Async call
+- Where to save result (the StateStore)
+- Alive check frequency
+- ...
+"""
 struct ActorFactory
     factory::Any
     name::String
@@ -47,6 +68,9 @@ ActorFactory(f, ::Nothing) = ActorFactory(f, nameof(f))
 
 (f::ActorFactory)() = f.factory()
 
+"""
+A message describes a task send to an actor.
+"""
 struct Message
     body::Union{Vector{UInt8},IO}
     res::String
@@ -54,6 +78,9 @@ end
 
 Message(body) = Message(body, string(uuid4()))
 
+"""
+Describe current status of an actor.
+"""
 struct Actor{T}
     actor::T
     taskref::Ref{Task}
@@ -95,6 +122,11 @@ const ACTORS = Dict{Pair{String,String},Any}()
 
 register(a::ActorFactory) = ACTOR_FACTORY[a.name] = a
 
+"""
+Try to activate an actor. If the actor of `actor_id` does not exist yet, a new
+one is created based on the registered `ActorFactor` of `actor_type`. Note that
+the actor may be configured to recover from its lastest state snapshot.
+"""
 function activate(actor_type::String, actor_id::String)
     if haskey(ACTOR_FACTORY, actor_type)
         f = ACTOR_FACTORY[actor_type]
@@ -114,6 +146,9 @@ function act(req::HTTP.Request)
     HTTP.Response(200, msg.res)
 end
 
+"""
+Remove idle actors. Actors may be configure to persistent its current state.
+"""
 function deactivate(req::HTTP.Request)
     ps = HTTP.getparams(req)
     atype = string(ps["actor_type_name"])
@@ -125,6 +160,9 @@ function deactivate(req::HTTP.Request)
     end
 end
 
+"""
+This is just a workaround. In the future, users should fetch results from StateStore directly.
+"""
 function fetch(req::HTTP.Request)
     id = JSON3.read(req.body)
     STATE_STORE[id]
@@ -144,5 +182,6 @@ HTTP.register!(ROUTER, "POST", "/actors/{actor_type_name}/{actor_id}/method/fetc
 HTTP.register!(ROUTER, "DELETE", "/actors/{actor_type_name}/{actor_id}", deactivate)
 
 
-serve() = HTTP.serve(ROUTER)
-serve!() = HTTP.serve!(ROUTER)
+# FIXME: set host to default in k8s
+serve() = HTTP.serve(ROUTER, host="0.0.0.0")
+serve!() = HTTP.serve!(ROUTER, host="0.0.0.0")
