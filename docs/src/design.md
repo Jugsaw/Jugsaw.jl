@@ -15,17 +15,19 @@
 
 ### A Common Case
 
-Alice is user new to quantum computing. She is familiar with the Python
-programming language. And she wants to try some algorithms implemented in Julia.
+A typical open source scientific computing problem solving workflow includes
 
-Bob is a quantum computing package developer. The package is written in Julia
-and he wants to have more users to try it out without learning the
-implementation details.
-
-TODO:
-
-- @GiggleLiu enrich this story
-- Insert an image here for better understanding.
+1. A developer releases an open software on Github.
+2. Users know his package from the publications, conferences or friends. (*)
+3. Users download the open source code from **Git** or some package management system (e.g. Julia package management system *).
+4. User **deploy** the environment on their local host and test the software, (*)
+5. Sometimes, uses need to learn a new language like Julia (*).
+6. User **deploy** the environment on a cluster/EC2, which typically runs Linux system (*).
+    
+    Fact: all top 500 clusters run linux system, over 90% EC2 ship linux system (*).
+    
+7. **User use slurm system to submit serial/multi-threading/MPI/GPU tasks (*).**
+8. Download the data from the cluster/EC2 to local host for analysing.
 
 ### The Scope of the Problem We Want to Solve
 
@@ -207,6 +209,7 @@ end
 ## Comparison with Other Products
 
 - [HuggingFace Spaces](https://huggingface.co/spaces)
+- [Replicate](https://replicate.com/)
 - [Ray](https://docs.ray.io/)
 - [Pluto](https://github.com/fonsp/Pluto.jl)
 

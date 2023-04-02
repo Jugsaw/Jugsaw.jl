@@ -1,0 +1,8 @@
+[deps]
+Jugsaw = "506f6749-58fa-473a-ada6-eb0172fb6950"
+
+[jugsaw]
+name = "helloworld"
+uuid = "a3b13fb6-afc4-4996-b363-56457522e973"
+authors = ["Jun Tian <tianjun.cpp@gmail.com>"]
+version = "0.1.0"
