@@ -16,4 +16,4 @@ end
 
 #####
 
-serve()
+serve(@__DIR__)

@@ -69,16 +69,6 @@ ActorFactory(f, ::Nothing) = ActorFactory(f, nameof(f))
 (f::ActorFactory)() = f.factory()
 
 """
-A message describes a task send to an actor.
-"""
-struct Message
-    body::Union{Vector{UInt8},IO}
-    res::String
-end
-
-Message(body) = Message(body, string(uuid4()))
-
-"""
 Describe current status of an actor.
 """
 struct Actor{T}
@@ -104,15 +94,14 @@ function (a::Actor)(msg::Message)
     put!(a.mailbox, msg)
 end
 
-act(actor::Any, msg) = actor(msg)
+act(actor::Any, msg::CallMsg) = actor(msg.args...; msg.kwargs...)
 
 function act(actor::Any, msg::Message)
     # TODO: custom deserializer
-    payload = JSON3.read(msg.body)
-    res = act(actor, payload)
+    res = act(actor, msg.request)
     # TODO: custom serializer
     s_res = JSON3.write(res)
-    STATE_STORE[msg.res] = s_res
+    STATE_STORE[msg.response.object_id] = s_res
 end
 
 #####
@@ -136,14 +125,15 @@ function activate(actor_type::String, actor_id::String)
     end
 end
 
-function act(req::HTTP.Request)
-    ps = HTTP.getparams(req)
+function act(http::HTTP.Request)
+    ps = HTTP.getparams(http)
     a = activate(string(ps["actor_type_name"]), string(ps["actor_id"]))
     # TODO: load actor state from state store
-    msg = Message(req.body)
-    STATE_STORE[msg.res] = Future()
-    a(msg)
-    HTTP.Response(200, msg.res)
+    req = JSON3.read(http.body, CallMsg)
+    resp = ObjectRef()
+    STATE_STORE[resp.object_id] = Future()
+    a(Message(req, resp))
+    HTTP.Response(200, JSON3.write(resp))
 end
 
 """
@@ -164,8 +154,8 @@ end
 This is just a workaround. In the future, users should fetch results from StateStore directly.
 """
 function fetch(req::HTTP.Request)
-    id = JSON3.read(req.body)
-    STATE_STORE[id]
+    ref = JSON3.read(req.body, ObjectRef)
+    STATE_STORE[ref.object_id]
 end
 
 #####
@@ -181,7 +171,22 @@ HTTP.register!(ROUTER, "POST", "/actors/{actor_type_name}/{actor_id}/method/", a
 HTTP.register!(ROUTER, "POST", "/actors/{actor_type_name}/{actor_id}/method/fetch", fetch)
 HTTP.register!(ROUTER, "DELETE", "/actors/{actor_type_name}/{actor_id}", deactivate)
 
+"""
+Add (or update) the key in `factory` with `app` as prefix.
+"""
+function update_scope!(factory::Dict, app::String)
+    new_factory = empty(factory)
+    for (k, v) in factory
+        actor_type = split(k, '.')[end]
+        new_factory["$app.$actor_type"] = v
+    end
+    empty!(factory)
+    merge!(factory, new_factory)
+end
 
 # FIXME: set host to default in k8s
-serve() = HTTP.serve(ROUTER, host="0.0.0.0")
-serve!() = HTTP.serve!(ROUTER, host="0.0.0.0")
+function serve(dir::String)
+    config = load_config(dir)
+    update_scope!(ACTOR_FACTORY, config.app)
+    HTTP.serve(ROUTER, host="0.0.0.0")
+end
