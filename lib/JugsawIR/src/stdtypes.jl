@@ -57,9 +57,9 @@ struct JugsawFunctionCall{argsT, kwargsT}
 end
 
 # Jugsaw function specification
-struct JugsawFunctionSpec{argsT, kwargsT}
+struct JugsawFunctionSpec{argsTT, kwargsTT}
     app::String
     fname::Symbol
-    args::argsT
-    kwargs::kwargsT
+    argsT::argsTT
+    kwargsT::kwargsTT
 end
