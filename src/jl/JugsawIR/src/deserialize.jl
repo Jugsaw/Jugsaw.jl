@@ -7,6 +7,7 @@ for T2 in [:String, :Int, :Float64, :Bool]  # null type?
     @eval parsetype(::Module, ::Type{T}, target::$T2) where T = T(target)
     @eval parsetype(::Module, ::Type{Any}, target::$T2) = target
 end
+#parsetype(m::Module, ::Type{T}, target::String) where T<:Integer = Base.parse(T, @show target)
 # Nothing -> Any
 parsetype(::Module, ::Type{Any}, ::Nothing) = nothing
 # Nothing -> Nothing
@@ -43,7 +44,7 @@ end
 # Dict -> Dict
 function parsetype(m::Module, ::Type{Dict{T1, T2}}, target::AbstractDict) where {T1, T2}
     d = Dict{T1, T2}()
-    for (k, v) in target
+    for (k, v) in target["data"]
         d[T1(k)] = parsetype(m, T2, v)
     end
     return d
@@ -74,15 +75,21 @@ end
 function customized_parsetype(m::Module, ::Type{T}, target::AbstractDict{T2}) where {T<:Tuple, T2}
     return T(parsetype(m, t, target["$i"]) for (i, t) in zip(fieldnames(T), T.parameters))
 end
-#   -> generic types
-@generated function customized_parsetype(m::Module, ::Type{T}, target::AbstractDict{T2}) where {T, T2}
-    #   -> data types
+
+function customized_parsetype(m::Module, ::Type{T}, target::AbstractDict{T2}) where {T, T2}
     if T == DataType
-        return :(str2type(m, target["name"]))
+        return str2type(m, target["name"])
+    else
+        names = fieldnames(T)
+        values = filter!(x->x!==undef, Any[parsetype(m, T.types[i], target[T2(names[i])]) for i=1:length(T.types)])
+        return generic_customized_parsetype(m, T, Tuple(values))
     end
+end
+#   -> generic types (undef handled)
+@generated function generic_customized_parsetype(m::Module, ::Type{T}, values::NTuple{N,Any}) where {T,N}
+    #   -> data types
     # quote node because the key can be a Symbol
-    fields = fieldnames(T)
-    Expr(:new, T, Any[:(parsetype(m, $(T.types[i]), target[$(QuoteNode(T2(fields[i])))])) for i=1:length(T.types)]...)
+    Expr(:new, T, Any[:(values[$i]) for i=1:N]...)
 end
 
 #function parsetype(m::Module, ::Type{T1}, target::Dict{K}) where {T1 <: NamedTuple, K}

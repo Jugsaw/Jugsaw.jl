@@ -2,6 +2,7 @@
 #!!! design choice: abstract type information are lost during conversion!
 #!!! TODO: protect the names of existing types.
 #!!! TODO: function name and app name check.
+# NOTE: undef is so hard to support.
 ###### Array element types that can be compressed with base64 encoding.
 const ArrayPrimitiveTypes = Union{Bool, Char,
     Int8, Int16, Int32, Int64, Int128,
@@ -56,11 +57,14 @@ end
 Base.:(==)(g1::Graph, g2::Graph) = g1.nv == g2.nv && g1.edges == g2.edges
 
 # Jugsaw function call app.fname(args, kwargs)
-struct JugsawFunctionCall{argsT, kwargsT}
+struct JugsawFunctionCall{argsT<:Tuple, kwargsT<:NamedTuple}
     app::String
     fname::String
     args::argsT
     kwargs::kwargsT
+end
+function run(fc::JugsawFunctionCall; mod=@__MODULE__)
+    Base.eval(mod, :($(Symbol(fc.fname))($(fc.args...); $(fc.kwargs)...)))
 end
 
 # Jugsaw function specification
@@ -70,7 +74,8 @@ struct JugsawFunctionSpec{argsT, kwargsT, retT}
 end
 
 function Base.show(io::IO, f::JugsawFunctionCall)
-    kwargs = join(["$k=$v" for (k, v) in zip(keys(f.kwargs), f.kwargs)], ", ")
+    #kwargs = join(["$k=$v" for (k, v) in zip(keys(f.kwargs), f.kwargs)], ", ")
+    kwargs = []
     args = join(["$v" for v in f.args], ", ")
     print(io, "$(f.app).$(f.fname)($args; $kwargs)")
 end
