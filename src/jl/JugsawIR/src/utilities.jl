@@ -6,6 +6,20 @@ struct AppSpecification
     method_demos::Vector{Pair{Any,Any}}
 end
 AppSpecification(name) = AppSpecification(name, Any[], Pair{Any, Any}[])
+function Base.show(io::IO, app::AppSpecification)
+    println(io, "AppSpecification: $(app.name)")
+    println(io, "Method table = [")
+    for (method, (demo, res)) in zip(app.method_table, app.method_demos)
+        print(io, "  ")
+        println(io, method)
+        print(io, "  - ")
+        print(io, demo)
+        println(" == $res")
+        println(io)
+    end
+    print(io, "]")
+end
+Base.show(io::IO, ::MIME"text/plain", f::AppSpecification) = Base.show(io, f)
 
 function register!(app, f, args, kwargs)
     result = f(args...; kwargs...)

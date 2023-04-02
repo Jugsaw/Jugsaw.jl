@@ -68,3 +68,17 @@ struct JugsawFunctionSpec{argsT, kwargsT, retT}
     app::String
     fname::String
 end
+
+function Base.show(io::IO, f::JugsawFunctionCall)
+    kwargs = join(["$k=$v" for (k, v) in zip(keys(f.kwargs), f.kwargs)], ", ")
+    args = join(["$v" for v in f.args], ", ")
+    print(io, "$(f.app).$(f.fname)($args; $kwargs)")
+end
+Base.show(io::IO, ::MIME"text/plain", f::JugsawFunctionCall) = Base.show(io, f)
+
+function Base.show(io::IO, f::JugsawFunctionSpec{argsT, kwargsT, retT}) where {argsT, names, TT, kwargsT<:NamedTuple{names, TT}, retT}
+    kwargs = join(["$k::$T" for (k, T) in zip(names, TT.parameters)], ", ")
+    args = join(["::$T" for T in argsT.parameters], ", ")
+    print(io, "$(f.app).$(f.fname)($args; $kwargs)::$retT")
+end
+Base.show(io::IO, ::MIME"text/plain", f::JugsawFunctionSpec) = Base.show(io, f)
