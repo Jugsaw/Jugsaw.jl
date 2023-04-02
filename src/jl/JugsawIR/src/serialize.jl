@@ -172,6 +172,11 @@ function JSON.show_json(io::JSON4Context, s::CS, x::Union{OrderedDict{T1,T2}, Di
     Tx = typedef!(io, s, Dict{T1, T2})
     dump_object(io, s, "__type__"=>Tx, "data" =>dump_object(io, s, x))
 end
+#function JSON.show_json(io::JSON4Context, s::CS, x::NamedTuple)
+    #Tx = typedef!(io, s, typeof(x))
+    #dump_object(io, s, "__type__"=>Tx, "data" =>dump_object(io, s, x...))
+#end
+
 
 # overwrite the methods already defined in JSON,
 function JSON.show_json(io::JSON4Context, s::CS, x::T) where T<:Union{AbstractFloat, Integer}
@@ -188,13 +193,14 @@ function JSON.show_json(io::JSON4Context, s::CS, x::T) where T<:Union{AbstractFl
     end
 end
 
-for T in [:NamedTuple, :Pair, :AbstractVector, :AbstractArray, :AbstractDict, :(JSON.Writer.Dates.TimeType)]
+for T in [:Pair, :NamedTuple, :AbstractVector, :AbstractArray, :AbstractDict, :(JSON.Writer.Dates.TimeType)]
     @eval function JSON.show_json(io::JSON4Context, s::CS, x::$T)
-        JSON.show_json(io, s, CWrapper(x))
+        JSON.show_json(io, s, CWrapper(x, collect(Symbol, propertynames(x))))
     end
 end
 function JSON.show_json(io::JSON4Context, s::CS, x::Tuple)
     Tx = typedef!(io, s, typeof(x))
+    dump_object(io, s, "__type__"=>Tx, ["$name" => getfield(x, name) for name in fieldnames(typeof(x))]...)
 end
 for T in [:Char, :String, :Symbol, :Enum]
     @eval function JSON.show_json(io::JSON4Context, s::CS, x::$T)

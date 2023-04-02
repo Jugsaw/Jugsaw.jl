@@ -56,6 +56,10 @@ end
 function cumstomized_parsetype(m::Module, ::Type{Array{T, N}}, target::AbstractDict) where {T<:ArrayPrimitiveTypes, N}
     reshape(collect(reinterpret(T, base64decode(target["storage"]))), target["size"]...)
 end
+
+function cumstomized_parsetype(m::Module, ::Type{T}, target::AbstractDict{T2}) where {T<:Tuple, T2}
+    return T(target["$i"] for i in fieldnames(T))
+end
 #   -> generic types
 @generated function cumstomized_parsetype(m::Module, ::Type{T}, target::AbstractDict{T2}) where {T, T2}
     #   -> data types

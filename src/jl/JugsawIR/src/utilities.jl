@@ -1,3 +1,4 @@
+export AppSpecification, JugsawFunctionCall, JugsawFunctionSpec
 # register by using case
 struct AppSpecification
     name::String
