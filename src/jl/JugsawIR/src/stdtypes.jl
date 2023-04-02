@@ -1,5 +1,7 @@
 #!!! design choice: function name space is local, type name space is global.
+#!!! design choice: abstract type information are lost during conversion!
 #!!! TODO: protect the names of existing types.
+#!!! TODO: function name and app name check.
 ###### Array element types that can be compressed with base64 encoding.
 const ArrayPrimitiveTypes = Union{Bool, Char,
     Int8, Int16, Int32, Int64, Int128,
@@ -10,13 +12,18 @@ const ArrayPrimitiveTypes = Union{Bool, Char,
 ###### Data types that can be used without definition
 # note: function is not allowed, only JugsawFunction is allowed.
 # TODO: add array types
-const BasicTypes = Union{ArrayPrimitiveTypes, DataType}
+const BasicTypes = Union{ArrayPrimitiveTypes, DataType, Any, Symbol}
 
 # the string representation of basic types
 type_strings!(res, type::Union) = (push!(res, type2str(type.a)); type_strings!(res, type.b))
 type_strings!(res, type::DataType) = (push!(res, type2str(type)); res)
 function type2str(::Type{T}) where T
-    if length(T.parameters) > 0
+    if T === Any   # the only abstract type
+        return "Any"
+    elseif !isconcretetype(T)
+        @warn "Concrete types are expected! got $T, converting to `Any`."
+        typename = "Any"
+    elseif length(T.parameters) > 0
         typename = "$(String(T.name.name)){$(join([p isa Type ? type2str(p) : (p isa Symbol ? ":$p" : string(p)) for p in T.parameters], ", "))}"
     else
         typename = "$(String(T.name.name))"
@@ -51,15 +58,13 @@ Base.:(==)(g1::Graph, g2::Graph) = g1.nv == g2.nv && g1.edges == g2.edges
 # Jugsaw function call app.fname(args, kwargs)
 struct JugsawFunctionCall{argsT, kwargsT}
     app::String
-    fname::Symbol
+    fname::String
     args::argsT
     kwargs::kwargsT
 end
 
 # Jugsaw function specification
-struct JugsawFunctionSpec{argsTT, kwargsTT}
+struct JugsawFunctionSpec{argsT, kwargsT, retT}
     app::String
-    fname::Symbol
-    argsT::argsTT
-    kwargsT::kwargsTT
+    fname::String
 end

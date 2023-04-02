@@ -5,9 +5,10 @@ using DataStructures: OrderedDict
 # 1. parse a Julia object to a json object, with complete type specification.
 # 2. parse a function specification to a json object, with complete input argument specification.
 # `parse4` is the inverse of `json4`.
+# potential issue: types with the same name in the same app may cause key conflict.
 mutable struct JSON4Context <: JSONContext
     underlying::JSONContext
-    extra_types::OrderedDict{String, String}
+    extra_types::OrderedDict{DataType, String}  # from type name to type definition
 end
 JSON4Context(io) = JSON4Context(JSON.Writer.CompactContext(io), OrderedDict{String,String}())
 
@@ -25,16 +26,26 @@ Base.write(io::JSON4Context, byte::UInt8) = write(io.underlying, byte)
 function typedef!(io, s, ::Type{T}) where T
     sT = type2str(T)
     # avoid repeated definition of function table
-    if sT ∈ basic_types || haskey(io.extra_types, sT)
+    if sT ∈ basic_types || haskey(io.extra_types, T)
         return sT
     end
 
+    # define parameter types
+    fieldnames = String[]
+    for t in T.parameters
+        if t isa Type
+            st = typedef!(io, s, t)
+            push!(fieldnames, st)
+        end
+    end
     # define field types recursively
     fieldnames = String[]
     for t in T.types
         st = typedef!(io, s, t)
         push!(fieldnames, st)
     end
+
+    # show self
     buf = IOBuffer()
     jio = JSON4Context(buf)
     JSON.begin_object(jio)
@@ -42,7 +53,7 @@ function typedef!(io, s, ::Type{T}) where T
     JSON.show_pair(jio, s, :name => sT)
     JSON.show_pair(jio, s, :fieldtypes => fieldnames)
     JSON.end_object(jio)
-    io.extra_types[sT] = String(take!(buf))
+    io.extra_types[T] = String(take!(buf))
     return sT
 end
 
@@ -50,7 +61,7 @@ end
 function JSON.show_json(io::JSON4Context, s::JSON.CommonSerialization, x::JSON.Writer.CompositeTypeWrapper)
     Tx = typeof(x.wrapped)
     typename = type2str(Tx)
-    if typename ∉ basic_types && !haskey(io.extra_types, typename)
+    if typename ∉ basic_types && !haskey(io.extra_types, Tx)
         typedef!(io, s, Tx)
     end
 
@@ -75,7 +86,7 @@ function json4(obj)
     io = IOBuffer()
     print(io,"{")
     for (k, v) in cio.extra_types
-        print(io, "\"$k\":")
+        print(io, "\"$(type2str(k))\":")
         print(io, v)
         println(io, ",")
     end
