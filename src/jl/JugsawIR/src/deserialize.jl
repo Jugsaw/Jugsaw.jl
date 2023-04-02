@@ -29,7 +29,7 @@ function parsetype(m::Module, ::Type{Any}, target::AbstractDict{T2}) where {T2}
     if haskey(target, "__type__")
         specified_type = str2type(m, target["__type__"])
         if specified_type !== Any
-            return cumstomized_parsetype(m, specified_type, target)
+            return customized_parsetype(m, specified_type, target)
         end
     end
     # parse its value, in case its value contains type information
@@ -50,18 +50,32 @@ function parsetype(m::Module, ::Type{Dict{T1, T2}}, target::AbstractDict) where 
 end
 # Dict -> generic types
 function parsetype(m::Module, ::Type{T}, target::AbstractDict{T2}) where {T, T2}
-    cumstomized_parsetype(m, T, target)
+    # concrete wins
+    if haskey(target, "__type__") && target["__type__"] == "UndefInitializer"
+        return undef
+    end
+    if isconcretetype(T)
+        customized_parsetype(m, T, target)
+    elseif haskey(target, "__type__") && !isconcretetype(T)
+        parsetype(m, str2type(m, target["__type__"]), target)
+    else
+        @warn "Parsing $target into an non-concrete type fail: got $T"
+        return target
+    end
 end
 #   -> primitive arrays
-function cumstomized_parsetype(m::Module, ::Type{Array{T, N}}, target::AbstractDict) where {T<:ArrayPrimitiveTypes, N}
+function customized_parsetype(m::Module, ::Type{Array{T, N}}, target::AbstractDict) where {T<:ArrayPrimitiveTypes, N}
     reshape(collect(reinterpret(T, base64decode(target["storage"]))), target["size"]...)
 end
 
-function cumstomized_parsetype(m::Module, ::Type{T}, target::AbstractDict{T2}) where {T<:Tuple, T2}
-    return T(target["$i"] for i in fieldnames(T))
+function customized_parsetype(m::Module, ::Type{Dict{Ta,Tb}}, target::AbstractDict{T2}) where {Ta, Tb, T2}
+    return Dict{Ta,Tb}(target["data"])
+end
+function customized_parsetype(m::Module, ::Type{T}, target::AbstractDict{T2}) where {T<:Tuple, T2}
+    return T(parsetype(m, t, target["$i"]) for (i, t) in zip(fieldnames(T), T.parameters))
 end
 #   -> generic types
-@generated function cumstomized_parsetype(m::Module, ::Type{T}, target::AbstractDict{T2}) where {T, T2}
+@generated function customized_parsetype(m::Module, ::Type{T}, target::AbstractDict{T2}) where {T, T2}
     #   -> data types
     if T == DataType
         return :(str2type(m, target["name"]))

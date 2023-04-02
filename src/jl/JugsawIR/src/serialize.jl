@@ -9,7 +9,9 @@ using DataStructures: OrderedDict
 # error user if the type contains a __type__ field.
 
 const CS = JSON.Serializations.CommonSerialization
-const CWrapper = JSON.Writer.CompositeTypeWrapper
+struct Thunk{FT}
+    f::FT
+end
 mutable struct JSON4Context <: JSONContext
     underlying::JSONContext
     extra_types::OrderedDict{DataType, String}  # from type name to type definition
@@ -68,7 +70,7 @@ function JSON.show_json(io::JSON4Context, s::CS, x)
     if isprimitivetype(x)
         error("we do not accept fallback!")
     else
-        JSON.show_json(io, s, CWrapper(x))
+        show_composite(io, s, x)
     end
 end
 # type specification
@@ -77,8 +79,7 @@ function JSON.show_json(io::JSON4Context, s::CS, ::Type{T}) where T
     JSON.show_json(io, s, sT)
 end
 # generic object
-function JSON.show_json(io::JSON4Context, s::CS, x::CWrapper)
-    Tx = typeof(x.wrapped)
+function show_composite(io::JSON4Context, s::CS, x::Tx) where Tx
     typename = type2str(Tx)
     if typename ∉ basic_types && !haskey(io.extra_types, Tx)
         typedef!(io, s, Tx)
@@ -87,8 +88,12 @@ function JSON.show_json(io::JSON4Context, s::CS, x::CWrapper)
     # show this object
     JSON.begin_object(io)
     JSON.show_pair(io, s, "__type__", typename)
-    for fn in x.fns
-        JSON.show_pair(io, s, fn, getproperty(x.wrapped, fn))
+    for fn in fieldnames(Tx)
+        if isdefined(x, fn)
+            JSON.show_pair(io, s, fn, getfield(x, fn))
+        else
+            JSON.show_pair(io, s, fn, undef)
+        end
     end
     JSON.end_object(io)
 end
@@ -168,7 +173,10 @@ end
 # dict
 function JSON.show_json(io::JSON4Context, s::CS, x::Union{OrderedDict{T1,T2}, Dict{T1, T2}}) where {T1, T2}
     Tx = typedef!(io, s, Dict{T1, T2})
-    dump_object(io, s, "__type__"=>Tx, "data" =>dump_object(io, s, x))
+    dump_object(io, s, "__type__"=>Tx, "data" =>Thunk(()->dump_object(io, s, x)))
+end
+function JSON.show_json(io::JSON4Context, s::CS, t::Thunk)
+    t.f()
 end
 #function JSON.show_json(io::JSON4Context, s::CS, x::NamedTuple)
     #Tx = typedef!(io, s, typeof(x))
@@ -185,7 +193,7 @@ function JSON.show_json(io::JSON4Context, s::CS, x::T) where T<:Union{AbstractFl
             JSON.show_null(io)
         end
     elseif !isprimitivetype(T)    # we do not accept fallbacks!
-        return show_json(io, s, CWrapper(x))
+        return show_composition(io, s, x)
     else
         error("the number type is neither a composite type, nor a basic type.")
     end
@@ -193,7 +201,7 @@ end
 
 for T in [:Pair, :NamedTuple, :AbstractVector, :AbstractArray, :AbstractDict, :(JSON.Writer.Dates.TimeType)]
     @eval function JSON.show_json(io::JSON4Context, s::CS, x::$T)
-        JSON.show_json(io, s, CWrapper(x, collect(Symbol, propertynames(x))))
+        show_composite(io, s, x)
     end
 end
 function JSON.show_json(io::JSON4Context, s::CS, x::Tuple)

@@ -14,7 +14,7 @@ function Base.show(io::IO, app::AppSpecification)
         println(io, method)
         print(io, "  - ")
         print(io, demo)
-        println(" == $res")
+        println(io, " == $res")
         println(io)
     end
     print(io, "]")
