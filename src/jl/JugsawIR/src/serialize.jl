@@ -6,6 +6,8 @@ using DataStructures: OrderedDict
 # 2. parse a function specification to a json object, with complete input argument specification.
 # `parse4` is the inverse of `json4`.
 # potential issue: types with the same name in the same app may cause key conflict.
+
+const CS = JSON.CommonSerialization
 mutable struct JSON4Context <: JSONContext
     underlying::JSONContext
     extra_types::OrderedDict{DataType, String}  # from type name to type definition
@@ -58,7 +60,7 @@ function typedef!(io, s, ::Type{T}) where T
 end
 
 # generic object
-function JSON.show_json(io::JSON4Context, s::JSON.CommonSerialization, x::JSON.Writer.CompositeTypeWrapper)
+function JSON.show_json(io::JSON4Context, s::CS, x::JSON.Writer.CompositeTypeWrapper)
     Tx = typeof(x.wrapped)
     typename = type2str(Tx)
     if typename ∉ basic_types && !haskey(io.extra_types, Tx)
@@ -110,7 +112,7 @@ end
 # for objects that can not be easily parsed with generic object parsing rules.
 # primitive array specialization
 function JSON.show_json(io::JSON4Context,
-    s::JSON.CommonSerialization,
+    s::CS,
     x::Array{T}) where T <: ArrayPrimitiveTypes
     JSON.begin_object(io)
     JSON.show_pair(io, s, :__type__ => type2str(typeof(x)))
@@ -120,9 +122,45 @@ function JSON.show_json(io::JSON4Context,
 end
 
 # type specification
-function JSON.show_json(io::JSON4Context,
-        s::JSON.CommonSerialization,
-        ::Type{T}) where T
+function JSON.show_json(io::JSON4Context, s::CS, ::Type{T}) where T
     sT = typedef!(io, s, T)
     JSON.show_json(io, s, sT)
+end
+
+# overwrite the methods already defined in JSON,
+# NOTE: Other objects might have incorrect fallback: AbstractDict, AbstractArray
+function show_json(io::JSON4Context, s::CS, x::T) where T<:Union{Integer, AbstractFloat}
+    if iscompositetype(T)    # we do not accept fallbacks!
+        return show_json(io, s, JSON.Writer.CompositeTypeWrapper(x))
+    elseif T <: BasicTypes   # the default behavior
+        if isfinite(x)
+            Base.print(io, x)
+        else
+            JSON.show_null(io)
+        end
+    else
+        error("the number type is neither a composite type, nor a basic type.")
+    end
+end
+
+function JSON.show_json(io::JSON4Context, s::CS, x::NamedTuple)
+    JSON.begin_object(io)
+    for kv in pairs(x)
+        show_pair(io, s, kv)
+    end
+    JSON.end_object(io)
+end
+
+function show_json(io::JSON4Context, s::CS, kv::Pair)
+    JSON.begin_object(io)
+    show_pair(io, s, kv)
+    JSON.end_object(io)
+end
+
+function show_json(io::JSON4Context, s::CS, x::Union{AbstractVector, Tuple})
+    JSON.begin_array(io)
+    for elt in x
+        show_element(io, s, elt)
+    end
+    JSON.end_array(io)
 end
