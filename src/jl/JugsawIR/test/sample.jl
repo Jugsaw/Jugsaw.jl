@@ -11,4 +11,8 @@ js = json4(app)
 res = parse4(js; mod=Main)
 
 graph = smallgraph(:petersen)
-register(solve, graph, problem)
+register!(solve, graph, problem)
+
+app = @register gtn begin
+    solve(IndependentSet(smallgraph(:petersen)::SimpleGraph{Int}; optimizer=TreeSA(; niters::Int=5)), SizeMax())::TropicalF64
+end

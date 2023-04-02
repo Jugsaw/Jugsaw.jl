@@ -47,8 +47,6 @@ function typedef!(io, s, ::Type{T}) where T
     end
     # define field types recursively
     d = OrderedDict{String, String}()
-    @show T T.types T.parameters
-    sleep(1)
     for (n, t) in zip(fieldnames(T), T.types)
         st = typedef!(io, s, t)
         d[String(n)] = st
