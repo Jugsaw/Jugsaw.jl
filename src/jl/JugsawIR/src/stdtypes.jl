@@ -12,7 +12,7 @@ const ArrayPrimitiveTypes = Union{Bool, Char,
 ###### Data types that can be used without definition
 # note: function is not allowed, only JugsawFunction is allowed.
 # TODO: add array types
-const BasicTypes = Union{ArrayPrimitiveTypes, DataType, Any, Symbol}
+const BasicTypes = Union{ArrayPrimitiveTypes, DataType, Any, Symbol, String}
 
 # the string representation of basic types
 type_strings!(res, type::Union) = (push!(res, type2str(type.a)); type_strings!(res, type.b))
