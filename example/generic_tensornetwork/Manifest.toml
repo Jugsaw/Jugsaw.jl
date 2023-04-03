@@ -87,9 +87,15 @@ git-tree-sha1 = "84b10656a41ef564c39d2d477d7236966d2b5683"
 uuid = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 version = "1.12.0"
 
+[[Jugsaw]]
+deps = ["Distributed", "HTTP", "JSON3", "UUIDs"]
+path = "../../src/jl/Jugsaw"
+uuid = "506f6749-58fa-473a-ada6-eb0172fb6950"
+version = "0.1.0"
+
 [[JugsawIR]]
 deps = ["Base64", "DataStructures", "JSON", "MLStyle"]
-path = "../JugsawIR"
+path = "../../src/jl/JugsawIR"
 uuid = "6340f1c1-b722-4800-8081-8412e0693b45"
 version = "1.0.0-DEV"
 

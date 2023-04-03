@@ -60,13 +60,15 @@ More configs will be added later:
 - ...
 """
 struct ActorFactory
-    factory::Any
+    # register by demo, which is a pair of function call and result
+    demo::Pair{<:JugsawFunctionCall}
     name::String
 end
 
 ActorFactory(f, ::Nothing) = ActorFactory(f, nameof(f))
 
 (f::ActorFactory)() = f.factory()
+(f::ActorFactory)() = Actor(f.factory())
 
 """
 Describe current status of an actor.
@@ -106,6 +108,7 @@ end
 
 #####
 
+const APPS = JugsawIR.AppSpecification(rand('a':'z', 12))
 const ACTOR_FACTORY = Dict{String,ActorFactory}()
 const ACTORS = Dict{Pair{String,String},Any}()
 
@@ -120,7 +123,7 @@ function activate(actor_type::String, actor_id::String)
     if haskey(ACTOR_FACTORY, actor_type)
         f = ACTOR_FACTORY[actor_type]
         get!(ACTORS, actor_type => actor_id) do
-            Actor(f())
+            f()
         end
     end
 end
