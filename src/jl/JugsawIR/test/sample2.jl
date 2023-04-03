@@ -6,6 +6,7 @@ using JugsawIR
 using Graphs
 using Base: TwicePrecision
 using Random
+using JSON
 
 # TODO: we need to support SELECT better! Maybe automatically categorize functions.
 
@@ -71,7 +72,19 @@ for property in [SizeMax(), CountingMax(), CountingMax(2)]
         )
 end
 
+open(joinpath(@__DIR__, "sample2.config"), "w") do f
+    write(f, json4(app))
+end
+#res = parse4(js; mod=Main)["__main__"];
+for i=1:length(app.method_demos)
+    @show i
+    # client side: convert to json4
+    js = json4(app.method_demos[i])
 
-js = json4(app)
-res = parse4(js; mod=Main)["__main__"];
-fv = res.method_demos[2].second["fixedvertices"];
+    # server side: 1. convert string to Dict
+    data = JSON.parse(js)
+    # server side: 2. convert dict to `JugsawFunctionCall` type
+    method_call = JugsawIR.parsetype(Main, typeof(app.method_demos[i].first), data["__main__"]["first"])
+    @show method_call
+    @show JugsawIR.run(Main, method_call)
+end

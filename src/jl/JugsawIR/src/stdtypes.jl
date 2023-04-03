@@ -63,7 +63,7 @@ struct JugsawFunctionCall{argsT<:Tuple, kwargsT<:NamedTuple}
     args::argsT
     kwargs::kwargsT
 end
-function run(fc::JugsawFunctionCall; mod=@__MODULE__)
+function run(mod::Module, fc::JugsawFunctionCall)
     Base.eval(mod, :($(Symbol(fc.fname))($(fc.args...); $(fc.kwargs)...)))
 end
 
@@ -71,6 +71,9 @@ end
 struct JugsawFunctionSpec{argsT, kwargsT, retT}
     app::String
     fname::String
+end
+function Base.:(==)(a::JugsawFunctionSpec{argsT1, kwargsT1}, b::JugsawFunctionSpec{argsT2, kwargsT2}) where {argsT1, kwargsT1, argsT2, kwargsT2}
+    return a.app == b.app && a.fname == b.fname && argsT1 === argsT2 && kwargsT1 === kwargsT2
 end
 
 function Base.show(io::IO, f::JugsawFunctionCall)

@@ -120,3 +120,23 @@ function str2type(m::Module, str::String)
         return Any
     end
 end
+
+# main interfaces
+function parse4(str::AbstractString;
+               type = Any,
+               mod = @__MODULE__,
+               dicttype=OrderedDict{String,Any},
+               inttype::Type{<:Real}=Int64,
+               allownan::Bool=true,
+               null=nothing)
+    parsetype(mod, type, JSON.parse(str; dicttype, inttype, allownan, null))
+end
+
+function typed_parse4(typespec, str::AbstractString;
+               mod = @__MODULE__,
+               dicttype=Dict{String,Any},
+               inttype::Type{<:Real}=Int64,
+               allownan::Bool=true,
+               null=nothing)
+    parsetype(mod, typespec, JSON.parse(str; dicttype, inttype, allownan, null))
+end

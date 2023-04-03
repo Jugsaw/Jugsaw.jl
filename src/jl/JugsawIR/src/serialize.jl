@@ -120,16 +120,6 @@ function json4(obj)
     return String(take!(io))
 end
 
-function parse4(str::AbstractString;
-               type = Any,
-               mod = @__MODULE__,
-               dicttype=OrderedDict{String,Any},
-               inttype::Type{<:Real}=Int64,
-               allownan::Bool=true,
-               null=nothing)
-    parsetype(mod, type, JSON.parse(str; dicttype, inttype, allownan, null))
-end
-
 ######################## Specialization #############################
 # for objects that can not be easily parsed with generic object parsing rules.
 # primitive array specialization

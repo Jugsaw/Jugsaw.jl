@@ -23,9 +23,20 @@ Base.show(io::IO, ::MIME"text/plain", f::AppSpecification) = Base.show(io, f)
 
 function register!(app, f, args, kwargs)
     result = f(args...; kwargs...)
-    push!(app.method_table, JugsawFunctionSpec{typeof(args), typeof(kwargs), typeof(result)}(app.name, string(f)))
-    push!(app.method_demos, JugsawFunctionCall(app.name, string(f), args, kwargs)=>result)
+    funcspec = JugsawFunctionSpec{typeof(args), typeof(kwargs), typeof(result)}(app.name, string(f))
+    if funcspec ∉ app.method_table
+        push!(app.method_table, funcspec)
+        push!(app.method_demos, JugsawFunctionCall(app.name, string(f), args, kwargs)=>result)
+    end
     return result
+end
+
+# return the correct function for given function signature.
+function find_method(demo, method_table)
+    for (i, method_spec) in enumerate(method_table)
+        if method_spec
+        end
+    end
 end
 
 using MLStyle
