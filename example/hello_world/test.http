@@ -1,0 +1,60 @@
+@host = 127.0.0.1
+@port = 8081
+
+###
+
+# check system status
+GET http://{{host}}:{{port}}/v1.0/metadata
+
+###
+
+# Check agent is alive
+
+PUT http://{{host}}:{{port}}/actors/greet/1/method/
+content-type: application/json
+
+"JUGSAW"
+
+###
+
+# Check agent is alive
+
+# @name greet
+POST http://{{host}}:8081/actors/greet/jinguo/method/
+Content-Type: application/json
+Accept: application/json
+
+{
+    "__type__" : "JugsawFunctionCall{#greet, Tuple{String}, NamedTuple{(), Tuple{}}}",
+    "fname" : "#greet",
+    "args" : ["Hello"],
+    "kwargs" : {
+        "__type__" : "NamedTuple{{}, Tuple{}}"
+    }
+}
+
+
+"Jinguo"
+
+#####
+
+@greet_res_ref = {{greet.response.body.*}}
+
+POST http://{{host}}:8081/actors/greet/jinguo/method/fetch
+
+"{{greet_res_ref}}"
+
+###
+
+# @name count
+POST http://{{host}}:8081/actors/Counter/juntian/method/
+
+5
+
+#####
+
+@count_res_ref = {{count.response.body.*}}
+
+POST http://{{host}}:8081/actors/Counter/juntian/method/fetch
+
+"{{count_res_ref}}"

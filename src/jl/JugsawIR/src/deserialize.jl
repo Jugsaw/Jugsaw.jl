@@ -7,6 +7,9 @@ for T2 in [:String, :Int, :Float64, :Bool]  # null type?
     @eval parsetype(::Module, ::Type{T}, target::$T2) where T = T(target)
     @eval parsetype(::Module, ::Type{Any}, target::$T2) = target
 end
+
+# String to function
+parsetype(::Module, ::Type{T}, ::String) where T<:Function = T.instance
 #parsetype(m::Module, ::Type{T}, target::String) where T<:Integer = Base.parse(T, @show target)
 # Nothing -> Any
 parsetype(::Module, ::Type{Any}, ::Nothing) = nothing
@@ -14,11 +17,11 @@ parsetype(::Module, ::Type{Any}, ::Nothing) = nothing
 parsetype(::Module, ::Type{Nothing}, ::Nothing) = nothing
 
 # Vector -> Any
-parsetype(m::Module, ::Type{Any}, target::Vector) = target
+parsetype(m::Module, ::Type{Any}, target::AbstractVector) = target
 # Vector -> Vector
-parsetype(m::Module, ::Type{Vector{T}}, target::Vector) where T = T[parsetype.(Ref(m), Ref(T), target)...]
+parsetype(m::Module, ::Type{Vector{T}}, target::AbstractVector) where T = T[parsetype.(Ref(m), Ref(T), target)...]
 # Vector -> Tuple
-function parsetype(m::Module, ::Type{T1}, target::Vector) where T1 <: Tuple
+function parsetype(m::Module, ::Type{T1}, target::AbstractVector) where T1 <: Tuple
     @assert length(T1.types) == length(target) "can not parse $target into a tuple of type $T1"
     ntuple(i->parsetype(m, T1.types[i], target[i]), length(T1.types))
 end
