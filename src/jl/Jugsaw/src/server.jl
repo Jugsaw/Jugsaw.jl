@@ -52,6 +52,7 @@ end
 
 function act(actor::Any, msg::Message)
     res = actor.first.fname(msg.request.args...; msg.request.kwargs...)
+    @info "store result: $res"
     # TODO: custom serializer
     s_res = JugsawIR.json4(res)
     STATE_STORE[msg.response.object_id] = s_res
@@ -84,6 +85,7 @@ function act(http::HTTP.Request)
     # TODO: load actor state from state store
     #req = JSON3.read(http.body, JugsawFunctionCall)
     req = JugsawIR.parsetype(@__MODULE__, typeof(a.actor.first), dict)
+    @info "got task: $req"
     resp = ObjectRef()
     STATE_STORE[resp.object_id] = Future()
     put_message(a, Message(req, resp))
@@ -108,7 +110,10 @@ end
 This is just a workaround. In the future, users should fetch results from StateStore directly.
 """
 function fetch(req::HTTP.Request)
-    ref = JSON3.read(req.body, ObjectRef)
+    # NOTE: JSON3 errors
+    s = String(req.body)
+    @info "fetching: $s"
+    ref = ObjectRef(JugsawIR.JSON.parse(s)["object_id"])
     STATE_STORE[ref.object_id]
 end
 
@@ -144,10 +149,15 @@ function serve(dir::String)
     #update_scope!(ACTOR_FACTORY, config.app)
     
     # dump the method table to the disk
-    open(joinpath(dir, "method_table.json"), "w") do f
-        write(f, JugsawIR.json4(typeof((Jugsaw.ACTOR_FACTORY.method_demos...,))))
+    fmethods = joinpath(dir, "method_table.json")
+    # TODO: avoid displaying DataType!!!!
+    @info "dumping method type signatures to: $fmethods"
+    open(fmethods, "w") do f
+        write(f, JugsawIR.jsontype4(typeof((values(Jugsaw.ACTOR_FACTORY.method_demos)...,))))
     end
-    open(joinpath(dir, "demos.json"), "w") do f
+    fdemos = joinpath(dir, "demo.json")
+    @info "dumping demos to: $fdemos"
+    open(fdemos, "w") do f
         write(f, JugsawIR.json4(Jugsaw.ACTOR_FACTORY.method_demos))
     end
     HTTP.serve(ROUTER, host="0.0.0.0")

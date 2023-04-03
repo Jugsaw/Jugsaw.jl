@@ -34,34 +34,39 @@ function print_object(f, io::IO)
 end
 Base.write(io::JSON4Context, byte::UInt8) = write(io.underlying, byte)
 
-function typedef!(io, s, ::Type{T}) where T
+function typedef!(types::AbstractDict, ::Type{T}) where T
     sT = type2str(T)
     # avoid repeated definition of function table
-    if T isa BasicTypes || haskey(io.extra_types, T)
+    if T === Any || T <: BasicTypes || haskey(types, T)
+        return sT
+    elseif !isconcretetype(T)
+        @warn "$T is not a concrete type, parsed to `Any`"
+        return "Any"
+    elseif (T <: Enum)
+        types[sT] = OrderedDict("__type__"=>"DataType",
+                        "name"=>sT,
+                        "instances"=>string.(instances(T))
+                )
         return sT
     end
 
     # define parameter types
     for t in T.parameters
         if t isa Type
-            typedef!(io, s, t)
+            typedef!(types, t)
         end
     end
     # define field types recursively
     d = OrderedDict{String, String}()
     for (n, t) in zip(fieldnames(T), T.types)
-        st = typedef!(io, s, t)
-        d[String(n)] = st
+        d[string(n)] = typedef!(types, t)
     end
 
     # show self
-    buf = IOBuffer()
-    jio = JSON4Context(buf)
-    dump_object(jio, s, "__type__"=>"DataType",
+    types[sT] = OrderedDict("__type__"=>"DataType",
                 "name" => sT,
-                "fields" => d,
+                "fields" => d
             )
-    io.extra_types[T] = String(take!(buf))
     return sT
 end
 
@@ -75,16 +80,11 @@ function JSON.show_json(io::JSON4Context, s::CS, x)
 end
 # type specification
 function JSON.show_json(io::JSON4Context, s::CS, ::Type{T}) where T
-    sT = typedef!(io, s, T)
-    JSON.show_json(io, s, sT)
+    JSON.show_json(io, s, type2str(T))
 end
 # generic object
 function show_composite(io::JSON4Context, s::CS, x::Tx) where Tx
     typename = type2str(Tx)
-    if typename ∉ basic_types && !haskey(io.extra_types, Tx)
-        typedef!(io, s, Tx)
-    end
-
     # show this object
     JSON.begin_object(io)
     JSON.show_pair(io, s, "__type__", typename)
@@ -103,36 +103,17 @@ function json4(obj)
     cio = JSON4Context(JSON.Writer.CompactContext(io), OrderedDict{String,String}())
     s = JSON.Serializations.StandardSerialization()
     JSON.show_json(cio, s, obj)
-    obj = String(take!(io))
-    # the complete specification
-    #return "[" * join([values(cio.extra_types)..., obj], ", ") * "]"
-
-    io = IOBuffer()
-    print(io,"{")
-    for (k, v) in cio.extra_types
-        print(io, "\"$(type2str(k))\":")
-        print(io, v)
-        println(io, ",")
-    end
-    print(io, "\"__main__\":")
-    println(io, obj)
-    print(io,"}")
     return String(take!(io))
+end
+
+function jsontype4(::Type{T}) where T
+    types = OrderedDict{String, OrderedDict{String, Any}}()
+    typedef!(types, T)
+    return JSON.json(types)
 end
 
 ######################## Specialization #############################
 # for objects that can not be easily parsed with generic object parsing rules.
-# primitive array specialization
-# function JSON.show_json(io::JSON4Context,
-#     s::CS,
-#     x::Array{T}) where T <: ArrayPrimitiveTypes
-#     dump_object(io, s, 
-#                     "__type__" => type2str(typeof(x)),
-#                     "size" => collect(Int, size(x)),
-#                     "storage"=>base64encode(x)
-#     )
-# end
-
 function dump_object(io, s, d::Pair...)
     JSON.begin_object(io)
     for (k, v) in d
@@ -148,7 +129,6 @@ function dump_object(io, s, d::AbstractDict)
     JSON.end_object(io)
 end
 function JSON.show_json(io::JSON4Context, s::CS, x::Array{T}) where T
-    typedef!(io, s, T)
     dump_object(io, s,
         "__type__"=> type2str(typeof(x)),
         "size" => collect(Int, size(x)),
@@ -162,17 +142,11 @@ end
 # overwrite the methods already defined in JSON,
 # dict
 function JSON.show_json(io::JSON4Context, s::CS, x::Union{OrderedDict{T1,T2}, Dict{T1, T2}}) where {T1, T2}
-    Tx = typedef!(io, s, Dict{T1, T2})
-    dump_object(io, s, "__type__"=>Tx, "data" =>Thunk(()->dump_object(io, s, x)))
+    dump_object(io, s, "__type__"=>type2str(typeof(x)), "data" =>Thunk(()->dump_object(io, s, x)))
 end
 function JSON.show_json(io::JSON4Context, s::CS, t::Thunk)
     t.f()
 end
-#function JSON.show_json(io::JSON4Context, s::CS, x::NamedTuple)
-    #Tx = typedef!(io, s, typeof(x))
-    #dump_object(io, s, "__type__"=>Tx, "data" =>dump_object(io, s, x...))
-#end
-
 
 # overwrite the methods already defined in JSON,
 function JSON.show_json(io::JSON4Context, s::CS, x::T) where T<:Union{AbstractFloat, Integer}
@@ -195,22 +169,10 @@ for T in [:Pair, :NamedTuple, :AbstractVector, :AbstractArray, :AbstractDict, :(
     end
 end
 function JSON.show_json(io::JSON4Context, s::CS, x::Tuple)
-    Tx = typedef!(io, s, typeof(x))
-    dump_object(io, s, "__type__"=>Tx, ["$name" => getfield(x, name) for name in fieldnames(typeof(x))]...)
+    dump_object(io, s, "__type__"=>type2str(typeof(x)), ["$name" => getfield(x, name) for name in fieldnames(typeof(x))]...)
 end
 for T in [:Char, :String, :Symbol, :Enum]
     @eval function JSON.show_json(io::JSON4Context, s::CS, x::$T)
         invoke(JSON.show_json, Tuple{JSONContext, CS, $T}, io, s, x)
     end
-end
-
-function typedef!(io, s, ::Type{T}) where T <: Enum
-    buf = IOBuffer()
-    jio = JSON4Context(buf)
-    dump_object(jio, s, "__type__"=>"DataType",
-                        "name"=>sT,
-                        "instances"=>string.(instances(T))
-    )
-    io.extra_types[T] = String(take!(buf))
-    return sT
 end

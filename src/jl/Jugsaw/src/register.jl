@@ -3,9 +3,9 @@ struct AppSpecification
     name::String
     # `method_demo` is a mapping between function signatures and demos,
     # where a demo is a pair of jugsaw function call and result.
-    method_demos::Dict{String,Pair{JugsawFunctionCall, Any}}
+    method_demos::Dict
 end
-AppSpecification(name) = AppSpecification(name, Dict{String,Pair{JugsawFunctionCall, Any}}())
+AppSpecification(name) = AppSpecification(name, Dict())
 function Base.show(io::IO, app::AppSpecification)
     println(io, "AppSpecification: $(app.name)")
     println(io, "Method table = [")
@@ -52,7 +52,7 @@ function register_by_expr(app, ex, exs)
         :($fname($(args...); $(kwargs...))) => begin
             ret = gensym("ret")
             push!(exs, :($ret = $register!($app, $fname, ($(render_args.(Ref(app), args, Ref(exs))...),),
-                (; $(render_kwargs.(app, kwargs, Ref(exs))...)))))
+                (; $(render_kwargs.(Ref(app), kwargs, Ref(exs))...)))))
             ret
         end
         :($fname($(args...))) => begin
@@ -61,7 +61,7 @@ function register_by_expr(app, ex, exs)
             ret
         end
         :(begin $(body...) end) => begin
-            register_by_expr.(app, body, Ref(exs))
+            register_by_expr.(Ref(app), body, Ref(exs))
         end 
         ::LineNumberNode => nothing
     end

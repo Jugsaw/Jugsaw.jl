@@ -10,6 +10,8 @@ end
 
 # String to function
 parsetype(::Module, ::Type{T}, ::String) where T<:Function = T.instance
+# String to datatype
+parsetype(m::Module, ::Type{DataType}, s::String) = str2type(m, s)
 #parsetype(m::Module, ::Type{T}, target::String) where T<:Integer = Base.parse(T, @show target)
 # Nothing -> Any
 parsetype(::Module, ::Type{Any}, ::Nothing) = nothing
@@ -68,11 +70,7 @@ function parsetype(m::Module, ::Type{T}, target::AbstractDict{T2}) where {T, T2}
     end
 end
 #   -> primitive arrays
-# function customized_parsetype(m::Module, ::Type{Array{T, N}}, target::AbstractDict) where {T<:ArrayPrimitiveTypes, N}
-#     reshape(collect(reinterpret(T, base64decode(target["storage"]))), target["size"]...)
-# end
 function customized_parsetype(m::Module, ::Type{Array{T, N}}, target::AbstractDict) where {T, N}
-    @show target
     return reshape(collect(T, target["content"]), target["size"]...)
 end
 
@@ -112,7 +110,6 @@ end
 
 # string as type and type to string
 function str2type(m::Module, str::String)
-    @info str
     try
         ex = Meta.parse(str)
         if ex isa Symbol || (ex isa Expr && ex.head == :curly)
@@ -137,13 +134,4 @@ function parse4(str::AbstractString;
                allownan::Bool=true,
                null=nothing)
     parsetype(mod, type, JSON.parse(str; dicttype, inttype, allownan, null))
-end
-
-function typed_parse4(typespec, str::AbstractString;
-               mod = @__MODULE__,
-               dicttype=Dict{String,Any},
-               inttype::Type{<:Real}=Int64,
-               allownan::Bool=true,
-               null=nothing)
-    parsetype(mod, typespec, JSON.parse(str; dicttype, inttype, allownan, null))
 end
