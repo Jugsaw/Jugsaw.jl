@@ -65,8 +65,12 @@ function parsetype(m::Module, ::Type{T}, target::AbstractDict{T2}) where {T, T2}
     end
 end
 #   -> primitive arrays
-function customized_parsetype(m::Module, ::Type{Array{T, N}}, target::AbstractDict) where {T<:ArrayPrimitiveTypes, N}
-    reshape(collect(reinterpret(T, base64decode(target["storage"]))), target["size"]...)
+# function customized_parsetype(m::Module, ::Type{Array{T, N}}, target::AbstractDict) where {T<:ArrayPrimitiveTypes, N}
+#     reshape(collect(reinterpret(T, base64decode(target["storage"]))), target["size"]...)
+# end
+function customized_parsetype(m::Module, ::Type{Array{T, N}}, target::AbstractDict) where {T, N}
+    @show target
+    return reshape(collect(T, target["content"]), target["size"]...)
 end
 
 function customized_parsetype(m::Module, ::Type{Dict{Ta,Tb}}, target::AbstractDict{T2}) where {Ta, Tb, T2}

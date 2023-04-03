@@ -123,15 +123,15 @@ end
 ######################## Specialization #############################
 # for objects that can not be easily parsed with generic object parsing rules.
 # primitive array specialization
-function JSON.show_json(io::JSON4Context,
-    s::CS,
-    x::Array{T}) where T <: ArrayPrimitiveTypes
-    dump_object(io, s, 
-                    "__type__" => type2str(typeof(x)),
-                    "size" => collect(Int, size(x)),
-                    "storage"=>base64encode(x)
-    )
-end
+# function JSON.show_json(io::JSON4Context,
+#     s::CS,
+#     x::Array{T}) where T <: ArrayPrimitiveTypes
+#     dump_object(io, s, 
+#                     "__type__" => type2str(typeof(x)),
+#                     "size" => collect(Int, size(x)),
+#                     "storage"=>base64encode(x)
+#     )
+# end
 
 function dump_object(io, s, d::Pair...)
     JSON.begin_object(io)

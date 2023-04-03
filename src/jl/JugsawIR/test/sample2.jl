@@ -64,27 +64,31 @@ graph = JugsawIR.Graph(10, hcat(collect.(Tuple.(edges(smallgraph(:petersen))))..
 #, :MaximalIS, :SpinGlass, :Coloring, :DominatingSet,
 #:HyperSpinGlass, :Matching, :MaxCut, :OpenPitMining, :PaintShop, :Satisfiability, :SetCovering, :SetPacking]
 app = AppSpecification("gtn")
-for property in [SizeMax(), CountingMax(), CountingMax(2)]
-    @register app solve(IndependentSetConfig(; graph=graph, weights=ones(10)), property;
+for property in [:(SizeMax()), :(CountingMax()), :(CountingMax(2))]
+    @eval @register app solve(IndependentSetConfig(; graph=graph, weights=ones(10)), $property;
             usecuda::Bool=false,
             seed::Int=2,
             optimizer=TreeSA()
         )
 end
 
-open(joinpath(@__DIR__, "sample2.config"), "w") do f
+open(joinpath(@__DIR__, "method_table.config"), "w") do f
     write(f, json4(app))
 end
 #res = parse4(js; mod=Main)["__main__"];
 for i=1:length(app.method_demos)
     @show i
     # client side: convert to json4
-    js = json4(app.method_demos[i])
+    js = json4(app.method_demos[i].first)
 
     # server side: 1. convert string to Dict
-    data = JSON.parse(js)
+    data = JSON.parse(js)["__main__"]
     # server side: 2. convert dict to `JugsawFunctionCall` type
-    method_call = JugsawIR.parsetype(Main, typeof(app.method_demos[i].first), data["__main__"]["first"])
+    @show data
+    k = JugsawIR.find_method(data, app)
+    @show k
+    @assert k == i
+    method_call = JugsawIR.parsetype(Main, typeof(app.method_demos[k].first), data)
     @show method_call
     @show JugsawIR.run(Main, method_call)
 end

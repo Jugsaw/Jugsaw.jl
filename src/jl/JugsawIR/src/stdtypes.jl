@@ -77,8 +77,7 @@ function Base.:(==)(a::JugsawFunctionSpec{argsT1, kwargsT1}, b::JugsawFunctionSp
 end
 
 function Base.show(io::IO, f::JugsawFunctionCall)
-    #kwargs = join(["$k=$v" for (k, v) in zip(keys(f.kwargs), f.kwargs)], ", ")
-    kwargs = []
+    kwargs = join(["$k=$v" for (k, v) in zip(keys(f.kwargs), f.kwargs)], ", ")
     args = join(["$v" for v in f.args], ", ")
     print(io, "$(f.app).$(f.fname)($args; $kwargs)")
 end

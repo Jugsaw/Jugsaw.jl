@@ -31,12 +31,17 @@ function register!(app, f, args, kwargs)
     return result
 end
 
-# return the correct function for given function signature.
-function find_method(demo, method_table)
-    for (i, method_spec) in enumerate(method_table)
-        if method_spec
+# return the correct function for given function signature. returns 0 if not found.
+# TODO: improve performance, current matching requires O(n) time.
+function find_method(fcall, app::AppSpecification)
+    for (i, (method_demo, resT)) in enumerate(app.method_demos)
+        if fcall["fname"] == method_demo.fname &&
+                method_demo.app == fcall["app"] &&
+                type2str(typeof(method_demo)) == fcall["__type__"]
+            return i
         end
     end
+    return 0
 end
 
 using MLStyle
