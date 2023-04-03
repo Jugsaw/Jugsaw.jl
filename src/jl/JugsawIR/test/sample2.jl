@@ -5,12 +5,13 @@ using GenericTensorNetworks.OMEinsum.OMEinsumContractionOrders
 using JugsawIR
 using Graphs
 using Base: TwicePrecision
+using Random
 
 # TODO: we need to support SELECT better! Maybe automatically categorize functions.
 
 abstract type GraphProblemConfig end
 Base.@kwdef struct IndependentSetConfig <: GraphProblemConfig
-    g::Jugsaw.Graph
+    graph::JugsawIR.Graph
     weights::Vector{Int}=ones(nv(g))
     openvertices::Vector{Int}=Int[]
     fixedvertices::Dict{Int,Int}=Dict{Int, Int}()
@@ -23,7 +24,7 @@ function cast_to_problem(c::IndependentSetConfig, optimizer)
         Graphs.add_edge!(g, c.graph.edges[:, k]...)
     end
     # weights
-    weights = weights == ones(Int, Graphs.nv(g)) ? GenericTensorNetworks.NoWeight() : weights
+    weights = c.weights == ones(Int, Graphs.nv(g)) ? GenericTensorNetworks.NoWeight() : weights
     return IndependentSet(g; weights, optimizer)
 end
 struct ConfigsMaxSample{K} <: AbstractProperty
@@ -36,8 +37,8 @@ struct ConfigsAllSample <: AbstractProperty
     n::Int
 end
 pretype(::ConfigsAllSample) = ConfigsAll(; tree_storage=true)
-pretype(::ConfigsMaxSample{K}) = ConfigsMax(K; tree_storage=true)
-pretype(::ConfigsMinSample{K}) = ConfigsMin(K; tree_storage=true)
+pretype(::ConfigsMaxSample{K}) where K = ConfigsMax(K; tree_storage=true)
+pretype(::ConfigsMinSample{K}) where K = ConfigsMin(K; tree_storage=true)
 # TODO: support optimizer picker.
 function solve(probconfig::GraphProblemConfig,
                 property::AbstractProperty;
@@ -54,14 +55,14 @@ function solve(probconfig::GraphProblemConfig,
         res = GenericTensorNetworks.solve(problem, pretype(property); usecuda)[]
         return generate_samples(hasfield(res, :coeffs) ? res.coeffs[1] : res.c, num_samples)
     else
-        return GenericTensorNetworks.solve(problem, p; usecuda)[]
+        return GenericTensorNetworks.solve(problem, property; usecuda)[]
     end
 end
 
-app = AppSpecification(name)
 graph = JugsawIR.Graph(10, hcat(collect.(Tuple.(edges(smallgraph(:petersen))))...))
 #, :MaximalIS, :SpinGlass, :Coloring, :DominatingSet,
 #:HyperSpinGlass, :Matching, :MaxCut, :OpenPitMining, :PaintShop, :Satisfiability, :SetCovering, :SetPacking]
+app = AppSpecification("gtn")
 for property in [SizeMax(), CountingMax(), CountingMax(2)]
     @register app solve(IndependentSetConfig(; graph=graph, weights=ones(10)), property;
             usecuda::Bool=false,

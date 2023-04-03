@@ -105,6 +105,7 @@ end
 
 # string as type and type to string
 function str2type(m::Module, str::String)
+    @info str
     try
         ex = Meta.parse(str)
         if ex isa Symbol || (ex isa Expr && ex.head == :curly)

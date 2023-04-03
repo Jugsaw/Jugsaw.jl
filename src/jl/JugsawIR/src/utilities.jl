@@ -29,12 +29,10 @@ function register!(app, f, args, kwargs)
 end
 
 using MLStyle
-macro register(name, ex)
-    sname = String(name)
-    sym = gensym()
+macro register(app, ex)
     reg_statements = []
-    register_by_expr(sym, ex, reg_statements)
-    return esc(:($sym = AppSpecification($sname); $(reg_statements...); $sym))
+    register_by_expr(app, ex, reg_statements)
+    return esc(:($(reg_statements...); $app))
 end
 
 function register_by_expr(app, ex, exs)

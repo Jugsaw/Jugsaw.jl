@@ -13,6 +13,7 @@ using Base: TwicePrecision
 # js = json4(app)
 # res = parse4(js; mod=Main)
 
+gtn = AppSpecification("gtn")
 app = @register gtn begin
     solve(IndependentSet(smallgraph(:petersen)::SimpleGraph{Int}; optimizer=TreeSA(; niters::Int=5)), SizeMax())::TropicalF64
 end
