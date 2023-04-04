@@ -44,7 +44,7 @@ function put_message(a::Actor, msg::Message)
     put!(a.mailbox, msg)
 end
 
-function act!(state_store::AbstractDict, actor::Pair{<:JugsawFunctionCall}, msg::Message)
+function act!(state_store::StateStore, actor::Pair{<:JugsawFunctionCall}, msg::Message)
     res = actor.first.fname(msg.request.args...; msg.request.kwargs...)
     @info "store result: $res"
     # TODO: custom serializer
