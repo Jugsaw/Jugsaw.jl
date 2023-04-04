@@ -5,7 +5,7 @@ struct AppSpecification
     # where a demo is a pair of jugsaw function call and result.
     method_demos::Dict
 end
-AppSpecification(name) = AppSpecification(name, Dict())
+AppSpecification(name) = AppSpecification(name, Dict{String,Any}())
 function Base.show(io::IO, app::AppSpecification)
     println(io, "AppSpecification: $(app.name)")
     println(io, "Method table = [")

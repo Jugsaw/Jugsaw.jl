@@ -4,16 +4,21 @@
 #!!! TODO: function name and app name check.
 # NOTE: undef is so hard to support.
 ###### Array element types that can be compressed with base64 encoding.
-const ArrayPrimitiveTypes = Union{Bool, Char,
-    Int8, Int16, Int32, Int64, Int128,
-    UInt8, UInt16, UInt32, UInt64, UInt128,
-    Float16, Float32, Float64,
-    ComplexF16, ComplexF32, ComplexF64, Complex{Int16}, Complex{Int32}, Complex{Int64}, Complex{Int128}}
-
 ###### Data types that can be used without definition
 # note: function is not allowed, only JugsawFunction is allowed.
 # TODO: add array types
-const BasicTypes = Union{ArrayPrimitiveTypes, DataType, Symbol, String, UndefInitializer, Nothing}
+
+#                      string, number, integer, boolean, null.
+const JSONTypes = Union{String, Float64, Int64, Bool, Nothing}
+# object and array are not listed
+
+const BasicTypes = Union{
+    Bool, Char,
+    Int8, Int16, Int32, Int64, Int128,
+    UInt8, UInt16, UInt32, UInt64, UInt128,
+    Float16, Float32, Float64,
+    DataType, Symbol, String, UndefInitializer, Nothing, Missing
+}
 
 # the string representation of basic types
 type_strings!(res, type::Union) = (push!(res, type2str(type.a)); type_strings!(res, type.b))
@@ -32,5 +37,10 @@ function type2str(::Type{T}) where T
     return typename
 end
 
-# all derived types are represented with basic types, so they must include all primitive types in Julia
-const basic_types = type_strings!(String[], BasicTypes)
+@active IsBasicType(x) begin
+    x <: BasicTypes
+end
+@active IsConcreteType(x) begin
+    isconcretetype(x)
+end
+
