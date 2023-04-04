@@ -23,12 +23,16 @@ function fromdict(m::Module, @nospecialize(t::Type{T}), @nospecialize(d)) where 
         ::Type{Char} || ::Type{Int8} || ::Type{Int16} || ::Type{Int32} || ::Type{Int128} || 
             ::Type{UInt8} || ::Type{UInt16} || ::Type{UInt32} || ::Type{UInt128} ||
             ::Type{Symbol} => T(d["data"])
-        ::Type{DataType} => str2type(m, x)
+        ::Type{DataType} => str2type(m, d)
         ##################### Specified Types ####################
         ::Type{<:Vector} => eltype(T)[fromdict(m, eltype(T), v) for v in d]
         ::Type{<:Array} => reshape(fromdict(m, Vector{eltype(T)}, d["data"]), d["size"]...)
-        ::Type{<:Tuple} => ([fromdict(m, T.parameters[i], v) for (i, v) in enumerate(fromdict(m, Vector{Any}, d["data"]))]...,)
-        ::Type{<:Dict{String}} || ::Type{<:OrderedDict{String}} => T(k=>fromdict(m, valuetype(T), v) for (k, v) in d["data"])
+        ::Type{<:Tuple} => begin
+            ([fromdict(m, T.parameters[i], v) for (i, v) in enumerate(d["data"])]...,)
+        end
+        ::Type{<:Dict{String}} || ::Type{<:OrderedDict{String}} ||
+            ::Type{<:Dict{Symbol}} || ::Type{<:OrderedDict{Symbol}} ||
+            ::Type{<:Dict{Int}} || ::Type{<:OrderedDict{Int}} => T(cast_key(key_type(T), k)=>fromdict(m, value_type(T), v) for (k, v) in d["data"])
 
         ###################### Generic Compsite Types ######################
         ::Type{Any} => begin
@@ -58,7 +62,11 @@ function fromdict(m::Module, @nospecialize(t::Type{T}), @nospecialize(d)) where 
         end
     end
 end
-valuetype(::Type{<:AbstractDict{T, V}}) where {T,V} = V
+value_type(::Type{<:AbstractDict{T, V}}) where {T,V} = V
+key_type(::Type{<:AbstractDict{T}}) where {T} = T
+cast_key(::Type{String}, s::String) = s
+cast_key(::Type{Int}, s::String) = parse(Int, s)
+cast_key(::Type{Symbol}, s::String) = Symbol(s)
 
 #   -> generic types (undef handled)
 # @generated function generic_customized_parsetype(m::Module, ::Type{T}, values::NTuple{N,Any}) where {T,N}
@@ -69,18 +77,11 @@ valuetype(::Type{<:AbstractDict{T, V}}) where {T,V} = V
 
 # string as type and type to string
 function str2type(m::Module, str::String)
-    try
-        ex = Meta.parse(str)
-        if ex isa Symbol || (ex isa Expr && ex.head == :curly)
-            # TODO: make sure eval is safe for :curly
-            return Core.eval(m, ex)
-        else
-            @warn "string can not be parsed to a type: $str"
-            return Any
-        end
-    catch e
-        @warn "string can not be parsed to a type: $str, got error: $e"
-        return Any
+    ex = Meta.parse(str)
+    @match ex begin
+        :($mod.$name{$(paras...)}) || :($mod.$name) ||
+            ::Symbol || :($name{$(paras...)}) => Core.eval(m, ex)
+        _ => Any
     end
 end
 

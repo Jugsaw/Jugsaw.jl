@@ -61,8 +61,9 @@ end
 graph = Graph(10, hcat(collect.(Tuple.(Graphs.edges(Graphs.smallgraph(:petersen))))...))
 #, :MaximalIS, :SpinGlass, :Coloring, :DominatingSet,
 #:HyperSpinGlass, :Matching, :MaxCut, :OpenPitMining, :PaintShop, :Satisfiability, :SetCovering, :SetPacking]
+app = Jugsaw.AppSpecification("generic-tensor-network")
 for property in [:(SizeMax()), :(CountingMax()), :(CountingMax(2))]
-    @eval @register Jugsaw.ACTOR_FACTORY solve(IndependentSetConfig(; graph=graph, weights=ones(10)), $property;
+    @eval @register app solve(IndependentSetConfig(; graph=graph, weights=ones(10)), $property;
             usecuda::Bool=false,
             seed::Int=2,
             optimizer=TreeSA()
@@ -71,4 +72,5 @@ end
 
 #####
 
-serve(@__DIR__)
+r= Jugsaw.AppRuntime(app)
+serve(r, @__DIR__)

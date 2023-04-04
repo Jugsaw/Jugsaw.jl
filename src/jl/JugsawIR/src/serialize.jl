@@ -15,7 +15,7 @@ end
 
 # type specification
 function jsontype4(::Type{T}) where T
-    types = OrderedDict{String, OrderedDict{String, Any}}()
+    types = OrderedDict{String, Any}()
     typedef!(types, T)
     return JSON.json(types)
 end
@@ -26,7 +26,7 @@ function todict(@nospecialize(x::T)) where T
         ::JSONTypes => x  # natively supported by JSON
         ::UndefInitializer => OrderedDict("__type__" => type2str(T), "data" => nothing)   # avoid undef parse error
         ::Float16 || ::Float32 => OrderedDict("__type__" => type2str(T), "data" => todict(Float64(x)))
-        ::DataType => type2str(T)
+        ::DataType => type2str(x)
         ::Char || ::Int8 || ::Int16 || ::Int32 || ::Int128 || 
             ::UInt8 || ::UInt16 || ::UInt32 || ::UInt128 ||
             ::Symbol || ::Missing => OrderedDict("__type__" => type2str(T), "data" => x)   # can not reduce anymore.
@@ -38,7 +38,9 @@ function todict(@nospecialize(x::T)) where T
                 "data"=> todict(vec(x))
             )
         ::Tuple => OrderedDict("__type__"=>type2str(typeof(x)), "data"=>[todict(v) for v in x])
-        ::Dict{String} || ::OrderedDict{String} => OrderedDict(   # to protect a dict with `__type__` field.
+        ::Dict{String} || ::OrderedDict{String} ||
+            ::Dict{Symbol} || ::OrderedDict{Symbol} ||
+            ::Dict{Int} || ::OrderedDict{Int} => OrderedDict(   # to protect a dict with `__type__` field.
             "__type__"=> type2str(typeof(x)),
             "data"=> Dict(k=>todict(v) for (k, v) in x)
         )
@@ -54,11 +56,14 @@ function todict(@nospecialize(x::T)) where T
 end
 
 function typedef!(types::AbstractDict, @nospecialize(t::Type{T})) where T
-    haskey(types, T) && return
     sT = type2str(T)
+    haskey(types, T) && return sT
     (startswith(sT, "Primitive") || startswith(sT, "Abstract")) && error("Keywords `Primitive` and `Abstract` are protected!")
     @match T begin
-        ::BasicTypes || ::Type{Any} => "Primitive{$sT}"  # wrap primitive type
+        ::Type{<:BasicTypes} || ::Type{Any} => begin
+            types[sT] = "Primitive{$sT}"
+            sT
+        end  # wrap primitive type
         # ::Type{<:Enum} => begin
         #     types[sT] = OrderedDict("__type__"=>"DataType",
         #                 "name"=>sT,
@@ -85,6 +90,9 @@ function typedef!(types::AbstractDict, @nospecialize(t::Type{T})) where T
                     )
             sT
         end
-        _ => "Abstract{$sT}"
+        _ => begin
+            types["$sT}"] = "Abstract{$sT}"
+            sT
+        end
     end
 end

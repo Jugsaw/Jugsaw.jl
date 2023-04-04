@@ -3,20 +3,6 @@
 
 ###
 
-# check system status
-GET http://{{host}}:{{port}}/v1.0/metadata
-
-###
-
-# Check agent is alive
-
-PUT http://{{host}}:{{port}}/v1.0/actors/greet/1/method/x
-content-type: application/json
-
-"JUGSAW"
-
-###
-
 # Check agent is alive
 
 # @name IndependentSetConfig
@@ -24,20 +10,14 @@ POST http://{{host}}:8081/actors/greet/jinguo/method/
 Content-Type: application/json
 Accept: application/json
 
-{
-    "__type__":"JugsawFunctionCall{DataType, Tuple{}, NamedTuple{(:graph, :weights), Tuple{Graph, Array{Float64, 1}}}}",
-    "fname":"IndependentSetConfig",
-    "args":{"__type__":"Tuple{}"},
-    "kwargs":{
-        "__type__":"NamedTuple{(:graph, :weights), Tuple{Graph, Array{Float64, 1}}}",
-        "graph":{"__type__":"Graph","nv":10,"edges":{
-                "__type__":"Array{Int64, 2}",
-                "size":[2,15],
-                "content":[1,2,1,5,1,6,2,3,2,7,3,4,3,8,4,5,4,9,5,10,6,8,6,9,7,9,7,10,8,10]}
-            },
-            "weights":[1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0]
-        }
-}
+{"kwargs":{"weights":[1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0],"__type__":"Core.NamedTuple{(:graph, :weights), Core.Tuple{Jugsaw.Universe.Graph, Core.Array{Core.Float64, 1}}}","graph":{"nv":10,"__type__":"Jugsaw.Universe.Graph","edges":{"data":[1,2,1,5,1,6,2,3,2,7,3,4,3,8,4,5,4,9,5,10,6,8,6,9,7,9,7,10,8,10],"size":[2,15],"__type__":"Core.Array{Core.Int64, 2}"}}},"args":{"data":[],"__type__":"Core.Tuple{}"},"fname":"Main.IndependentSetConfig","__type__":"Jugsaw.JugsawFunctionCall{Core.DataType, Core.Tuple{}, Core.NamedTuple{(:graph, :weights), Core.Tuple{Jugsaw.Universe.Graph, Core.Array{Core.Float64, 1}}}}"}
+
+###
+@obj_res_ref = {{IndependentSetConfig.response.body.*}}
+
+POST http://{{host}}:8081/actors/greet/jinguo/method/fetch
+
+{{obj_res_ref}}
 
 ###
 # @name countingmax2
@@ -45,63 +25,7 @@ POST http://{{host}}:8081/actors/greet/jinguo/method/
 Content-Type: application/json
 Accept: application/json
 
-{"__type__":"JugsawFunctionCall{#solve, Tuple{IndependentSetConfig, CountingMax{2}}, NamedTuple{(:usecuda, :seed, :optimizer), Tuple{Bool, Int64, TreeSA{Int64, StepRangeLen{Float64, TwicePrecision{Float64}, TwicePrecision{Float64}, Int64}, GreedyMethod{MinSpaceOut}, Any}}}}",
-    "fname":{"__type__":"#solve"},
-    "args":{
-        "__type__":"Tuple{IndependentSetConfig, CountingMax{2}}",
-        "1":{
-            "__type__":"IndependentSetConfig",
-            "graph":{
-                "__type__":"Graph",
-                "nv":10,
-                "edges":{
-                    "__type__":"Array{Int64, 2}",
-                    "size":[2,15],
-                    "content":[1,2,1,5,1,6,2,3,2,7,3,4,3,8,4,5,4,9,5,10,6,8,6,9,7,9,7,10,8,10]
-                }
-            },
-            "weights":[1,1,1,1,1,1,1,1,1,1],
-            "openvertices":[],
-            "fixedvertices":{"__type__":"Dict{Int64, Int64}","data":{}}
-        },
-        "2":{"__type__":"CountingMax{2}"}
-    },
-    "kwargs":{
-        "__type__":"NamedTuple{(:usecuda, :seed, :optimizer), Tuple{Bool, Int64, TreeSA{Int64, StepRangeLen{Float64, TwicePrecision{Float64}, TwicePrecision{Float64}, Int64}, GreedyMethod{MinSpaceOut}, Any}}}",
-        "usecuda":false,
-        "seed":2,
-        "optimizer":{
-            "__type__":"TreeSA{Int64, StepRangeLen{Float64, TwicePrecision{Float64}, TwicePrecision{Float64}, Int64}, GreedyMethod{MinSpaceOut}, Any}",
-            "sc_target":20,
-            "βs":{
-                "__type__":"StepRangeLen{Float64, TwicePrecision{Float64}, TwicePrecision{Float64}, Int64}",
-                "ref":{
-                    "__type__":"TwicePrecision{Float64}",
-                    "hi":0.01,
-                    "lo":-2.0816681711721684e-19
-                },
-                "step":{
-                    "__type__":"TwicePrecision{Float64}",
-                    "hi":0.04999999999999716,
-                    "lo":2.842170943040401e-15
-                },
-                "len":300,
-                "offset":1
-            },
-            "ntrials":10,
-            "niters":50,
-            "sc_weight":1.0,
-            "rw_weight":0.2,
-            "initializer":"greedy",
-            "nslices":0,
-            "fixed_slices":[],
-            "greedy_config":{
-                "__type__":"GreedyMethod{MinSpaceOut}",
-                "method":{"__type__":"MinSpaceOut"},"nrepeat":1
-            }
-        }
-    }
-}
+{"kwargs":{"optimizer":{"initializer":{"data":"greedy","__type__":"Core.Symbol"},"sc_weight":1.0,"nslices":0,"sc_target":20,"rw_weight":0.2,"__type__":"OMEinsumContractionOrders.TreeSA{Core.Int64, Base.StepRangeLen{Core.Float64, Base.TwicePrecision{Core.Float64}, Base.TwicePrecision{Core.Float64}, Core.Int64}, OMEinsumContractionOrders.GreedyMethod{OMEinsumContractionOrders.MinSpaceOut}, Any}","fixed_slices":[],"ntrials":10,"niters":50,"βs":{"step":{"hi":0.04999999999999716,"__type__":"Base.TwicePrecision{Core.Float64}","lo":2.842170943040401e-15},"offset":1,"len":300,"__type__":"Base.StepRangeLen{Core.Float64, Base.TwicePrecision{Core.Float64}, Base.TwicePrecision{Core.Float64}, Core.Int64}","ref":{"hi":0.01,"__type__":"Base.TwicePrecision{Core.Float64}","lo":-2.0816681711721684e-19}},"greedy_config":{"method":{"__type__":"OMEinsumContractionOrders.MinSpaceOut"},"__type__":"OMEinsumContractionOrders.GreedyMethod{OMEinsumContractionOrders.MinSpaceOut}","nrepeat":1}},"seed":2,"usecuda":false,"__type__":"Core.NamedTuple{(:usecuda, :seed, :optimizer), Core.Tuple{Core.Bool, Core.Int64, OMEinsumContractionOrders.TreeSA{Core.Int64, Base.StepRangeLen{Core.Float64, Base.TwicePrecision{Core.Float64}, Base.TwicePrecision{Core.Float64}, Core.Int64}, OMEinsumContractionOrders.GreedyMethod{OMEinsumContractionOrders.MinSpaceOut}, Any}}}"},"args":{"data":[{"fixedvertices":{"data":{},"__type__":"Base.Dict{Core.Int64, Core.Int64}"},"openvertices":[],"weights":[1,1,1,1,1,1,1,1,1,1],"__type__":"Main.IndependentSetConfig","graph":{"nv":10,"__type__":"Jugsaw.Universe.Graph","edges":{"data":[1,2,1,5,1,6,2,3,2,7,3,4,3,8,4,5,4,9,5,10,6,8,6,9,7,9,7,10,8,10],"size":[2,15],"__type__":"Core.Array{Core.Int64, 2}"}}},{"__type__":"GenericTensorNetworks.CountingMax{2}"}],"__type__":"Core.Tuple{Main.IndependentSetConfig, GenericTensorNetworks.CountingMax{2}}"},"fname":{"__type__":"Main.#solve"},"__type__":"Jugsaw.JugsawFunctionCall{Main.#solve, Core.Tuple{Main.IndependentSetConfig, GenericTensorNetworks.CountingMax{2}}, Core.NamedTuple{(:usecuda, :seed, :optimizer), Core.Tuple{Core.Bool, Core.Int64, OMEinsumContractionOrders.TreeSA{Core.Int64, Base.StepRangeLen{Core.Float64, Base.TwicePrecision{Core.Float64}, Base.TwicePrecision{Core.Float64}, Core.Int64}, OMEinsumContractionOrders.GreedyMethod{OMEinsumContractionOrders.MinSpaceOut}, Any}}}}"}
 #####
 
 @greet_res_ref = {{countingmax2.response.body.*}}
@@ -109,18 +33,3 @@ Accept: application/json
 POST http://{{host}}:8081/actors/greet/jinguo/method/fetch
 
 {{greet_res_ref}}
-
-###
-
-# @name count
-POST http://{{host}}:8081/actors/Counter/juntian/method/
-
-5
-
-#####
-
-@count_res_ref = {{count.response.body.*}}
-
-POST http://{{host}}:8081/actors/Counter/juntian/method/fetch
-
-"{{count_res_ref}}"

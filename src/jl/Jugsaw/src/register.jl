@@ -20,6 +20,10 @@ function Base.show(io::IO, app::AppSpecification)
     print(io, "]")
 end
 Base.show(io::IO, ::MIME"text/plain", f::AppSpecification) = Base.show(io, f)
+function empty!(pp::AppSpecification)
+    empty!(app.method_demos)
+    return app
+end
 
 function register!(app::AppSpecification, f, args, kwargs)
     jf = JugsawFunctionCall(f, args, kwargs)

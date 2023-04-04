@@ -30,9 +30,9 @@ function type2str(::Type{T}) where T
         @warn "Concrete types are expected! got $T."
         typename = string(T)
     elseif length(T.parameters) > 0 || T === Tuple{}
-        typename = "$(String(T.name.name)){$(join([p isa Type ? type2str(p) : (p isa Symbol ? ":$p" : string(p)) for p in T.parameters], ", "))}"
+        typename = "$(string(T.name.module)).$(String(T.name.name)){$(join([p isa Type ? type2str(p) : (p isa Symbol ? ":$p" : string(p)) for p in T.parameters], ", "))}"
     else
-        typename = "$(String(T.name.name))"
+        typename = "$(string(T.name.module)).$(String(T.name.name))"
     end
     return typename
 end
