@@ -1,47 +1,38 @@
-export AppSpecification, JugsawFunctionCall, JugsawFunctionSpec, register!, registerT!, @register
-# register by using case
+# the application specification
 struct AppSpecification
     name::String
-    method_table::Vector{Any}
-    method_demos::Vector{Pair{Any,Any}}
+    # `method_demo` is a mapping between function signatures and demos,
+    # where a demo is a pair of jugsaw function call and result.
+    method_demos::Dict
 end
-AppSpecification(name) = AppSpecification(name, Any[], Pair{Any, Any}[])
+AppSpecification(name) = AppSpecification(name, Dict{String,Any}())
 function Base.show(io::IO, app::AppSpecification)
     println(io, "AppSpecification: $(app.name)")
     println(io, "Method table = [")
-    for (method, (demo, res)) in zip(app.method_table, app.method_demos)
+    for (k, (sig, (demo, res))) in enumerate(app.method_demos)
         print(io, "  ")
-        println(io, method)
+        println(io, sig)
         print(io, "  - ")
         print(io, demo)
-        println(io, " == $res")
-        println(io)
+        println(io, " == $(repr(res))")
+        k !== length(app.method_demos) && println(io)
     end
     print(io, "]")
 end
 Base.show(io::IO, ::MIME"text/plain", f::AppSpecification) = Base.show(io, f)
-
-function register!(app, f, args, kwargs)
-    result = f(args...; kwargs...)
-    funcspec = JugsawFunctionSpec{typeof(args), typeof(kwargs), typeof(result)}(app.name, string(f))
-    if funcspec ∉ app.method_table
-        push!(app.method_table, funcspec)
-        push!(app.method_demos, JugsawFunctionCall(app.name, string(f), args, kwargs)=>result)
-    end
-    return result
+function empty!(pp::AppSpecification)
+    empty!(app.method_demos)
+    return app
 end
 
-# return the correct function for given function signature. returns 0 if not found.
-# TODO: improve performance, current matching requires O(n) time.
-function find_method(fcall, app::AppSpecification)
-    for (i, (method_demo, resT)) in enumerate(app.method_demos)
-        if fcall["fname"] == method_demo.fname &&
-                method_demo.app == fcall["app"] &&
-                type2str(typeof(method_demo)) == fcall["__type__"]
-            return i
-        end
+function register!(app::AppSpecification, f, args, kwargs)
+    jf = JugsawFunctionCall(f, args, kwargs)
+    sig = function_signature(jf)
+    result = f(args...; kwargs...)
+    if !haskey(app.method_demos, sig)
+        app.method_demos[sig] = (jf=>result)
     end
-    return 0
+    return result
 end
 
 using MLStyle
@@ -64,17 +55,17 @@ function register_by_expr(app, ex, exs)
         end
         :($fname($(args...); $(kwargs...))) => begin
             ret = gensym("ret")
-            push!(exs, :($ret = $register!($app, $fname, ($(render_args.(app, args, Ref(exs))...),),
-                (; $(render_kwargs.(app, kwargs, Ref(exs))...)))))
+            push!(exs, :($ret = $register!($app, $fname, ($(render_args.(Ref(app), args, Ref(exs))...),),
+                (; $(render_kwargs.(Ref(app), kwargs, Ref(exs))...)))))
             ret
         end
         :($fname($(args...))) => begin
             ret = gensym("ret")
-            push!(exs, :($ret = $register!($app, $fname, ($(render_args.(app, args, Ref(exs))...),), NamedTuple())))
+            push!(exs, :($ret = $register!($app, $fname, ($(render_args.(Ref(app), args, Ref(exs))...),), NamedTuple())))
             ret
         end
         :(begin $(body...) end) => begin
-            register_by_expr.(app, body, Ref(exs))
+            register_by_expr.(Ref(app), body, Ref(exs))
         end 
         ::LineNumberNode => nothing
     end
