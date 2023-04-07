@@ -25,6 +25,9 @@ function fromdict(m::Module, @nospecialize(t::Type{T}), @nospecialize(d)) where 
             ::Type{UInt8} || ::Type{UInt16} || ::Type{UInt32} || ::Type{UInt128} ||
             ::Type{Symbol} => T(d["data"])
         ::Type{DataType} => str2type(m, d)
+        # NOTE: to get rid of type cast, we should use demo to deserialize an object.
+        ::Type{UnionAll} => str2type(m, d)
+        ::Type{Union} => str2type(m, d)
         ##################### Specified Types ####################
         ::Type{<:Vector} => eltype(T)[fromdict(m, eltype(T), v) for v in d]
         ::Type{<:Array} => reshape(fromdict(m, Vector{eltype(T)}, d["data"]), d["size"]...)

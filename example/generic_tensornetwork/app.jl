@@ -43,9 +43,9 @@ function solve(probconfig::GraphProblemConfig,
                 property::AbstractProperty;
                 usecuda::Bool=false,
                 seed::Int=2,
-                optimizer=TreeSA()
                 )
     Random.seed!(seed)
+    optimizer=TreeSA(; niters=5)
     problem = cast_to_problem(probconfig, optimizer)
     if property isa ConfigsAllSample
         res = GenericTensorNetworks.solve(problem, pretype(property); usecuda)[]
@@ -58,15 +58,17 @@ function solve(probconfig::GraphProblemConfig,
     end
 end
 
-graph = Graph(10, hcat(collect.(Tuple.(Graphs.edges(Graphs.smallgraph(:petersen))))...))
+function smallgraph(s::Symbol)
+    g = Graphs.smallgraph(s)
+    return Graph(Graphs.nv(g), hcat(collect.(Tuple.(Graphs.edges(g)))...))
+end
 #, :MaximalIS, :SpinGlass, :Coloring, :DominatingSet,
 #:HyperSpinGlass, :Matching, :MaxCut, :OpenPitMining, :PaintShop, :Satisfiability, :SetCovering, :SetPacking]
 app = Jugsaw.AppSpecification("generic-tensor-network")
 for property in [:(SizeMax()), :(CountingMax()), :(CountingMax(2))]
-    @eval @register app solve(IndependentSetConfig(; graph=graph, weights=ones(10)), $property;
+    @eval @register app solve(IndependentSetConfig(; graph=smallgraph(:petersen), weights=ones(10)), $property;
             usecuda::Bool=false,
-            seed::Int=2,
-            optimizer=TreeSA()
+            seed::Int=2
         )
 end
 
