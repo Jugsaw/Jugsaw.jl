@@ -1,0 +1,40 @@
+{
+    "__type__": "Base.Dict{Core.String, Any}",
+    "data": {
+        "Jugsaw.JugsawFunctionCall{Core.DataType, Core.Tuple{}, Core.NamedTuple{(), Core.Tuple{}}}": {
+            "__type__": "Base.Pair{Jugsaw.JugsawFunctionCall{Core.DataType, Core.Tuple{}, Core.NamedTuple{(), Core.Tuple{}}}, Main.Counter}",
+            "first": {
+                "__type__": "Jugsaw.JugsawFunctionCall{Core.DataType, Core.Tuple{}, Core.NamedTuple{(), Core.Tuple{}}}",
+                "fname": "Main.Counter",
+                "args": {
+                    "__type__": "Core.Tuple{}",
+                    "data": []
+                },
+                "kwargs": {
+                    "__type__": "Core.NamedTuple{(), Core.Tuple{}}"
+                }
+            },
+            "second": {
+                "__type__": "Main.Counter",
+                "n": 0
+            }
+        },
+        "Jugsaw.JugsawFunctionCall{Main.#greet, Core.Tuple{}, Core.NamedTuple{(), Core.Tuple{}}}": {
+            "__type__": "Base.Pair{Jugsaw.JugsawFunctionCall{Main.#greet, Core.Tuple{}, Core.NamedTuple{(), Core.Tuple{}}}, Core.String}",
+            "first": {
+                "__type__": "Jugsaw.JugsawFunctionCall{Main.#greet, Core.Tuple{}, Core.NamedTuple{(), Core.Tuple{}}}",
+                "fname": {
+                    "__type__": "Main.#greet"
+                },
+                "args": {
+                    "__type__": "Core.Tuple{}",
+                    "data": []
+                },
+                "kwargs": {
+                    "__type__": "Core.NamedTuple{(), Core.Tuple{}}"
+                }
+            },
+            "second": "Hello, Jugsaw!"
+        }
+    }
+}

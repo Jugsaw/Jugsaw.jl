@@ -3,20 +3,6 @@
 
 ###
 
-# check system status
-GET http://{{host}}:{{port}}/v1.0/metadata
-
-###
-
-# Check agent is alive
-
-PUT http://{{host}}:{{port}}/actors/greet/1/method/
-content-type: application/json
-
-"JUGSAW"
-
-###
-
 # Check agent is alive
 
 # @name greet
@@ -25,16 +11,13 @@ Content-Type: application/json
 Accept: application/json
 
 {
-    "__type__" : "JugsawFunctionCall{#greet, Tuple{String}, NamedTuple{(), Tuple{}}}",
+    "__type__" : "Jugsaw.JugsawFunctionCall{Main.#greet, Core.Tuple{}, Core.NamedTuple{(), Core.Tuple{}}}",
     "fname" : "#greet",
-    "args" : ["Hello"],
+    "args" : {"data":[], "__type__":"Core.Tuple{}"},
     "kwargs" : {
         "__type__" : "NamedTuple{{}, Tuple{}}"
     }
 }
-
-
-"Jinguo"
 
 #####
 
@@ -42,14 +25,23 @@ Accept: application/json
 
 POST http://{{host}}:8081/actors/greet/jinguo/method/fetch
 
-"{{greet_res_ref}}"
+{{greet_res_ref}}
 
 ###
 
 # @name count
 POST http://{{host}}:8081/actors/Counter/juntian/method/
+Content-Type: application/json
+Accept: application/json
 
-5
+{
+    "__type__" : "Jugsaw.JugsawFunctionCall{Core.DataType, Core.Tuple{}, Core.NamedTuple{(), Core.Tuple{}}}",
+    "fname" : "Main.Counter",
+    "args" : {"data":[], "__type__":"Core.Tuple{}"},
+    "kwargs" : {
+        "__type__" : "NamedTuple{{}, Tuple{}}"
+    }
+}
 
 #####
 
@@ -57,4 +49,4 @@ POST http://{{host}}:8081/actors/Counter/juntian/method/
 
 POST http://{{host}}:8081/actors/Counter/juntian/method/fetch
 
-"{{count_res_ref}}"
+{{count_res_ref}}

@@ -90,7 +90,7 @@ function act!(r::AppRuntime, http::HTTP.Request)
     ps = HTTP.getparams(http)
     # find the correct method
     dict = JSON.parse(String(http.body))
-    function_signature =dict["__type__"]
+    function_signature = dict["__type__"]
     a = activate(r, function_signature, string(ps["actor_id"]))
     # TODO: load actor state from state store
     #req = JSON3.read(http.body, JugsawFunctionCall)
@@ -99,7 +99,7 @@ function act!(r::AppRuntime, http::HTTP.Request)
     resp = ObjectRef()
     r.state_store[resp.object_id] = Future()
     put_message(a, Message(req, resp))
-    HTTP.Response(200, JSON.json(resp))
+    HTTP.Response(200, ["Content-Type" => "application/json"], JSON.json(resp))
 end
 
 """
@@ -132,7 +132,7 @@ end
 #####
 
 # FIXME: set host to default in k8s
-function serve(runtime::AppRuntime, dir::String)
+function serve(runtime::AppRuntime, dir::String; is_async=isdefined(Main, :InteractiveUtils))
     demos = runtime.app.method_demos
     # dump the method table to the disk
     fmethods = joinpath(dir, "method_table.json")
@@ -151,8 +151,13 @@ function serve(runtime::AppRuntime, dir::String)
     ROUTER = HTTP.Router()
     HTTP.register!(ROUTER, "GET", "/healthz", _ -> JSON3.write((; status="OK")))
     HTTP.register!(ROUTER, "GET", "/dapr/config", _ -> JSON3.write((; entities=collect(keys(runtime.actors)))))
-    HTTP.register!(ROUTER, "POST", "/actors/{actor_type_name}/{actor_id}/method/", req->act!(runtime, req))
-    HTTP.register!(ROUTER, "POST", "/actors/{actor_type_name}/{actor_id}/method/fetch", req->fetch(runtime, req))
-    HTTP.register!(ROUTER, "DELETE", "/actors/{actor_type_name}/{actor_id}", req->deactivate!(runtime, req))
-    HTTP.serve(ROUTER, host="0.0.0.0")
+    HTTP.register!(ROUTER, "POST", "/actors/{actor_type_name}/{actor_id}/method/", req -> act!(runtime, req))
+    HTTP.register!(ROUTER, "POST", "/actors/{actor_type_name}/{actor_id}/method/fetch", req -> fetch(runtime, req))
+    HTTP.register!(ROUTER, "DELETE", "/actors/{actor_type_name}/{actor_id}", req -> deactivate!(runtime, req))
+
+    if is_async
+        HTTP.serve!(ROUTER, host="0.0.0.0")
+    else
+        HTTP.serve(ROUTER, host="0.0.0.0")
+    end
 end
