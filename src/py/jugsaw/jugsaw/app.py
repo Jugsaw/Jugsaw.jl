@@ -1,7 +1,7 @@
 import requests
 from typing import Any
 
-from .model import CallMsg
+from .model import CallMsg, ArgsMsg
 
 
 # Usage
@@ -56,7 +56,7 @@ class Actor(object):
     def url(self) -> str:
         return f"{self.method.url}/{self.id}/method"
 
-    def __call__(self, *args: Any, **kwds: Any) -> ObjectRef:
-        payload = CallMsg(args=args, kwargs=kwds).dict()
+    def __call__(self, *args: Any, sig:str="", fname:str="",  **kwds: Any) -> ObjectRef:
+        payload = CallMsg(__type__=sig, fname=fname,args=ArgsMsg(data=args), kwargs=kwds).dict(by_alias=True)
         r = requests.post(self.url, json=payload)
         return ObjectRef(self, r.json()["object_id"])
