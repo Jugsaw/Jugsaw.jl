@@ -9,15 +9,16 @@ from .model import CallMsg, ArgsMsg
 # res = app.greet("Jugsaw")
 # print(res())
 class App(object):
-    def __init__(self, name: str, *, endpoint: str = "http://localhost:8081") -> None:
-        self._name = name
-        self._endpoint = endpoint
+    def __init__(self, name: str, demos, *, endpoint: str = "http://localhost:8081") -> None:
+        self.name = name
+        self.endpoint = endpoint
+        self.demos = demos
 
-    def __getattribute__(self, __name: str):
-        if __name.startswith("_"):
-            return super(App, self).__getattribute__(__name)
-        else:
+    def __getattr__(self, __name: str):
+        if __name in self.demos:
             return Method(self, __name)
+        else:
+            raise AttributeError(f'{self.__class__.__name__}.{__name} is invalid.')
 
 
 class Method(object):

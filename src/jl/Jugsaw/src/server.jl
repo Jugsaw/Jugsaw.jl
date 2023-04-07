@@ -33,7 +33,7 @@ function Actor(state_store, actor::Pair{<:JugsawFunctionCall})
             act!(state_store, actor, msg)
         end
     end
-    Actor(actor, taskref, chnl)
+    Actor(deepcopy(actor), taskref, chnl)
 end
 
 Base.close(a::Actor) = close(a.mailbox) # TODO: save actor state to state store
