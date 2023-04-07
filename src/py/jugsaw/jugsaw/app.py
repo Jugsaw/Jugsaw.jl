@@ -14,13 +14,6 @@ class App(object):
         self.endpoint = endpoint
         self.demos = demos
 
-    def __getattr__(self, __name: str):
-        if __name in self.demos:
-            return Method(self, __name)
-        else:
-            raise AttributeError(f'{self.__class__.__name__}.{__name} is invalid.')
-
-
 class Method(object):
     def __init__(self, app: App, method: str) -> None:
         self.app = app
@@ -34,7 +27,7 @@ class Method(object):
 
     @property
     def url(self) -> str:
-        return f"{self.app._endpoint}/actors/{self.app._name}.{self.method}"
+        return f"{self.app.endpoint}/actors/{self.app.name}.{self.method}"
 
 
 class ObjectRef(object):
@@ -57,7 +50,7 @@ class Actor(object):
     def url(self) -> str:
         return f"{self.method.url}/{self.id}/method"
 
-    def __call__(self, *args: Any, sig:str="", fname:str="",  **kwds: Any) -> ObjectRef:
+    def __call__(self, args: Any,  kwds: Any, sig:str="", fname:str="") -> ObjectRef:
         payload = CallMsg(__type__=sig, fname=fname,args=ArgsMsg(data=args), kwargs=kwds).dict(by_alias=True)
         r = requests.post(self.url, json=payload)
         return ObjectRef(self, r.json()["object_id"])

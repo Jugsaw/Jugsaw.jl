@@ -1,4 +1,4 @@
-from jugsaw import App
+from jugsaw import App, Method
 import gradio as gr
 import json
 import pdb
@@ -8,12 +8,6 @@ def load_methods(filename):
     with open(filename) as f:
         d = json.load(f)
     return d["data"]
-
-def func(*args):
-    pdb.set_trace()
-    fname = demos[inputs]["name"]
-    res = getattr(app, sig)["0"](name, sig=sig, fname=fname)
-    return res()
 
 def flatten(lst : list):
     lst = []
@@ -26,21 +20,32 @@ def flatten(lst : list):
     return lst
 
 class MethodRender(object):
-    def __init__(self, args, kwargs):
+    def __init__(self, app, sig, fname, args, kwargs, results):
+        self.app = app
+        self.sig = sig
+        self.fname = fname
         self.args = args
         self.kwargs = kwargs
+        self.results = results
         # a map from structured inputs to the flatten inputs
-        self.args_map = []
-        self.kwargs_map = {}
+        self.sig_map = None
+        self.args_map = None
+        self.kwargs_map = None
+        self.result_map = None
+
+    def flatten_call(self, *args):
+        args, kwargs = self.render_input(args)
+        res = Method(self.app, "greet")["0"](args, kwargs, sig=self.sig, fname=self.fname)
+        return res()
 
     def render_gr(self):
         # clear data
-        self.args_map = []
-        self.kwargs_map = {}
-        for (i, arg) in self.args:
-            render_arg(arg, f"Arg {i}", self.args_map)
-        for k in self.kwargs:
-            render_arg(arg, k, self.kwargs_map)
+        inputs = []
+        self.args_map = [render_arg(arg, f"Arg {i}", inputs) for (i, arg) in enumerate(self.args)]
+        self.kwargs_map = render_arg(self.kwargs, "Keyword arguments", inputs)
+        outputs = []
+        self.result_map = render_arg(self.results, "Output", outputs)
+        return inputs, outputs
 
     # convert flat inputs to structured inputs
     def render_input(self, inputs):
@@ -63,26 +68,31 @@ def render_nested(args, inputs, smap):
     else:
         return inputs[smap]
 
-# a function is rendered by the __type__
+# a function name is contained in the __type__ field
 def polish_fname(name):
     if isinstance(name, dict):
         return name["__type__"]
     else:
         return name
 
-def render_arg(arg, label, smap):
+def render_arg(arg, label, inputs):
     if isinstance(arg, int):
-        return gr.Number(label=label)
+        inputs.append(gr.Number(label=label))
+        return len(inputs)-1
     elif isinstance(arg, str):
-        return gr.Textbox(label=label)
+        inputs.append(gr.Textbox(label=label))
+        return len(inputs)-1
     elif isinstance(arg, list):
-        return gr.Dataframe(row_count = (3, "dynamic"), col_count=(1,"fixed"), label=label, interactive=1)
+        inputs.append(
+            gr.Dataframe(row_count = (3, "dynamic"), col_count=(1,"fixed"), label=label, interactive=1)
+            )
+        return len(inputs)-1
     elif isinstance(arg, dict):   # generic type
-        inputs = []
+        smap = {}
         for k in arg:
             if k != "__type__":
-                inputs.append(render_arg(arg[k], k))
-        return inputs
+                render_arg(arg[k], k, inputs)
+        return smap
     else:
         raise Exception(f"input argument type not handled: {arg}")
 
@@ -98,17 +108,14 @@ with gr.Blocks() as jugs:
         fname = polish_fname(fdef["fname"])
         with gr.Tab(fname):
             fargs = fdef["args"]
-            fargs_dict = {f"Arg {i+1}":v for i, v in enumerate(fargs["data"])}
-            input_args = render_arg(fargs_dict, "Positional arguments")
-            input_kwargs = render_arg(fdef["kwargs"], "Keyword argument")
-            output = render_arg(outdef, "Output")
+            rd = MethodRender(app, sig, fname, fdef["args"]["data"], fdef["kwargs"], outdef)
+            inputs, outputs = rd.render_gr()
             launch = gr.Button("Go!")
-            print(flatten([input_args, input_kwargs]))
-            pdb.set_trace()
+            print(inputs)
             launch.click(
-                    func,
-                    inputs = flatten([input_args, input_kwargs]),
-                    outputs = output
+                    rd.flatten_call,
+                    inputs = inputs,
+                    outputs = outputs
                     )
 
 if __name__ == "__main__":
