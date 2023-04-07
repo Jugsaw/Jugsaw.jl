@@ -9,6 +9,7 @@ function parse4(str::AbstractString;
     fromdict(mod, type, JSON.parse(str; dicttype, inttype, allownan, null))
 end
 
+# TODO: parse by demo!
 function fromdict(m::Module, @nospecialize(t::Type{T}), @nospecialize(d)) where T
     if !isconcretetype(T) && T !== Any
         @warn "Abstract type information (useless) found: $T"
