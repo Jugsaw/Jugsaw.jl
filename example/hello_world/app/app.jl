@@ -1,9 +1,9 @@
 using Jugsaw
 
-greet(x::String="Jugsaw") = "Hello, $(x)!"
+greet(x::String) = "Hello, $(x)!"
 
 app = Jugsaw.AppSpecification("helloworld")
-@register app greet()
+@register app greet("Jugsaw")
 
 #####
 
@@ -11,9 +11,9 @@ Base.@kwdef mutable struct Counter
     n::Int = 0
 end
 
-(c::Counter)(n::Int=0) = c.n += n
+(c::Counter)(n::Int) = c.n += n
 
-@register app Counter()
+@register app Counter(0)
 
 #####
 
