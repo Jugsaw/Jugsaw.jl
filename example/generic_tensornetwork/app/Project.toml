@@ -1,5 +1,6 @@
 [deps]
 GenericTensorNetworks = "3521c873-ad32-4bb4-b63d-f4f178f42b49"
+Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 Jugsaw = "506f6749-58fa-473a-ada6-eb0172fb6950"
 JugsawIR = "6340f1c1-b722-4800-8081-8412e0693b45"
 
