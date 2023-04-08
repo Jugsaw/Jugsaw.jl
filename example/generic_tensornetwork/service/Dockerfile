@@ -10,4 +10,4 @@ RUN pip config set global.index-url https://mirrors.bfsu.edu.cn/pypi/web/simple 
 
 ENTRYPOINT [ "poetry", "run" ]
 
-CMD ["python", "main.py"]
+CMD ["uvicorn", "main:server", "--host", "0.0.0.0"]

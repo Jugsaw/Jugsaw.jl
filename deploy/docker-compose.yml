@@ -38,16 +38,18 @@ services:
       - ./volumes/acme:/etc/acme.sh
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
-  frontend:
-    image: jugsawfrontend:latest
+  jugsawfrontend:
+    image: jugsawfrontend
     container_name: jugsawfrontend
     restart: always
     expose:
-      - "7861"
+      - "8000"
+    ports:
+      - "8000:8000"
     environment:
       - VIRTUAL_HOST=hub.jugsaw.co
       - VIRTUAL_PATH=/jugsaw/example
-      - VIRTUAL_PORT=7861
+      - VIRTUAL_PORT=8000
       - LETSENCRYPT_HOST=hub.jugsaw.co
       - LETSENCRYPT_EMAIL=tianjun.cpp@gmail.com
 
