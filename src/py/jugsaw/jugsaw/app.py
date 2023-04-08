@@ -1,5 +1,6 @@
+import os
 import requests
-from typing import Any
+from typing import Any, Optional
 
 from .model import CallMsg, ArgsMsg
 
@@ -9,10 +10,13 @@ from .model import CallMsg, ArgsMsg
 # res = app.greet("Jugsaw")
 # print(res())
 class App(object):
-    def __init__(self, name: str, demos, *, endpoint: str = "http://localhost:8081") -> None:
+    def __init__(self, name: str, demos, *, endpoint: Optional[str] = None) -> None:
         self.name = name
-        self.endpoint = endpoint
+        self.endpoint = endpoint or os.getenv(
+            "JUGSAW_ENDPOINT", "http://localhost:8081"
+        )
         self.demos = demos
+
 
 class Method(object):
     def __init__(self, app: App, method: str) -> None:
@@ -50,7 +54,11 @@ class Actor(object):
     def url(self) -> str:
         return f"{self.method.url}/{self.id}/method"
 
-    def __call__(self, args: Any,  kwds: Any, sig:str="", fname:str="") -> ObjectRef:
-        payload = CallMsg(__type__=sig, fname=fname,args=ArgsMsg(data=args), kwargs=kwds).dict(by_alias=True)
+    def __call__(
+        self, args: Any, kwds: Any, sig: str = "", fname: str = ""
+    ) -> ObjectRef:
+        payload = CallMsg(
+            __type__=sig, fname=fname, args=ArgsMsg(data=args), kwargs=kwds
+        ).dict(by_alias=True)
         r = requests.post(self.url, json=payload)
         return ObjectRef(self, r.json()["object_id"])

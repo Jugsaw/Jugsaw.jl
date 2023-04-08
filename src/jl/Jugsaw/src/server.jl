@@ -156,8 +156,8 @@ function serve(runtime::AppRuntime, dir::String; is_async=isdefined(Main, :Inter
     HTTP.register!(ROUTER, "DELETE", "/actors/{actor_type_name}/{actor_id}", req -> deactivate!(runtime, req))
 
     if is_async
-        HTTP.serve!(ROUTER, host="0.0.0.0")
+        HTTP.serve!(ROUTER, "0.0.0.0", 8081)
     else
-        HTTP.serve(ROUTER, host="0.0.0.0")
+        HTTP.serve(ROUTER, "0.0.0.0", 8081)
     end
 end

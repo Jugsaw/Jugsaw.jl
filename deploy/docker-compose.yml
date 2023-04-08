@@ -52,8 +52,9 @@ services:
       - VIRTUAL_PORT=8000
       - LETSENCRYPT_HOST=hub.jugsaw.co
       - LETSENCRYPT_EMAIL=tianjun.cpp@gmail.com
+      - JUGSAW_ENDPOINT=jugsaw:8081
 
-  backend:
+  jugsaw:
     image: jugsaw:latest
     container_name: jugsaw
     restart: always
