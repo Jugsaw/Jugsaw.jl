@@ -8,5 +8,6 @@ include("common.jl")
 include("register.jl")
 include("server.jl")
 include("client.jl")
+include("template.jl")
 
 end # module
