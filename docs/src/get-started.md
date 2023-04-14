@@ -21,7 +21,7 @@ To setup a new Jugsaw App, a Julia developer should go through the following pro
 ```julia
 julia> using Jugsaw
 
-julia> Jugsaw.template("hello-world")
+julia> Jugsaw.Template.init(:Test)
 [ Info: Generated Jugsaw app "hello-world" at folder: "jugsaw"
 
 julia> readdir("jugsaw")

@@ -2,5 +2,6 @@ using Test
 using Jugsaw.Template: init
 
 @testset "init" begin
-    init(basedir=joinpath(@__DIR__), appname=:Testapp)
+    init(basedir=@__DIR__, appname=:Testapp)
+    @test length(readdir(joinpath(@__DIR__, "Testapp"))) == 4
 end

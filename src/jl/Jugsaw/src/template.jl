@@ -3,6 +3,8 @@ module Template
 using TOML, LibGit2
 using UUIDs
 
+# TODO: sanity check for the input symbol
+
 function init(; version::VersionNumber=v"1.0.0-DEV",
         authors::AbstractString = default_authors(),
         basedir::AbstractString,
@@ -10,6 +12,7 @@ function init(; version::VersionNumber=v"1.0.0-DEV",
         juliaversion::VersionNumber=default_version(),
         dockerport::Int=8081)
     appdir = joinpath(basedir, String(appname))
+    @info "Generated Jugsaw app `$appname` at folder: $appdir"
     mkpath(appdir)
     toml = project_config(; version, authors, appname, juliaversion)
     open(joinpath(appdir, "Project.toml"), "w") do f
@@ -20,6 +23,9 @@ function init(; version::VersionNumber=v"1.0.0-DEV",
     end
     open(joinpath(appdir, "README"), "w") do f
         println(f, "# $appname")
+    end
+    open(joinpath(appdir, "app.jl"), "w") do f
+        println(f, app_demo(appname))
     end
 end
 
@@ -81,4 +87,24 @@ ENTRYPOINT ["julia", "--project=.", "app.jl"]
 """
 end
 
+function app_demo(appname::Symbol)
+"""
+# Please check Jugsaw documentation: TBD
+using Jugsaw
+
+greet(x::String) = "Hello, \$(x)!"
+
+# create an application
+app = Jugsaw.AppSpecification("$appname")
+
+@register app begin
+    # register by demo
+    greet("Jugsaw")
+    # register by test case, here four functions `sin`, `cos`, `^`, `+` are registered.
+    sin(0.5) ^ 2 + cos(0.5) ^ 2 ≈ 1.0
+end
+
+serve(app, @__DIR__)
+"""
+end
 end
