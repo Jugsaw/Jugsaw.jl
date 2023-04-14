@@ -1,15 +1,20 @@
+from fastapi import FastAPI
 from jugsaw import App, Method
 import gradio as gr
 import json
 import pdb
 import copy
 
+server = FastAPI()
+
+
 def load_methods(filename):
     with open(filename) as f:
         d = json.load(f)
     return d["data"]
 
-def flatten(lst : list):
+
+def flatten(lst: list):
     lst = []
     for item in lst:
         if isinstance(item, list):
@@ -18,6 +23,7 @@ def flatten(lst : list):
         else:
             lst.append(item)
     return lst
+
 
 class MethodRender(object):
     def __init__(self, app, sig, fname, args, kwargs, results):
@@ -35,13 +41,21 @@ class MethodRender(object):
 
     def flatten_call(self, *args):
         args, kwargs = self.render_input(args)
-        res = Method(self.app, "greet")["0"](args, kwargs, sig=self.sig, fname=self.fname)
-        return res()
+        res = Method(self.app, "greet")["0"](
+            args, kwargs, sig=self.sig, fname=self.fname
+        )
+        result = res()
+        flatten_result = {}
+        extract_flatten(result, flatten_result, self.result_map)
+        fl = [flatten_result[i] for i in range(len(flatten_result))]
+        return fl
 
     def render_gr(self):
         # clear data
         inputs = []
-        self.args_map = [render_arg(arg, f"Arg {i}", inputs) for (i, arg) in enumerate(self.args)]
+        self.args_map = [
+            render_arg(arg, f"Arg {i}", inputs) for (i, arg) in enumerate(self.args)
+        ]
         self.kwargs_map = render_arg(self.kwargs, "Keyword arguments", inputs)
         outputs = []
         self.result_map = render_arg(self.results, "Output", outputs)
@@ -54,6 +68,7 @@ class MethodRender(object):
         newkwargs = copy.deepcopy(self.kwargs)
         render_nested(newkwargs, inputs, self.kwargs_map)
         return newargs, newkwargs
+
 
 def render_nested(args, inputs, smap):
     if isinstance(smap, list):
@@ -68,6 +83,18 @@ def render_nested(args, inputs, smap):
     else:
         return inputs[smap]
 
+
+def extract_flatten(args, flat, smap):
+    if isinstance(smap, list):
+        for (i, arg) in enumerate(args):
+            extract_flatten(arg, flat, smap[i])
+    elif isinstance(smap, dict):
+        for k in smap:
+            extract_flatten(args[k], flat, smap[k])
+    else:
+        flat[smap] = [[x] for x in args] if isinstance(args, list) else args
+
+
 # a function name is contained in the __type__ field
 def polish_fname(name):
     if isinstance(name, dict):
@@ -75,29 +102,39 @@ def polish_fname(name):
     else:
         return name
 
+
 def render_arg(arg, label, inputs):
-    if isinstance(arg, int):
-        inputs.append(gr.Number(label=label))
-        return len(inputs)-1
+    if isinstance(arg, float):
+        inputs.append(gr.Number(label=label, value=arg))
+        return len(inputs) - 1
+    elif isinstance(arg, int):
+        inputs.append(gr.Number(label=label, value=arg))
+        return len(inputs) - 1
     elif isinstance(arg, str):
-        inputs.append(gr.Textbox(label=label))
-        return len(inputs)-1
+        inputs.append(gr.Textbox(label=label, value=arg))
+        return len(inputs) - 1
     elif isinstance(arg, list):
-        inputs.append(
-            gr.Dataframe(row_count = (3, "dynamic"), col_count=(1,"fixed"), label=label, interactive=1)
-            )
-        return len(inputs)-1
-    elif isinstance(arg, dict):   # generic type
+        df = gr.Dataframe(
+            row_count=(len(arg), "dynamic"),
+            col_count=(1, "fixed"),
+            label=label,
+            interactive=1,
+            headers=[label],
+            value=[[ai] for ai in arg],
+        )
+        inputs.append(df)
+        return len(inputs) - 1
+    elif isinstance(arg, dict):  # generic type
         smap = {}
         for k in arg:
             if k != "__type__":
-                render_arg(arg[k], k, inputs)
+                smap[k] = render_arg(arg[k], k, inputs)
         return smap
     else:
         raise Exception(f"input argument type not handled: {arg}")
 
 
-filename = "demo.json"
+filename = "../app/demo.json"
 demos = load_methods(filename)
 app = App("helloworld", demos)
 
@@ -108,15 +145,12 @@ with gr.Blocks() as jugs:
         fname = polish_fname(fdef["fname"])
         with gr.Tab(fname):
             fargs = fdef["args"]
-            rd = MethodRender(app, sig, fname, fdef["args"]["data"], fdef["kwargs"], outdef)
+            rd = MethodRender(
+                app, sig, fname, fdef["args"]["data"], fdef["kwargs"], outdef
+            )
             inputs, outputs = rd.render_gr()
             launch = gr.Button("Go!")
             print(inputs)
-            launch.click(
-                    rd.flatten_call,
-                    inputs = inputs,
-                    outputs = outputs
-                    )
+            launch.click(rd.flatten_call, inputs=inputs, outputs=outputs)
 
-if __name__ == "__main__":
-    jugs.launch()   
+server = gr.mount_gradio_app(server, jugs, path="/jugsaw/example")

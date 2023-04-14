@@ -10,5 +10,5 @@ using Random
 
 
 
-JSON.parse(String(read(joinpath(@__DIR__, "method_table.json"))))
+types = JSON.parse(String(read(joinpath(@__DIR__, "method_table.json"))))
 demos = JSON.parse(String(read(joinpath(@__DIR__, "demo.json"))))["data"] |> values |> collect

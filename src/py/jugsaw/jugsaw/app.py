@@ -1,5 +1,6 @@
+import os
 import requests
-from typing import Any
+from typing import Any, Optional
 
 from .model import CallMsg, ArgsMsg
 
@@ -9,15 +10,12 @@ from .model import CallMsg, ArgsMsg
 # res = app.greet("Jugsaw")
 # print(res())
 class App(object):
-    def __init__(self, name: str, *, endpoint: str = "http://localhost:8081") -> None:
-        self._name = name
-        self._endpoint = endpoint
-
-    def __getattribute__(self, __name: str):
-        if __name.startswith("_"):
-            return super(App, self).__getattribute__(__name)
-        else:
-            return Method(self, __name)
+    def __init__(self, name: str, demos, *, endpoint: Optional[str] = None) -> None:
+        self.name = name
+        self.endpoint = endpoint or os.getenv(
+            "JUGSAW_ENDPOINT", "http://localhost:8081"
+        )
+        self.demos = demos
 
 
 class Method(object):
@@ -33,7 +31,7 @@ class Method(object):
 
     @property
     def url(self) -> str:
-        return f"{self.app._endpoint}/actors/{self.app._name}.{self.method}"
+        return f"{self.app.endpoint}/actors/{self.app.name}.{self.method}"
 
 
 class ObjectRef(object):
@@ -56,7 +54,11 @@ class Actor(object):
     def url(self) -> str:
         return f"{self.method.url}/{self.id}/method"
 
-    def __call__(self, *args: Any, sig:str="", fname:str="",  **kwds: Any) -> ObjectRef:
-        payload = CallMsg(__type__=sig, fname=fname,args=ArgsMsg(data=args), kwargs=kwds).dict(by_alias=True)
+    def __call__(
+        self, args: Any, kwds: Any, sig: str = "", fname: str = ""
+    ) -> ObjectRef:
+        payload = CallMsg(
+            __type__=sig, fname=fname, args=ArgsMsg(data=args), kwargs=kwds
+        ).dict(by_alias=True)
         r = requests.post(self.url, json=payload)
         return ObjectRef(self, r.json()["object_id"])

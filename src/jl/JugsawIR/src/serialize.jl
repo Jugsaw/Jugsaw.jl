@@ -27,6 +27,8 @@ function todict(@nospecialize(x::T)) where T
         ::UndefInitializer => OrderedDict("__type__" => type2str(T), "data" => nothing)   # avoid undef parse error
         ::Float16 || ::Float32 => OrderedDict("__type__" => type2str(T), "data" => todict(Float64(x)))
         ::DataType => type2str(x)
+        ::UnionAll => type2str(x)
+        ::Union => type2str(x)
         ::Char || ::Int8 || ::Int16 || ::Int32 || ::Int128 || 
             ::UInt8 || ::UInt16 || ::UInt32 || ::UInt128 ||
             ::Symbol || ::Missing => OrderedDict("__type__" => type2str(T), "data" => x)   # can not reduce anymore.
