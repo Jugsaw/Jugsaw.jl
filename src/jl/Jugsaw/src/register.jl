@@ -1,6 +1,6 @@
 # the application specification
 struct AppSpecification
-    name::String
+    name::Symbol
     # `method_demo` is a mapping between function signatures and demos,
     # where a demo is a pair of jugsaw function call and result.
     method_demos::Dict
@@ -20,7 +20,7 @@ function Base.show(io::IO, app::AppSpecification)
     print(io, "]")
 end
 Base.show(io::IO, ::MIME"text/plain", f::AppSpecification) = Base.show(io, f)
-function empty!(pp::AppSpecification)
+function empty!(app::AppSpecification)
     empty!(app.method_demos)
     return app
 end

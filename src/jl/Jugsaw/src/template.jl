@@ -7,7 +7,7 @@ using UUIDs
 
 function init(; version::VersionNumber=v"1.0.0-DEV",
         authors::AbstractString = default_authors(),
-        basedir::AbstractString,
+        basedir::AbstractString=pwd(),
         appname::Symbol,
         juliaversion::VersionNumber=default_version(),
         dockerport::Int=8081)
@@ -95,7 +95,7 @@ using Jugsaw
 greet(x::String) = "Hello, \$(x)!"
 
 # create an application
-app = Jugsaw.AppSpecification("$appname")
+app = Jugsaw.AppSpecification(:$appname)
 
 @register app begin
     # register by demo
