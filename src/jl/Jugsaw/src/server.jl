@@ -161,3 +161,9 @@ function serve(runtime::AppRuntime, dir::String; is_async=isdefined(Main, :Inter
         HTTP.serve(ROUTER, "0.0.0.0", 8081)
     end
 end
+
+function serve(app::AppSpecification, dir::String; is_async=isdefined(Main, :InteractiveUtils))
+    # create an application runtime, which will be used to store cached data and actors
+    r = Jugsaw.AppRuntime(app)
+    serve(r, dir; is_async)
+end

@@ -1,6 +1,6 @@
 # the application specification
 struct AppSpecification
-    name::String
+    name::Symbol
     # `method_demo` is a mapping between function signatures and demos,
     # where a demo is a pair of jugsaw function call and result.
     method_demos::Dict
@@ -20,7 +20,7 @@ function Base.show(io::IO, app::AppSpecification)
     print(io, "]")
 end
 Base.show(io::IO, ::MIME"text/plain", f::AppSpecification) = Base.show(io, f)
-function empty!(pp::AppSpecification)
+function empty!(app::AppSpecification)
     empty!(app.method_demos)
     return app
 end
@@ -44,7 +44,7 @@ end
 
 function register_by_expr(app, ex, exs)
     @match ex begin
-        :($a = $b) => begin
+        :($a == $b) => begin
             ra = register_by_expr(app, a, exs)
             rb = register_by_expr(app, b, exs)
             :(@assert $ra == $b)
@@ -60,9 +60,14 @@ function register_by_expr(app, ex, exs)
             ret
         end
         :($fname($(args...))) => begin
-            ret = gensym("ret")
-            push!(exs, :($ret = $register!($app, $fname, ($(render_args.(Ref(app), args, Ref(exs))...),), NamedTuple())))
-            ret
+            if fname in [:(==), :(≈)]
+                # these are for tests
+                :(@assert $fname($(render_args.(Ref(app), args, Ref(exs))...)))
+            else
+                ret = gensym("ret")
+                push!(exs, :($ret = $register!($app, $fname, ($(render_args.(Ref(app), args, Ref(exs))...),), NamedTuple())))
+                ret
+            end
         end
         :(begin $(body...) end) => begin
             register_by_expr.(Ref(app), body, Ref(exs))
