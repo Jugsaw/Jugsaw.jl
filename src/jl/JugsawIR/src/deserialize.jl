@@ -29,7 +29,7 @@ function fromdict(m::Module, @nospecialize(t::Type{T}), @nospecialize(d)) where 
         ::Type{UnionAll} => str2type(m, d)
         ::Type{Union} => str2type(m, d)
         ##################### Specified Types ####################
-        ::Type{<:Array} => reshape(map(x->fromdict(m, eltype(T), x), d["values"][2]), Int.(d["values"][1])...)
+        ::Type{<:Array} => reshape(eltype(T)[fromdict(m, eltype(T), x) for x in d["values"][2]], Int.(d["values"][1])...)
         ::Type{<:Tuple} => begin
             ([fromdict(m, T.parameters[i], v) for (i, v) in enumerate(d["values"])]...,)
         end

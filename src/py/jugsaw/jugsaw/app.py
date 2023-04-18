@@ -58,7 +58,7 @@ class Actor(object):
         self, args: Any, kwds: Any, sig: str = "", fname: str = ""
     ) -> ObjectRef:
         payload = CallMsg(
-            __type__=sig, fname=fname, args=ArgsMsg(data=args), kwargs=kwds
+            type=sig, fields=["fname", "args", "kwargs"], values=[fname, args, kwds]
         ).dict(by_alias=True)
         r = requests.post(self.url, json=payload)
         return ObjectRef(self, r.json()["object_id"])

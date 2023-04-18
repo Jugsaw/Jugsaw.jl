@@ -30,7 +30,7 @@ function todict(@nospecialize(x::T)) where T
         )   # avoid undef parse error
         ::Float16 || ::Float32 => Dict(
             "type" => type2str(T),
-            "fields"=>String[],
+            "fields"=>String["storage"],
             "values" => [Float64(x)]
         )
         ::DataType => type2str(x)

@@ -91,10 +91,12 @@ function act!(r::AppRuntime, http::HTTP.Request)
     ps = HTTP.getparams(http)
     # find the correct method
     dict = JSON.parse(String(http.body))
-    function_signature = dict["__type__"]
+    function_signature = dict["type"]
     a = activate(r, function_signature, string(ps["actor_id"]))
     # TODO: load actor state from state store
     #req = JSON3.read(http.body, JugsawFunctionCall)
+    println(a.actor.first)
+    println(dict)
     req = JugsawIR.fromdict(r.mod, typeof(a.actor.first), dict)
     @info "got task: $req"
     resp = ObjectRef()

@@ -12,7 +12,7 @@ server = FastAPI()
 def load_methods(filename):
     with open(filename) as f:
         d = json.load(f)
-    return d["data"]
+    return d["values"][1]
 
 
 def flatten(lst: list):
@@ -54,9 +54,10 @@ class MethodRender(object):
     def render_gr(self):
         # clear data
         inputs = []
-        self.args_map = [
-            render_arg(arg, f"#{i+1}", inputs) for (i, arg) in enumerate(self.args)
-        ]
+        #self.args_map = [
+            #render_arg(arg, f"#{i+1}", inputs) for (i, arg) in enumerate(self.args)
+        #]
+        self.args_map = render_arg(self.args, "Positional arguments", inputs)
         self.kwargs_map = render_arg(self.kwargs, "Keyword arguments", inputs)
         outputs = []
         self.result_map = render_arg(self.results, "Output", outputs)
@@ -77,34 +78,35 @@ class MethodRender(object):
 # inputs is the user inputs
 # smap is a map from the argument index/name to the gradio input id
 def render_nested(args, inputs, smap):
-    if isinstance(smap, list):
+    if isinstance(args, list):
         for i in range(len(args)):
             args[i] = render_nested(args[i], inputs, smap[i])
         return args
-    elif isinstance(smap, dict):
-        typeinfo = args.get("__type__")
+    elif isinstance(args, dict):  # an object
+        typeinfo = args["type"]
         # parsing arrays
         # TODO: compile
-        m = re.match(r"^Core\.Array\{Core\.(Int64|Float64|String), \d+\}", typeinfo) if typeinfo != None else None
+        m = re.match(r"^Core\.Array\{([^\W0-9]\w*\.[^\W0-9]\w*), (\d+)\}", typeinfo) if typeinfo != None else None
         if m:
-            size_input = inputs[smap["size"]]
-            data_input = inputs[smap["data"]]
-            args["size"] = [int(i) for i in size_input.values[:,0].tolist()]
+            size_input = inputs[smap[0]]
+            data_input = inputs[smap[1]]
+            args["values"][0] = [int(i) for i in size_input.values[:,0].tolist()]
             rawdata = data_input.values[:,0].tolist()
             if len(rawdata) == 1 and rawdata[0] == '':
                 rawdata = []
-            if m.group(1) == "Int64":
+            if m.group(1) == "Core.Int64":
                 T = int
-            elif m.group(1) == "Float64":
+            elif m.group(1) == "Core.Float64":
                 T = float
-            elif m.group(1) == "String":
+            elif m.group(1) == "Core.String":
                 T = str
-            args["data"] = [T(i) for i in rawdata]
+            else:
+                raise NotImplementedError(f"{m.group(1)}")
+            args["values"][1] = [T(i) for i in rawdata]
             return args
         else:
-            for k in args:
-                if k != "__type__":
-                    args[k] = render_nested(args[k], inputs, smap[k])
+            for k in range(len(args["values"])):
+                args["values"][k] = render_nested(args["values"][k], inputs, smap[k])
         return args
     else:
         if isinstance(args, list):
@@ -119,24 +121,24 @@ def render_nested(args, inputs, smap):
 
 
 def extract_flatten(args, flat, smap):
-    if isinstance(smap, list):
+    if isinstance(args, list):
         for (i, arg) in enumerate(args):
             extract_flatten(arg, flat, smap[i])
-    elif isinstance(smap, dict):
-        for k in smap:
-            extract_flatten(args[k], flat, smap[k])
+    elif isinstance(args, dict):
+        for k in range(len(args["values"])):
+            extract_flatten(args["values"][k], flat, smap[k])
     else:
         flat[smap] = [[x] for x in args] if isinstance(args, list) else args
 
 
-# a function name is contained in the __type__ field
+# a function name is contained in the type field
 def polish_fname(name):
     if isinstance(name, dict):
-        return name["__type__"]
+        return name["type"]
     else:
         return name
 
-
+# render arguments to gradio gadgets
 def render_arg(arg, label, inputs, level=0, typeinfo=None):
     # the elementary input type
     if isinstance(arg, float):
@@ -164,13 +166,12 @@ def render_arg(arg, label, inputs, level=0, typeinfo=None):
         inputs.append(df)
         return len(inputs) - 1
     elif isinstance(arg, dict):  # generic type
-        if "__type__" in arg:
-            _label = "⋄"*(level) + " " + label #◼
-            gr.Markdown(_label + " = **" + arg["__type__"] + "**")
-        smap = {}
-        for k in arg:
-            if k != "__type__":
-                smap[k] = render_arg(arg[k], k, inputs, level+1)
+        tp = arg["type"]
+        _label = "␣"*(level) + " " + label #◼⋄
+        gr.Markdown(_label + " = **" + arg["type"] + "**")
+        smap = []
+        for (k, v) in zip(arg["fields"], arg["values"]):
+            smap.append(render_arg(v, "#"+k, inputs, level+1))
         return smap
     else:
         raise Exception(f"input argument type not handled: {arg}")
@@ -181,14 +182,15 @@ demos = load_methods(filename)
 app = App("helloworld", demos)
 
 with gr.Blocks() as jugs:
-    for sig in demos:
-        fdef = demos[sig]["first"]
-        outdef = demos[sig]["second"]
-        fname = polish_fname(fdef["fname"])
+    for k in range(len(demos)):
+        demo = demos[k]
+        fdef = demo["values"][0]
+        outdef = demo["values"][1]
+        fname, fargs, fkwargs = fdef["values"]
+        fname = polish_fname(fname)
         with gr.Tab(fname):
-            fargs = fdef["args"]
             rd = MethodRender(
-                app, sig, fname, fdef["args"]["data"], fdef["kwargs"], outdef
+                app, fdef["type"], fname, fargs, fkwargs, outdef
             )
             inputs, outputs = rd.render_gr()
             launch = gr.Button("Go!")
