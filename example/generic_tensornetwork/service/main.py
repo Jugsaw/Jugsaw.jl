@@ -4,6 +4,7 @@ import gradio as gr
 import json
 import pdb
 import copy
+import re
 
 server = FastAPI()
 
@@ -54,7 +55,7 @@ class MethodRender(object):
         # clear data
         inputs = []
         self.args_map = [
-            render_arg(arg, f"Arg {i}", inputs) for (i, arg) in enumerate(self.args)
+            render_arg(arg, f"#{i+1}", inputs) for (i, arg) in enumerate(self.args)
         ]
         self.kwargs_map = render_arg(self.kwargs, "Keyword arguments", inputs)
         outputs = []
@@ -67,21 +68,54 @@ class MethodRender(object):
         render_nested(newargs, inputs, self.args_map)
         newkwargs = copy.deepcopy(self.kwargs)
         render_nested(newkwargs, inputs, self.kwargs_map)
+        print(newargs)
+        print(newkwargs)
         return newargs, newkwargs
 
 
+# args is the demo inputs
+# inputs is the user inputs
+# smap is a map from the argument index/name to the gradio input id
 def render_nested(args, inputs, smap):
     if isinstance(smap, list):
-        for (i, arg) in enumerate(args):
-            args[i] = render_nested(arg, inputs, smap[i])
+        for i in range(len(args)):
+            args[i] = render_nested(args[i], inputs, smap[i])
         return args
     elif isinstance(smap, dict):
-        for k in args:
-            if k != "__type__":
-                args[k] = render_nested(args[k], inputs, smap[k])
+        typeinfo = args.get("__type__")
+        # parsing arrays
+        # TODO: compile
+        m = re.match(r"^Core\.Array\{Core\.(Int64|Float64|String), \d+\}", typeinfo) if typeinfo != None else None
+        if m:
+            size_input = inputs[smap["size"]]
+            data_input = inputs[smap["data"]]
+            args["size"] = [int(i) for i in size_input.values[:,0].tolist()]
+            rawdata = data_input.values[:,0].tolist()
+            if len(rawdata) == 1 and rawdata[0] == '':
+                rawdata = []
+            if m.group(1) == "Int64":
+                T = int
+            elif m.group(1) == "Float64":
+                T = float
+            elif m.group(1) == "String":
+                T = str
+            args["data"] = [T(i) for i in rawdata]
+            return args
+        else:
+            for k in args:
+                if k != "__type__":
+                    args[k] = render_nested(args[k], inputs, smap[k])
         return args
     else:
-        return inputs[smap]
+        if isinstance(args, list):
+            # TODO: fix!!!!
+            res = inputs[smap].values[:,0].tolist()
+            if len(res) == 1 and res[0] == '':
+                return []
+            else:
+                return res
+        else:
+            return inputs[smap]
 
 
 def extract_flatten(args, flat, smap):
@@ -103,12 +137,16 @@ def polish_fname(name):
         return name
 
 
-def render_arg(arg, label, inputs):
+def render_arg(arg, label, inputs, level=0, typeinfo=None):
+    # the elementary input type
     if isinstance(arg, float):
         inputs.append(gr.Number(label=label, value=arg))
         return len(inputs) - 1
+    elif isinstance(arg, bool):
+        inputs.append(gr.Checkbox(label=label))
+        return len(inputs) - 1
     elif isinstance(arg, int):
-        inputs.append(gr.Number(label=label, value=arg))
+        inputs.append(gr.Number(label=label, value=arg, precision=0))
         return len(inputs) - 1
     elif isinstance(arg, str):
         inputs.append(gr.Textbox(label=label, value=arg))
@@ -117,7 +155,8 @@ def render_arg(arg, label, inputs):
         df = gr.Dataframe(
             row_count=(len(arg), "dynamic"),
             col_count=(1, "fixed"),
-            label=label,
+            datatype="str" if typeinfo == "str" else "number",  # TODO: fix
+            label=label, 
             interactive=1,
             headers=[label],
             value=[[ai] for ai in arg],
@@ -125,10 +164,13 @@ def render_arg(arg, label, inputs):
         inputs.append(df)
         return len(inputs) - 1
     elif isinstance(arg, dict):  # generic type
+        if "__type__" in arg:
+            _label = "⋄"*(level) + " " + label #◼
+            gr.Markdown(_label + " = **" + arg["__type__"] + "**")
         smap = {}
         for k in arg:
             if k != "__type__":
-                smap[k] = render_arg(arg[k], k, inputs)
+                smap[k] = render_arg(arg[k], k, inputs, level+1)
         return smap
     else:
         raise Exception(f"input argument type not handled: {arg}")
@@ -150,7 +192,7 @@ with gr.Blocks() as jugs:
             )
             inputs, outputs = rd.render_gr()
             launch = gr.Button("Go!")
-            print(inputs)
             launch.click(rd.flatten_call, inputs=inputs, outputs=outputs)
 
-server = gr.mount_gradio_app(server, jugs, path="/jugsaw/example")
+#server = gr.mount_gradio_app(server, jugs, path="/jugsaw/example")
+jugs.launch()

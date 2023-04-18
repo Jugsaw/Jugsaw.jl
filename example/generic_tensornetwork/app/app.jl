@@ -64,7 +64,7 @@ function smallgraph(s::Symbol)
 end
 #, :MaximalIS, :SpinGlass, :Coloring, :DominatingSet,
 #:HyperSpinGlass, :Matching, :MaxCut, :OpenPitMining, :PaintShop, :Satisfiability, :SetCovering, :SetPacking]
-app = Jugsaw.AppSpecification("generic-tensor-network")
+app = Jugsaw.AppSpecification(:GenericTN)
 for property in [:(SizeMax()), :(CountingMax()), :(CountingMax(2))]
     @eval @register app solve(IndependentSetConfig(; graph=smallgraph(:petersen), weights=ones(10)), $property;
             usecuda::Bool=false,
@@ -74,5 +74,5 @@ end
 
 #####
 
-r= Jugsaw.AppRuntime(app)
-serve(r, @__DIR__)
+r= Jugsaw.AppRuntime(@__MODULE__, app)
+serve(r, @__DIR__; is_async=false)

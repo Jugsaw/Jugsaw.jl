@@ -25,16 +25,32 @@ type_strings!(res, type::Union) = (push!(res, type2str(type.a)); type_strings!(r
 type_strings!(res, type::DataType) = (push!(res, type2str(type)); res)
 function type2str(::Type{T}) where T
     if T === Any   # the only abstract type
-        return "Any"
+        return "Core.Any"
     elseif !isconcretetype(T)
         @warn "Concrete types are expected! got $T."
-        typename = string(T)
+        if T isa DataType
+            typename = "$(modname(T)).$(string(T))"
+        elseif T isa UnionAll
+            typename = "$(modname(T)).$(string(T))"
+        elseif T isa Union
+            typename = string(T)
+        else
+            @warn "type category unknown: $T"
+            typename = string(T)
+        end
     elseif length(T.parameters) > 0 || T === Tuple{}
-        typename = "$(string(T.name.module)).$(String(T.name.name)){$(join([p isa Type ? type2str(p) : (p isa Symbol ? ":$p" : string(p)) for p in T.parameters], ", "))}"
+        typename = "$(modname(T)).$(String(T.name.name)){$(join([p isa Type ? type2str(p) : (p isa Symbol ? ":$p" : string(p)) for p in T.parameters], ", "))}"
     else
-        typename = "$(string(T.name.module)).$(String(T.name.name))"
+        typename = "$(modname(T)).$(String(T.name.name))"
     end
     return typename
+end
+function modname(T::DataType)
+    mod = T.name.module
+    return string(mod)
+end
+function modname(T::UnionAll)
+    return modname(T.body)
 end
 
 @active IsBasicType(x) begin
