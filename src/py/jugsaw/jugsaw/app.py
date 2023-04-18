@@ -2,7 +2,7 @@ import os
 import requests
 from typing import Any, Optional
 
-from .model import CallMsg, ArgsMsg
+from .model import CallMsg
 
 
 # Usage
