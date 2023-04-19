@@ -34,10 +34,13 @@ function project_config(; version::VersionNumber,
         appname::Symbol,
         juliaversion::VersionNumber=default_version())
     return Dict(
-        "name" => String(appname),
-        "uuid" => string(uuid4()),
-        "authors" => authors,
-        "version" => string(version),
+        "jugsaw" => Dict(
+            "name" => String(appname),
+            "uuid" => string(uuid4()),
+            "authors" => authors,
+            "version" => string(version)
+        ),
+        "deps" => Dict(),
         "compat" => Dict("julia" => compat_version(juliaversion)),
     )
 end

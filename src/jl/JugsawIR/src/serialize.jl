@@ -1,4 +1,3 @@
-using DataStructures: OrderedDict
 # Extended JSON
 # https://github.com/JuliaIO/JSON.jl
 # `json4` parse an object to string, which can be used to
@@ -6,7 +5,7 @@ using DataStructures: OrderedDict
 # 2. parse a function specification to a json object, with complete input argument specification.
 # `parse4` is the inverse of `json4`.
 # potential issue: types with the same name in the same app may cause key conflict.
-# error user if the type contains a __type__ field.
+# error user if the type contains a type field.
 
 # the typed parsing
 function json4(obj)
@@ -15,7 +14,7 @@ end
 
 # type specification
 function jsontype4(::Type{T}) where T
-    types = OrderedDict{String, Any}()
+    types = Dict{String, Any}()
     typedef!(types, T)
     return JSON.json(types)
 end
@@ -24,36 +23,48 @@ function todict(@nospecialize(x::T)) where T
     @match x begin
         ###################### Basic Types ######################
         ::JSONTypes => x  # natively supported by JSON
-        ::UndefInitializer => OrderedDict("__type__" => type2str(T), "data" => nothing)   # avoid undef parse error
-        ::Float16 || ::Float32 => OrderedDict("__type__" => type2str(T), "data" => todict(Float64(x)))
+        ::UndefInitializer => Dict(
+            "type" => type2str(T),
+            "fields"=>String[],
+            "values" => []
+        )   # avoid undef parse error
+        ::Float16 || ::Float32 => Dict(
+            "type" => type2str(T),
+            "fields"=>String["storage"],
+            "values" => [Float64(x)]
+        )
         ::DataType => type2str(x)
         ::UnionAll => type2str(x)
         ::Union => type2str(x)
         ::Char || ::Int8 || ::Int16 || ::Int32 || ::Int128 || 
             ::UInt8 || ::UInt16 || ::UInt32 || ::UInt128 ||
-            ::Symbol || ::Missing => OrderedDict("__type__" => type2str(T), "data" => x)   # can not reduce anymore.
+            ::Symbol || ::Missing => Dict(
+                "type" => type2str(T),
+                "fields"=>String[],
+                "values" => [x]
+            )   # can not reduce anymore.
         ##################### Specified Types ####################
-        ::Vector => [todict(v) for v in x]
-        ::Array => OrderedDict(
-                "__type__"=> type2str(typeof(x)),
-                "size" => collect(Int, size(x)),
-                "data"=> todict(vec(x))
-            )
-        ::Tuple => OrderedDict("__type__"=>type2str(typeof(x)), "data"=>[todict(v) for v in x])
-        ::Dict{String} || ::OrderedDict{String} ||
-            ::Dict{Symbol} || ::OrderedDict{Symbol} ||
-            ::Dict{Int} || ::OrderedDict{Int} => OrderedDict(   # to protect a dict with `__type__` field.
-            "__type__"=> type2str(typeof(x)),
-            "data"=> Dict(k=>todict(v) for (k, v) in x)
+        ::Array => Dict(
+            "type"=> type2str(typeof(x)),
+            "fields"=> ["size", "storage"],
+            "values" => [collect(Int, size(x)), map(todict, vec(x))]
+        )
+        ::Tuple => Dict(
+            "type"=>type2str(typeof(x)),
+            "fields"=>["$i" for i=1:length(x)],
+            "values"=>map(todict, x)
+        )
+        ::Dict => Dict(
+            "type"=> type2str(typeof(x)),
+            "fields" => ["keys", "values"],
+            "values"=> [[todict(k) for k in keys(x)], [todict(v) for v in values(x)]]
         )
         ###################### Generic Compsite Types ######################
-        _ => begin
-            d = OrderedDict{String, Any}("__type__" => type2str(T))
-            for fn in fieldnames(T)
-                d[String(fn)] = isdefined(x, fn) ? todict(getfield(x, fn)) : nothing
-            end
-            d
-        end
+        _ => Dict{String, Any}(
+                "type" => type2str(T),
+                "fields" => String.(fieldnames(T)),
+                "values" => map(fn->isdefined(x, fn) ? todict(getfield(x, fn)) : nothing, fieldnames(T))
+            )
     end
 end
 
@@ -67,7 +78,7 @@ function typedef!(types::AbstractDict, @nospecialize(t::Type{T})) where T
             sT
         end  # wrap primitive type
         # ::Type{<:Enum} => begin
-        #     types[sT] = OrderedDict("__type__"=>"DataType",
+        #     types[sT] = Dict("type"=>"DataType",
         #                 "name"=>sT,
         #                 "instances"=>string.(instances(T))
         #         )
@@ -81,12 +92,12 @@ function typedef!(types::AbstractDict, @nospecialize(t::Type{T})) where T
                 end
             end
             # define field types recursively
-            d = OrderedDict{String, String}()
+            d = Dict{String, String}()
             for (n, t) in zip(fieldnames(T), T.types)
                 d[string(n)] = typedef!(types, t)
             end
             # show self
-            types[sT] = OrderedDict("__type__"=>"DataType",
+            types[sT] = Dict("type"=>"DataType",
                         "name" => sT,
                         "fields" => d
                     )

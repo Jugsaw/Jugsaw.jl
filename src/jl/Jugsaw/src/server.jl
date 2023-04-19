@@ -54,14 +54,15 @@ end
 
 # a run time instance
 struct AppRuntime
+    mod::Module
     app::AppSpecification
     actors::Dict{Pair{String,String},Any}
     # This is a simple in-memory state store which holds the results from the actor calls.
     # We may add many different kinds of state store later (local file or Database).
     state_store::StateStore
 end
-function AppRuntime(app::AppSpecification)
-    return AppRuntime(app, Dict{Pair{String,String},Any}(), StateStore(Dict{String,String}()))
+function AppRuntime(mod::Module, app::AppSpecification)
+    return AppRuntime(mod, app, Dict{Pair{String,String},Any}(), StateStore(Dict{String,String}()))
 end
 
 function empty!(r::AppRuntime)
@@ -90,11 +91,11 @@ function act!(r::AppRuntime, http::HTTP.Request)
     ps = HTTP.getparams(http)
     # find the correct method
     dict = JSON.parse(String(http.body))
-    function_signature = dict["__type__"]
+    function_signature = dict["type"]
     a = activate(r, function_signature, string(ps["actor_id"]))
     # TODO: load actor state from state store
     #req = JSON3.read(http.body, JugsawFunctionCall)
-    req = JugsawIR.fromdict(@__MODULE__, typeof(a.actor.first), dict)
+    req = JugsawIR.fromdict(r.mod, typeof(a.actor.first), dict)
     @info "got task: $req"
     resp = ObjectRef()
     r.state_store[resp.object_id] = Future()
@@ -162,8 +163,8 @@ function serve(runtime::AppRuntime, dir::String; is_async=isdefined(Main, :Inter
     end
 end
 
-function serve(app::AppSpecification, dir::String; is_async=isdefined(Main, :InteractiveUtils))
+function serve(mod::Module, app::AppSpecification, dir::String; is_async=isdefined(Main, :InteractiveUtils))
     # create an application runtime, which will be used to store cached data and actors
-    r = Jugsaw.AppRuntime(app)
+    r = Jugsaw.AppRuntime(mod, app)
     serve(r, dir; is_async)
 end
