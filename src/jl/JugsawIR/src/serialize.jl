@@ -14,8 +14,8 @@ end
 
 # type specification
 function jsontype4(::Type{T}) where T
-    types = Dict{String, Any}()
-    typedef!(types, T)
+    types = []
+    typedef!(types, T, Dict{Any,String}())
     return JSON.json(types)
 end
 
@@ -23,89 +23,111 @@ function todict(@nospecialize(x::T)) where T
     @match x begin
         ###################### Basic Types ######################
         ::JSONTypes => x  # natively supported by JSON
-        ::UndefInitializer => Dict(
-            "type" => type2str(T),
-            "fields"=>String[],
-            "values" => []
-        )   # avoid undef parse error
-        ::Float16 || ::Float32 => Dict(
-            "type" => type2str(T),
-            "fields"=>String["storage"],
-            "values" => [Float64(x)]
-        )
+        ::UndefInitializer => Any[type2str(T),
+            String[],
+            []
+        ]   # avoid undef parse error
+        ::Float16 || ::Float32 => Any[
+            type2str(T),
+            String["storage"],
+            [Float64(x)]
+        ]
         ::DataType => type2str(x)
         ::UnionAll => type2str(x)
         ::Union => type2str(x)
         ::Char || ::Int8 || ::Int16 || ::Int32 || ::Int128 || 
             ::UInt8 || ::UInt16 || ::UInt32 || ::UInt128 ||
-            ::Symbol || ::Missing => Dict(
-                "type" => type2str(T),
-                "fields"=>String[],
-                "values" => [x]
-            )   # can not reduce anymore.
+            ::Symbol || ::Missing => Any[
+                type2str(T),
+                String[],
+                [x]
+            ]   # can not reduce anymore.
         ##################### Specified Types ####################
-        ::Array => Dict(
-            "type"=> type2str(typeof(x)),
-            "fields"=> ["size", "storage"],
-            "values" => [collect(Int, size(x)), map(todict, vec(x))]
-        )
-        ::Tuple => Dict(
-            "type"=>type2str(typeof(x)),
-            "fields"=>["$i" for i=1:length(x)],
-            "values"=>map(todict, x)
-        )
-        ::Dict => Dict(
-            "type"=> type2str(typeof(x)),
-            "fields" => ["keys", "values"],
-            "values"=> [[todict(k) for k in keys(x)], [todict(v) for v in values(x)]]
-        )
+        ::Array => Any[
+            type2str(typeof(x)),
+            ["size", "storage"],
+            [collect(Int, size(x)), map(todict, vec(x))]
+        ]
+        ::Enum => Any[
+            type2str(typeof(x)),
+            ["name", "id"],
+            [string(x), Int(x)]
+        ]
+        ::Tuple => Any[
+            type2str(typeof(x)),
+            ["$i" for i=1:length(x)],
+            map(todict, x)
+        ]
+        ::Dict => Any[
+            type2str(typeof(x)),
+            ["keys", "values"],
+            [[todict(k) for k in keys(x)], [todict(v) for v in values(x)]]
+        ]
         ###################### Generic Compsite Types ######################
-        _ => Dict{String, Any}(
-                "type" => type2str(T),
-                "fields" => String.(fieldnames(T)),
-                "values" => map(fn->isdefined(x, fn) ? todict(getfield(x, fn)) : nothing, fieldnames(T))
-            )
+        _ => Any[
+                type2str(T),
+                String.(fieldnames(T)),
+                map(fn->isdefined(x, fn) ? todict(getfield(x, fn)) : nothing, fieldnames(T))
+            ]
     end
 end
 
-function typedef!(types::AbstractDict, @nospecialize(t::Type{T})) where T
+function typedef!(types::Vector{Any}, @nospecialize(t::Type{T}), typedict::Dict{Any, String}) where T
     sT = type2str(T)
-    haskey(types, T) && return sT
-    (startswith(sT, "Primitive") || startswith(sT, "Abstract")) && error("Keywords `Primitive` and `Abstract` are protected!")
-    @match T begin
+    haskey(typedict, T) && return sT
+    ret = @match T begin
         ::Type{<:BasicTypes} || ::Type{Any} => begin
-            types[sT] = "Primitive{$sT}"
+            push!(types, sT)
             sT
         end  # wrap primitive type
-        # ::Type{<:Enum} => begin
-        #     types[sT] = Dict("type"=>"DataType",
-        #                 "name"=>sT,
-        #                 "instances"=>string.(instances(T))
-        #         )
-        #     sT
-        # end
+        ##################### Specified Types ####################
+        ::Type{<:Array} => begin
+            def_typeparams!(T, types, typedict)
+            push!(types, create_type(sT, ["size", "storage"], [type2str(Vector{Int}), type2str(Vector{eltype(T)})]))
+            sT
+        end
+        ::Type{<:Dict} => begin
+            def_typeparams!(T, types, typedict)
+            push!(types, create_type(sT, ["keys", "values"], [type2str(Vector{key_type(T)}), type2str(Vector{value_type(T)})]))
+            sT
+        end
+        ::Type{<:Enum} => begin
+            push!(types, create_type(sT, ["name", "id"], [type2str(String), type2str(Int)]))
+            sT
+        end
+        ###################### Generic Compsite Types ######################
         IsConcreteType() => begin  # generic composite type
             # define parameter types
-            for t in T.parameters
-                if t isa Type
-                    typedef!(types, t)
-                end
-            end
+            def_typeparams!(T, types, typedict)
             # define field types recursively
-            d = Dict{String, String}()
+            d = String[]
+            dT = String[]
             for (n, t) in zip(fieldnames(T), T.types)
-                d[string(n)] = typedef!(types, t)
+                push!(d, string(n))
+                push!(dT, typedef!(types, t, typedict))
+                sT
             end
             # show self
-            types[sT] = Dict("type"=>"DataType",
-                        "name" => sT,
-                        "fields" => d
-                    )
+            push!(types, create_type(sT, d, dT))
             sT
         end
         _ => begin
-            types["$sT}"] = "Abstract{$sT}"
+            push!(types, sT)
             sT
         end
     end
+    typedict[T] = ret
+    return ret
+end
+
+function def_typeparams!(::Type{T}, types, typedict) where T
+    for t in T.parameters
+        if t isa Type
+            typedef!(types, t, typedict)
+        end
+    end
+end
+
+function create_type(name::String, fieldnames::Vector{String}, fieldtypes::Vector{String})
+    ["DataType", ["name", "fieldnames", "fieldtypes"], [name, fieldnames, fieldtypes]]
 end

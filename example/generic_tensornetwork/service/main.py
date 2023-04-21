@@ -8,23 +8,10 @@ import re
 
 server = FastAPI()
 
-
 def load_methods(filename):
     with open(filename) as f:
         d = json.load(f)
     return d["values"][1]
-
-
-def flatten(lst: list):
-    lst = []
-    for item in lst:
-        if isinstance(item, list):
-            for x in flatten(item):
-                lst.append(x)
-        else:
-            lst.append(item)
-    return lst
-
 
 class MethodRender(object):
     def __init__(self, app, sig, fname, args, kwargs, results):
