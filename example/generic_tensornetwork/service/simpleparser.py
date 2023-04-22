@@ -16,6 +16,7 @@ class JugsawType(object):
             return f"{self.module}.{self.typename}"
 
     def __eq__(self, target):
+        print(target.typeparams), print(self.typeparams)
         return isinstance(target, JugsawType) and target.module == self.module and target.typename == self.typename and ((self.typeparams == None and target.typeparams == None) or all([x==y for x, y in zip(self.typeparams, target.typeparams)]))
 
     __repr__ = __str__
@@ -149,17 +150,9 @@ res = jp.parse("""
         [Jugsaw.People{Core.Int}, [32], ["age"]]
         """)
 print(res)
-pdb.set_trace()
-tree = jp.parse("""
-        ["Jugsaw.TP", [], []]
-        """)
-tree = jp.parse("""
-        ["Jugsaw.Complex", [3, 2], ["re", "im"]]
+assert res == JugsawObject(JugsawType("Jugsaw", "People", [JugsawType("Core", "Int", "None")]), [32], ["age"])
+res = jp.parse("""
+        [Jugsaw.TP, [], []]
         """)
 print(res)
 pdb.set_trace()
-
-jt = JugsawTransformer()
-res = jt.transform(tree)
-pdb.set_trace()
-
