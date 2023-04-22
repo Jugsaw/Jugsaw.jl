@@ -7,6 +7,7 @@ import pdb
 import copy
 import logging
 import re
+from simpleparser import jp, jlp
 
 # typename: ([^\W0-9]\w*\.[^\W0-9]\w*)
 re_array = re.compile(r"^Core\.Array\{(.*), (\d+)\}")
@@ -15,7 +16,6 @@ re_matrix = re.compile(r"^Core\.Array\{(.*), 2\}")
 re_dict = re.compile(r"^Base\.Dict\{(.*), (.*)\}")
 re_vector_of_tuple = re.compile(r"^Base\.Array\{Core\.Tuple\{(.*)\}, 1\}")
 re_tuple_of_vector = re.compile(r"^Core\.Tuple\{(Base\.Array\{(.*), 1\})(, Base\.Array\{(.*), 1\})*\}")
-pdb.set_trace()
 re_multichoice = re.compile(r"^Jugsaw\.Universe\.MultiChoice\{(.*)\}")
 
 class MethodRender(object):
@@ -252,8 +252,14 @@ def map_eltype_py(tp):
 #################### Main Program ###############
 def load_methods(filename):
     with open(filename) as f:
-        d = json.load(f)
-    return d[1][1]
+        s = f.read()
+        d = json.loads(s)
+
+        st = json.dumps(d[1][1][0][1][0][1][1][1][0][1][0])
+        pdb.set_trace()
+        d = jp.parse(s)
+    pdb.set_trace()
+    #return d[1][1]
 
 def launch_jugsaw(demofile, appname, logging_level=logging.INFO):
     demos = load_methods(demofile)
