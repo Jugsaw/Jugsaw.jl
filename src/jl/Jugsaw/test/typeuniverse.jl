@@ -10,7 +10,6 @@ using Test
         Code("julia", "x = 4"),
         Color("#FFAD45"),
         Dataframe(["name", "age"], [("Jinguo", 33), ("Jun", 32)]),
-        Choice(APPLE),
         File("七里香.mp3", rand(UInt8, 100)),
         RGBImage(rand(3, 100, 100))
         ]

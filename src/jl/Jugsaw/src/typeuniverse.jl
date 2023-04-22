@@ -4,7 +4,7 @@ Jugsaw Universe of types!
 module Universe
 
 export Graph, Base64Array
-export MultiChoice, Code, Color, Dataframe, Choice, File, RGBImage
+export MultiChoice, Code, Color, Dataframe, File, RGBImage
 """
     Graph
 
@@ -91,10 +91,7 @@ end
 
 # Dataset (x)
 
-# Dropdown -> Choice
-struct Choice{T<:Enum}
-    value::T
-end
+# Dropdown -> Enum
 
 # File
 struct File

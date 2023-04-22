@@ -1,17 +1,24 @@
 from fastapi import FastAPI
 from jugsaw import App, Method
 import gradio as gr
+import numpy as np
 import json
 import pdb
 import copy
 import re
 
 server = FastAPI()
+# typename: ([^\W0-9]\w*\.[^\W0-9]\w*)
+re_array = re.compile(r"^Core\.Array\{(.*), (\d+)\}")
+re_vector = re.compile(r"^Core\.Array\{(.*), 1\}")
+re_matrix = re.compile(r"^Core\.Array\{(.*), 2\}")
+re_dict = re.compile(r"^Base\.Dict\{(.*), (.*)\}")
+re_multichoice = re.compile(r"^Jugsaw\.Universe\.MultiChoice\{(.*)\}")
 
 def load_methods(filename):
     with open(filename) as f:
         d = json.load(f)
-    return d["values"][1]
+    return d[1][1]
 
 class MethodRender(object):
     def __init__(self, app, sig, fname, args, kwargs, results):
@@ -65,63 +72,79 @@ class MethodRender(object):
 # inputs is the user inputs
 # smap is a map from the argument index/name to the gradio input id
 def render_nested(args, inputs, smap):
-    if isinstance(args, list):
-        for i in range(len(args)):
-            args[i] = render_nested(args[i], inputs, smap[i])
-        return args
-    elif isinstance(args, dict):  # an object
-        typeinfo = args["type"]
+    if isinstance(args, list):  # an object
+        typeinfo, values, fields = args
         # parsing arrays
-        # TODO: compile
-        m = re.match(r"^Core\.Array\{([^\W0-9]\w*\.[^\W0-9]\w*), (\d+)\}", typeinfo) if typeinfo != None else None
-        if m:
-            size_input = inputs[smap[0]]
-            data_input = inputs[smap[1]]
-            args["values"][0] = [int(i) for i in size_input.values[:,0].tolist()]
+        if matched := re_vector.match(typeinfo):
+            data_input = inputs[smap]
             rawdata = data_input.values[:,0].tolist()
             if len(rawdata) == 1 and rawdata[0] == '':
                 rawdata = []
-            if m.group(1) == "Core.Int64":
-                T = int
-            elif m.group(1) == "Core.Float64":
-                T = float
-            elif m.group(1) == "Core.String":
-                T = str
-            else:
-                raise NotImplementedError(f"{m.group(1)}")
-            args["values"][1] = [T(i) for i in rawdata]
+            T = map_eltype_py(matched.group(1))
+            values[1] = [T(i) for i in rawdata]
+            values[0] = [len(values[1])]
             return args
+        elif matched := re_matrix.match(typeinfo):
+            data_input = inputs[smap]
+            rawdata = data_input.values
+            T = map_eltype_py(matched.group(1))
+            values[1] = [[T(i) for i in row] for row in rawdata]
+            values[0] = [rawdata.shape[0], rawdata.shape[1]]
+            return args
+        elif matched := re_array.match(typeinfo):
+            raise NotImplementedError("array")
+        elif matched := re_dict.match(typeinfo):
+            keys, vals = inputs[smap]
+            Tk = map_eltype_py(matched.group(1))
+            Tv = map_eltype_py(matched.group(2))
+            values[0] = [Tk(k) for k in keys]
+            values[1] = [Tv(v) for v in vals]
+            return args
+        # TODO: handle enum
         else:
-            for k in range(len(args["values"])):
-                args["values"][k] = render_nested(args["values"][k], inputs, smap[k])
-        return args
+            for k in range(len(args[1])):
+                args[1][k] = render_nested(args[1][k], inputs, smap[k])
+            return args
     else:
-        if isinstance(args, list):
-            # TODO: fix!!!!
-            res = inputs[smap].values[:,0].tolist()
-            if len(res) == 1 and res[0] == '':
-                return []
-            else:
-                return res
-        else:
-            return inputs[smap]
+        #for i in range(len(args)):
+        #    args[i] = render_nested(args[i], inputs, smap[i])
+        #return args
+        #if isinstance(args, list):
+        #    # TODO: fix!!!!
+        #    res = inputs[smap].values[:,0].tolist()
+        #    if len(res) == 1 and res[0] == '':
+        #        return []
+        #    else:
+        #        return res
+        #else:
+        return inputs[smap]
 
 
 def extract_flatten(args, flat, smap):
     if isinstance(args, list):
-        for (i, arg) in enumerate(args):
-            extract_flatten(arg, flat, smap[i])
-    elif isinstance(args, dict):
-        for k in range(len(args["values"])):
-            extract_flatten(args["values"][k], flat, smap[k])
+        typeinfo, values, fields = args
+        #for (i, arg) in enumerate(args):
+            #extract_flatten(arg, flat, smap[i])
+    #elif isinstance(args, dict):
+        if re_vector.match(typeinfo):
+            flat[smap] = [[x] for x in values[1]]
+        elif re_matrix.match(typeinfo):
+            flat[smap] = np.reshape(values[1], values[0])
+        elif re_array.match(typeinfo):
+            raise NotImplementedError("array")
+        elif re_dict.match(typeinfo):
+            flat[smap] = dict(zip(values[0], values[1]))
+        else:
+            for k in range(len(values)):
+                extract_flatten(values[k], flat, smap[k])
     else:
-        flat[smap] = [[x] for x in args] if isinstance(args, list) else args
+        flat[smap] = args
 
 
 # a function name is contained in the type field
 def polish_fname(name):
-    if isinstance(name, dict):
-        return name["type"]
+    if isinstance(name, list):
+        return name[0]
     else:
         return name
 
@@ -129,40 +152,104 @@ def polish_fname(name):
 def render_arg(arg, label, inputs, level=0, typeinfo=None):
     # the elementary input type
     if isinstance(arg, float):
-        inputs.append(gr.Number(label=label, value=arg))
-        return len(inputs) - 1
+        return push(inputs, gr.Number(label=label, value=arg))
     elif isinstance(arg, bool):
-        inputs.append(gr.Checkbox(label=label))
-        return len(inputs) - 1
+        return push(inputs, gr.Checkbox(label=label))
     elif isinstance(arg, int):
-        inputs.append(gr.Number(label=label, value=arg, precision=0))
-        return len(inputs) - 1
+        return push(inputs, gr.Number(label=label, value=arg, precision=0))
     elif isinstance(arg, str):
-        inputs.append(gr.Textbox(label=label, value=arg))
-        return len(inputs) - 1
-    elif isinstance(arg, list):
-        df = gr.Dataframe(
-            row_count=(len(arg), "dynamic"),
-            col_count=(1, "fixed"),
-            datatype="str" if typeinfo == "str" else "number",  # TODO: fix
-            label=label, 
-            interactive=1,
-            headers=[label],
-            value=[[ai] for ai in arg],
-        )
-        inputs.append(df)
-        return len(inputs) - 1
-    elif isinstance(arg, dict):  # generic type
-        tp = arg["type"]
+        return push(inputs, gr.Textbox(label=label, value=arg))
+    elif isinstance(arg, list):  # generic type
+        tp, values, fields = arg
         _label = "␣"*(level) + " " + label #◼⋄
-        gr.Markdown(_label + " = **" + arg["type"] + "**")
-        smap = []
-        for (k, v) in zip(arg["fields"], arg["values"]):
-            smap.append(render_arg(v, "#"+k, inputs, level+1))
-        return smap
+        gr.Markdown(f"{_label} = **{tp}**")
+        if tp == "Jugsaw.Universe.Enum":
+            kind, value, options = values
+            return push(inputs, gr.Choice(options, default=value))
+        elif matched := re_vector.match(tp):
+            size, storage = values
+            df = gr.Dataframe(
+                row_count=(int(size[0]), "dynamic"),
+                col_count=(1, "fixed"),
+                datatype=map_eltype(matched.group(1)),
+                label=label, 
+                interactive=1,
+                headers=[label],
+                value=[[ai] for ai in storage],
+            )
+            return push(inputs, df)
+        elif matched := re_matrix.match(tp):
+            size, storage = values
+            df = gr.Dataframe(
+                row_count=(int(size[0]), "dynamic"),
+                col_count=(int(size[1]), "dynamic"),
+                datatype=map_eltype(matched.group(1)),
+                label=label, 
+                interactive=1,
+                headers=[f"col {i+1}" for i in range(size[1])],
+                value=np.reshape(storage, size),
+            )
+            return push(inputs, df)
+        elif matched := re_array.match(tp):
+            raise NotImplementedError("")
+        elif matched := re_dict.match(tp):
+            keys, vals = values
+            df = gr.Dataframe(
+                row_count=(len(keys), "dynamic"),
+                col_count=(2, "fixed"),
+                datatype=[map_eltype(matched.group(1)), map_eltype(matched.group(2))],
+                label=label, 
+                interactive=1,
+                headers=["keys", "values"],
+                value=[[k, v] for k, v in zip(*values)],
+            )
+            return push(inputs, df)
+        ###### Jugsaw.Universe ######
+        elif matched := re_multichoice.match(tp):
+            raise NotImplementedError("")  # TODO: fix the empty list issue.
+        elif tp == "Jugsaw.Universe.Color":
+            c = ColorPicker(label=label)
+            return push(inputs, c)
+        # TODO: MultiChoice, Code, Dataframe, File, RGBImage
+        else:
+            # no need to specialize tuple
+            smap = []
+            for (k, v) in zip(fields, values):
+                smap.append(render_arg(v, "#"+k, inputs, level+1))
+            return smap
     else:
         raise Exception(f"input argument type not handled: {arg}")
 
+def push(stack, elem):
+    stack.append(elem)
+    return len(stack) - 1
+
+# map Julia element type to Dataframes element type
+def map_eltype(tp):
+    if tp == "Core.String":
+        return "str"
+    elif tp == "Core.Float64":
+        return "number"
+    elif tp == "Core.Int64":
+        return "number"
+    elif tp == "Core.Bool":
+        return "bool"
+        #return "date"
+        #return "markdown"
+    else:
+        raise NotImplementedError(f"{tp}")
+
+def map_eltype_py(tp):
+    if tp == "Core.Int64":
+        return int
+    elif tp == "Core.Float64":
+        return float
+    elif tp == "Core.String":
+        return str
+    elif tp == "Core.Bool":
+        return bool
+    else:
+        raise NotImplementedError(f"{tp}")
 
 filename = "../app/demo.json"
 demos = load_methods(filename)
@@ -171,13 +258,13 @@ app = App("helloworld", demos)
 with gr.Blocks() as jugs:
     for k in range(len(demos)):
         demo = demos[k]
-        fdef = demo["values"][0]
-        outdef = demo["values"][1]
-        fname, fargs, fkwargs = fdef["values"]
+        fdef = demo[1][0]
+        outdef = demo[1][1]
+        fname, fargs, fkwargs = fdef[1]
         fname = polish_fname(fname)
         with gr.Tab(fname):
             rd = MethodRender(
-                app, fdef["type"], fname, fargs, fkwargs, outdef
+                app, fdef[0], fname, fargs, fkwargs, outdef
             )
             inputs, outputs = rd.render_gr()
             launch = gr.Button("Go!")

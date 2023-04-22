@@ -4,8 +4,6 @@
 # 1. parse a Julia object to a json object, with complete type specification.
 # 2. parse a function specification to a json object, with complete input argument specification.
 # `parse4` is the inverse of `json4`.
-# potential issue: types with the same name in the same app may cause key conflict.
-# error user if the type contains a type field.
 
 # the typed parsing
 function json4(obj)
@@ -19,18 +17,19 @@ function jsontype4(::Type{T}) where T
     return JSON.json(types)
 end
 
+# data are dumped to (name, value[, fieldnames])
 function todict(@nospecialize(x::T)) where T
     @match x begin
         ###################### Basic Types ######################
         ::JSONTypes => x  # natively supported by JSON
         ::UndefInitializer => Any[type2str(T),
+            [],
             String[],
-            []
         ]   # avoid undef parse error
         ::Float16 || ::Float32 => Any[
             type2str(T),
+            [Float64(x)],
             String["storage"],
-            [Float64(x)]
         ]
         ::DataType => type2str(x)
         ::UnionAll => type2str(x)
@@ -39,35 +38,35 @@ function todict(@nospecialize(x::T)) where T
             ::UInt8 || ::UInt16 || ::UInt32 || ::UInt128 ||
             ::Symbol || ::Missing => Any[
                 type2str(T),
-                String[],
-                [x]
+                [x],
+                String["storage"],
             ]   # can not reduce anymore.
         ##################### Specified Types ####################
         ::Array => Any[
             type2str(typeof(x)),
+            [collect(Int, size(x)), map(todict, vec(x))],
             ["size", "storage"],
-            [collect(Int, size(x)), map(todict, vec(x))]
         ]
         ::Enum => Any[
             type2str(typeof(x)),
-            ["name", "id"],
-            [string(x), Int(x)]
+            ["DataType", string(x), String[string(v) for v in instances(typeof(x))]],
+            ["kind", "value", "options"],
         ]
         ::Tuple => Any[
             type2str(typeof(x)),
+            map(todict, x),
             ["$i" for i=1:length(x)],
-            map(todict, x)
         ]
         ::Dict => Any[
             type2str(typeof(x)),
+            [[todict(k) for k in keys(x)], [todict(v) for v in values(x)]],
             ["keys", "values"],
-            [[todict(k) for k in keys(x)], [todict(v) for v in values(x)]]
         ]
         ###################### Generic Compsite Types ######################
         _ => Any[
                 type2str(T),
+                map(fn->isdefined(x, fn) ? todict(getfield(x, fn)) : nothing, fieldnames(T)),
                 String.(fieldnames(T)),
-                map(fn->isdefined(x, fn) ? todict(getfield(x, fn)) : nothing, fieldnames(T))
             ]
     end
 end
@@ -92,7 +91,7 @@ function typedef!(types::Vector{Any}, @nospecialize(t::Type{T}), typedict::Dict{
             sT
         end
         ::Type{<:Enum} => begin
-            push!(types, create_type(sT, ["name", "id"], [type2str(String), type2str(Int)]))
+            push!(types, create_type("Jugsaw.Universe.Enum", ["kind", "value", "options"], [type2str(String), type2str(Vector{String})]))
             sT
         end
         ###################### Generic Compsite Types ######################
@@ -129,5 +128,5 @@ function def_typeparams!(::Type{T}, types, typedict) where T
 end
 
 function create_type(name::String, fieldnames::Vector{String}, fieldtypes::Vector{String})
-    ["DataType", ["name", "fieldnames", "fieldtypes"], [name, fieldnames, fieldtypes]]
+    ["DataType", [name, fieldnames, fieldtypes], ["name", "fieldnames", "fieldtypes"]]
 end
