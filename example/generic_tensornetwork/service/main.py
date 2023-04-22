@@ -5,20 +5,18 @@ import numpy as np
 import json
 import pdb
 import copy
+import logging
 import re
 
-server = FastAPI()
 # typename: ([^\W0-9]\w*\.[^\W0-9]\w*)
 re_array = re.compile(r"^Core\.Array\{(.*), (\d+)\}")
 re_vector = re.compile(r"^Core\.Array\{(.*), 1\}")
 re_matrix = re.compile(r"^Core\.Array\{(.*), 2\}")
 re_dict = re.compile(r"^Base\.Dict\{(.*), (.*)\}")
+re_vector_of_tuple = re.compile(r"^Base\.Array\{Core\.Tuple\{(.*)\}, 1\}")
+re_tuple_of_vector = re.compile(r"^Core\.Tuple\{(Base\.Array\{(.*), 1\})(, Base\.Array\{(.*), 1\})*\}")
+pdb.set_trace()
 re_multichoice = re.compile(r"^Jugsaw\.Universe\.MultiChoice\{(.*)\}")
-
-def load_methods(filename):
-    with open(filename) as f:
-        d = json.load(f)
-    return d[1][1]
 
 class MethodRender(object):
     def __init__(self, app, sig, fname, args, kwargs, results):
@@ -63,8 +61,8 @@ class MethodRender(object):
         render_nested(newargs, inputs, self.args_map)
         newkwargs = copy.deepcopy(self.kwargs)
         render_nested(newkwargs, inputs, self.kwargs_map)
-        print(newargs)
-        print(newkwargs)
+        logging.info(newargs)
+        logging.info(newkwargs)
         return newargs, newkwargs
 
 
@@ -88,7 +86,7 @@ def render_nested(args, inputs, smap):
             data_input = inputs[smap]
             rawdata = data_input.values
             T = map_eltype_py(matched.group(1))
-            values[1] = [[T(i) for i in row] for row in rawdata]
+            values[1] = [T(i) for i in np.reshape(rawdata.T, -1)]
             values[0] = [rawdata.shape[0], rawdata.shape[1]]
             return args
         elif matched := re_array.match(typeinfo):
@@ -186,7 +184,7 @@ def render_arg(arg, label, inputs, level=0, typeinfo=None):
                 datatype=map_eltype(matched.group(1)),
                 label=label, 
                 interactive=1,
-                headers=[f"col {i+1}" for i in range(size[1])],
+                headers=[f"C{i+1}" for i in range(size[1])],
                 value=np.reshape(storage, size),
             )
             return push(inputs, df)
@@ -251,24 +249,34 @@ def map_eltype_py(tp):
     else:
         raise NotImplementedError(f"{tp}")
 
-filename = "../app/demo.json"
-demos = load_methods(filename)
-app = App("helloworld", demos)
+#################### Main Program ###############
+def load_methods(filename):
+    with open(filename) as f:
+        d = json.load(f)
+    return d[1][1]
 
-with gr.Blocks() as jugs:
-    for k in range(len(demos)):
-        demo = demos[k]
-        fdef = demo[1][0]
-        outdef = demo[1][1]
-        fname, fargs, fkwargs = fdef[1]
-        fname = polish_fname(fname)
-        with gr.Tab(fname):
-            rd = MethodRender(
-                app, fdef[0], fname, fargs, fkwargs, outdef
-            )
-            inputs, outputs = rd.render_gr()
-            launch = gr.Button("Go!")
-            launch.click(rd.flatten_call, inputs=inputs, outputs=outputs)
+def launch_jugsaw(demofile, appname, logging_level=logging.INFO):
+    demos = load_methods(demofile)
+    app = App(appname, demos)
 
-#server = gr.mount_gradio_app(server, jugs, path="/jugsaw/example")
-jugs.launch()
+    with gr.Blocks() as jugs:
+        for k in range(len(demos)):
+            demo = demos[k]
+            fdef = demo[1][0]
+            outdef = demo[1][1]
+            fname, fargs, fkwargs = fdef[1]
+            fname = polish_fname(fname)
+            with gr.Tab(fname):
+                rd = MethodRender(
+                    app, fdef[0], fname, fargs, fkwargs, outdef
+                )
+                inputs, outputs = rd.render_gr()
+                launch = gr.Button("Go!")
+                launch.click(rd.flatten_call, inputs=inputs, outputs=outputs)
+
+    #server = FastAPI()
+    #server = gr.mount_gradio_app(server, jugs, path="/jugsaw/example")
+    logging.basicConfig(level=logging_level)
+    jugs.launch()
+
+launch_jugsaw("../app/demo.json", "helloworld", logging.INFO)
