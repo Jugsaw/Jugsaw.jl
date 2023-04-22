@@ -22,53 +22,58 @@ function todict(@nospecialize(x::T)) where T
     @match x begin
         ###################### Basic Types ######################
         ::JSONTypes => x  # natively supported by JSON
-        ::UndefInitializer => Any[type2str(T),
+        ::UndefInitializer => create_obj(
+            type2str(T),
             [],
             String[],
-        ]   # avoid undef parse error
-        ::Float16 || ::Float32 => Any[
+        )   # avoid undef parse error
+        ::Float16 || ::Float32 => create_obj(
             type2str(T),
             [Float64(x)],
             String["storage"],
-        ]
+        )
         ::DataType => type2str(x)
         ::UnionAll => type2str(x)
         ::Union => type2str(x)
         ::Char || ::Int8 || ::Int16 || ::Int32 || ::Int128 || 
             ::UInt8 || ::UInt16 || ::UInt32 || ::UInt128 ||
-            ::Symbol || ::Missing => Any[
+            ::Symbol || ::Missing => create_obj(
                 type2str(T),
                 [x],
                 String["storage"],
-            ]   # can not reduce anymore.
+               )   # can not reduce anymore.
         ##################### Specified Types ####################
-        ::Array => Any[
+        ::Array => create_obj(
             type2str(typeof(x)),
-            [collect(Int, size(x)), map(todict, vec(x))],
+            [collect(size(x)), map(todict, vec(x))],
             ["size", "storage"],
-        ]
-        ::Enum => Any[
+        )
+        ::Enum => create_obj(
             type2str(typeof(x)),
             ["DataType", string(x), String[string(v) for v in instances(typeof(x))]],
             ["kind", "value", "options"],
-        ]
-        ::Tuple => Any[
+        )
+        ::Tuple => create_obj(
             type2str(typeof(x)),
             map(todict, x),
             ["$i" for i=1:length(x)],
-        ]
-        ::Dict => Any[
+        )
+        ::Dict => create_obj(
             type2str(typeof(x)),
             [[todict(k) for k in keys(x)], [todict(v) for v in values(x)]],
-            ["keys", "values"],
-        ]
+            ["keys", "vals"],
+        )
         ###################### Generic Compsite Types ######################
-        _ => Any[
+        _ => create_obj(
                 type2str(T),
                 map(fn->isdefined(x, fn) ? todict(getfield(x, fn)) : nothing, fieldnames(T)),
                 String.(fieldnames(T)),
-            ]
+            )
     end
+end
+
+function create_obj(type, values, fields)
+    return Dict("type"=>type, "values"=>values, "fields"=>fields)
 end
 
 function typedef!(types::Vector{Any}, @nospecialize(t::Type{T}), typedict::Dict{Any, String}) where T
@@ -87,7 +92,7 @@ function typedef!(types::Vector{Any}, @nospecialize(t::Type{T}), typedict::Dict{
         end
         ::Type{<:Dict} => begin
             def_typeparams!(T, types, typedict)
-            push!(types, create_type(sT, ["keys", "values"], [type2str(Vector{key_type(T)}), type2str(Vector{value_type(T)})]))
+            push!(types, create_type(sT, ["keys", "vals"], [type2str(Vector{key_type(T)}), type2str(Vector{value_type(T)})]))
             sT
         end
         ::Type{<:Enum} => begin
@@ -128,5 +133,9 @@ function def_typeparams!(::Type{T}, types, typedict) where T
 end
 
 function create_type(name::String, fieldnames::Vector{String}, fieldtypes::Vector{String})
-    ["DataType", [name, fieldnames, fieldtypes], ["name", "fieldnames", "fieldtypes"]]
+    Dict(
+        "type" => "DataType",
+        "values" => [name, fieldnames, fieldtypes],
+        "fields" => ["name", "fieldnames", "fieldtypes"]
+    )
 end
