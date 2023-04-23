@@ -1,5 +1,7 @@
 import lark
 import numpy as np
+import json
+import pdb
 
 ##################### Grammar
 jugsaw_grammar = r"""
@@ -12,7 +14,9 @@ jugsaw_grammar = r"""
          | bool
          | null
 
-    type : (typename | funcname) ["{" [typeparam ("," typeparam)*] "}"]
+    type : typewithparams | typewithoutparams
+    typewithparams : (typename | funcname) "{" [typeparam ("," typeparam)*] "}"
+    typewithoutparams : (typename | funcname)
     typename : var ("." var)+
     funcname : var ("." var)* "." "#" var 
     var : /[^\W0-9]\w*/
@@ -80,62 +84,38 @@ class JugsawType(object):
 
     __repr__ = __str__
 
-# class JugsawTypeTransformer(lark.Transformer):
-#     def type(self, items):
-#         return JugsawType(items[0], items[1], None if items[2] == None else items[2:])
-#     def var(self, items):
-#         return str(items[0])
-#     def typeparam(self, items):
-#         return items[0]
+class Symbol(object):
+    def __init__(self, s:str):
+        self.string = s
 
-#     def integer(self, items):
-#         return int(items[0])
-#     def bool(self, items):
-#         return bool(items[0])
-#     def null(self, items):
-#         return None
-#     def float(self, items):
-#         return float(items)
+    def __str__(self) -> str:
+        return ":"+self.string
 
+    def __eq__(self, target) -> bool:
+        if not isinstance(target, Symbol):
+            return False
+        return self.string == target.string
 
-# jtp = lark.Lark(r"""
-#     type : var "." var ["{" [typeparam ("," typeparam)*] "}"]
-#     var : /[^\W0-9]\w*/
-#     typeparam: type
-#          | integer
-#          | float
-#          | bool
-#          | null
-
-#     integer : INT
-#     bool : "true" | "false"
-#     null : "null"
-#     float : SIGNED_FLOAT
-#     %import common.INT
-#     %import common.SIGNED_FLOAT
-#     %import common.WS
-#     %ignore WS
-# """, start='type', parser='lalr', transformer=JugsawTypeTransformer())
-
+    __repr__ = __str__
 
 ####################### Object
 # the JSON grammar in EBNF format
 # dict is not allowed
 class JugsawObject(object):
-    def __init__(self, type:JugsawType, values:list, fieldnames:list):
+    def __init__(self, type:JugsawType, values:list, fields:list):
         self.type = type
         self.values = values
-        self.fieldnames = fieldnames
-        #for field, value in zip(fieldnames, values):
+        self.fields = fields
+        #for field, value in zip(fields, values):
         #    if field not in self.__dict__:
         #        self.__dict__[field] = value
 
     def __str__(self):
-        typeparams = ", ".join([f"{name} = {val}" for name, val in zip(self.fieldnames, self.values)])
+        typeparams = ", ".join([f"{name} = {val}" for name, val in zip(self.fields, self.values)])
         return f"{self.type}(" + typeparams + ")"
 
     def __eq__(self, target):
-        # NOTE: we do not need to check fieldnames as long as their types are the same
+        # NOTE: we do not need to check fields as long as their types are the same
         return isinstance(target, JugsawObject) and target.type == self.type and all([x==y for x, y in zip(target.values, self.values)])
 
     __repr__ = __str__
@@ -145,7 +125,11 @@ class JugsawTransformer(lark.Transformer):
         return items[0]
     # parsing type
     def type(self, items):
-        return JugsawType(*items[0], None if items[1] == None else items[1:])
+        return items[0]
+    def typewithparams(self, items):
+        return JugsawType(*items[0], [] if items[1] == None else items[1:])
+    def typewithoutparams(self, items):
+        return JugsawType(*items[0], None)
     def typename(self, items):
         return (".".join(items[:-1]), items[-1])
     def funcname(self, items):
@@ -155,14 +139,9 @@ class JugsawTransformer(lark.Transformer):
     def typeparam(self, items):
         return items[0]
 
-    def arraytype(self, items):
-        return JugsawType("Core", "Array", items)
-    def dicttype(self, items):
-        return JugsawType("Base", "Dict", items)
-
     # primitive types
     def symbol(self, items):
-        return items[0]
+        return Symbol(items[0])
     def tuple(self, items):
         if items[0] == None:
             return ()
@@ -175,8 +154,6 @@ class JugsawTransformer(lark.Transformer):
     def pair(self, items):
         return tuple(items)
     def list(self, items):
-        return [] if items[0] == None else list(items)
-    def nestedlist(self, items):
         return [] if items[0] == None else list(items)
     def string(self, items):
         return items[0][1:-1]
@@ -196,6 +173,20 @@ class JugsawTransformer(lark.Transformer):
 jp = lark.Lark(jugsaw_grammar, start='object', parser='lalr', transformer=JugsawTransformer())
 jtp = lark.Lark(jugsaw_grammar, start='type', parser='lalr', transformer=JugsawTransformer())
 
+def todict(obj):
+    if isinstance(obj, JugsawObject):
+        return {"type" : str(obj.type), "values" : todict(obj.values), "fields" : todict(obj.fields)}
+    elif isinstance(obj, Symbol):  # within type
+        return str(obj)
+    elif isinstance(obj, tuple):    # within type
+        return str(obj)
+    elif isinstance(obj, list):
+        return [todict(x) for x in obj]
+    elif isinstance(obj, JugsawType):
+        return str(obj)
+    else:
+        return obj
+
 if __name__ == "__main__":
     import pdb
     res = jtp.parse("""Base.Array{Core.Float64, 1}""")
@@ -206,9 +197,13 @@ if __name__ == "__main__":
     print(res)
     assert res == JugsawType("Base", "Array", [True, 1])
 
+    res = jtp.parse("""Core.Tuple{}""")
+    print(res)
+    assert res == JugsawType("Core", "Tuple", [])
+
     res = jtp.parse("""Base.Array{Core.Float64, (:x, :y)}""")
     print(res)
-    assert res == JugsawType("Base", "Array", [JugsawType("Core", "Float64", None), ("x", "y")])
+    assert res == JugsawType("Base", "Array", [JugsawType("Core", "Float64", None), (Symbol("x"), Symbol("y"))])
 
     res = jp.parse("""
             {"type" : "Jugsaw.People{Core.Int}", "values" : [32], "fields" : ["age"]}

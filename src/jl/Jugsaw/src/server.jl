@@ -92,7 +92,7 @@ function act!(r::AppRuntime, http::HTTP.Request)
     # find the correct method
     fcall = JSON.parse(String(http.body))
     @info fcall
-    a = activate(r, fcall[1], string(ps["actor_id"]))
+    a = activate(r, fcall["type"], string(ps["actor_id"]))
     # TODO: load actor state from state store
     #req = JSON3.read(http.body, JugsawFunctionCall)
     req = JugsawIR.fromdict(r.mod, typeof(a.actor.first), fcall)

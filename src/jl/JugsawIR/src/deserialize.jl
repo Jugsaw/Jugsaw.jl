@@ -64,7 +64,6 @@ function fromdict(m::Module, @nospecialize(t::Type{T}), d) where T
         end
         IsConcreteType() => begin
             @info d
-            names = fieldnames(T)
             vals = filter!(x->x!==undef, Any[fromdict(m, T.types[i], d["values"][i]) for i=1:length(T.types)])
             #generic_customized_parsetype(m, T, Tuple(values))
             Core.eval(m, Expr(:new, T, Any[:($vals[$i]) for i=1:length(vals)]...))

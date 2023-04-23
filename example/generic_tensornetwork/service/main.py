@@ -7,7 +7,7 @@ import pdb
 import copy
 import logging
 import re
-from simpleparser import jp, JugsawObject
+from simpleparser import jp, JugsawObject, todict
 
 class MethodRender(object):
     def __init__(self, app, sig, fname, args, kwargs, results):
@@ -26,9 +26,9 @@ class MethodRender(object):
     def flatten_call(self, *args):
         args, kwargs = self.render_input(args)
         res = Method(self.app, "greet")["0"](
-            args, kwargs, sig=self.sig, fname=self.fname
+            todict(args), todict(kwargs), sig=self.sig, fname=self.fname
         )
-        result = res()
+        result = jp.parse(res())
         flatten_result = {}
         extract_flatten(result, flatten_result, self.result_map)
         fl = [flatten_result[i] for i in range(len(flatten_result))]
@@ -65,24 +65,28 @@ def render_nested(args, inputs, smap):
         for arg in args:
             render_nested(arg, inputs, smap)
     elif isinstance(args, JugsawObject):  # an object
-        tp, values, fields = args.type, args.values, args.fieldnames
+        tp, values, fields = args.type, args.values, args.fields
         # parsing arrays
         if tp.module == "Core" and tp.typename == "Array":
-            if len(args.values) == 1:
+            if len(values[0]) == 1:
                 data_input = inputs[smap]
                 rawdata = data_input.values[:,0].tolist()
                 if len(rawdata) == 1 and rawdata[0] == '':
                     rawdata = []
-                T = map_eltype_py(matched.group(1))
+                T = map_eltype_py(tp.typeparams[0])
                 values[1] = [T(i) for i in rawdata]
                 values[0] = [len(values[1])]
                 return args
-            elif len(args.values) == 2:
+            elif len(values[0]) == 2:
                 data_input = inputs[smap]
                 rawdata = data_input.values
-                T = map_eltype_py(matched.group(1))
-                values[1] = [T(i) for i in np.reshape(rawdata.T, -1)]
-                values[0] = [rawdata.shape[0], rawdata.shape[1]]
+                if len(rawdata[0]) == 1 and rawdata[0][0] == '':
+                    values[1] = []
+                    values[0] = [0, 0]
+                else:
+                    T = map_eltype_py(tp.typeparams[0])
+                    values[1] = [T(i) for i in np.reshape(rawdata.T, -1)]
+                    values[0] = [rawdata.shape[0], rawdata.shape[1]]
                 return args
         elif tp.module == "Base" and tp.typename == "Dict":
             keys, vals = inputs[smap]
@@ -101,12 +105,14 @@ def render_nested(args, inputs, smap):
         return inputs[smap]
 
 
-def extract_flatten(args, flat, smap):
-    if isinstance(args, JugsawObject):
-        tp, values, fields = args.type, args.values, args.fieldnames
-        #for (i, arg) in enumerate(args):
+# smap is a mapping from result to flatten input gadget indices
+def extract_flatten(result, flat, smap):
+    print(result, flat, smap)
+    if isinstance(result, JugsawObject):
+        tp, values, fields = result.type, result.values, result.fields
+        #for (i, arg) in enumerate(result):
             #extract_flatten(arg, flat, smap[i])
-    #elif isinstance(args, dict):
+    #elif isinstance(result, dict):
         if tp.module == "Core" and tp.typename == "Array":
             size, storage = values
             ndims = len(size)
@@ -114,14 +120,19 @@ def extract_flatten(args, flat, smap):
                 flat[smap] = [[x] for x in values[1]]
             elif ndims == 2:
                 flat[smap] = np.reshape(values[1], values[0])
-        elif tp.module == "Base" and tp.typename == "Dict":
-            flat[smap] = dict(zip(*values))
-        raise NotImplementedError("array")
-    elif isinstance(args, list):
+            else:
+                raise NotImplementedError(f"{tp}")
+        #elif tp.module == "Base" and tp.typename == "Dict":
+        #    raise NotImplementedError(f"{tp}")
+            #flat[smap] = dict(zip(*values))
+        else:
+            for (v, si) in zip(values, smap):
+                extract_flatten(v, flat, si)
+    elif isinstance(result, list):
         for k in range(len(values)):
             extract_flatten(values[k], flat, smap[k])
-    else:
-        flat[smap] = args
+    else: # primitive types
+        flat[smap] = result
 
 
 # a function name is contained in the type field
@@ -146,7 +157,7 @@ def render_arg(arg, label, inputs, level=0):
         res = [render_arg(x, label + "[%d]"%i, inputs, level=0) for (i, x) in enumerate(arg)]
         return res
     elif isinstance(arg, JugsawObject):  # generic type
-        tp, values, fields = arg.type, arg.values, arg.fieldnames
+        tp, values, fields = arg.type, arg.values, arg.fields
         _label = "␣"*(level) + " " + label #◼⋄
         gr.Markdown(f"{_label} = **{tp}**")
         if tp.module == "Core" and tp.typename == "Array":
@@ -199,7 +210,7 @@ def render_arg(arg, label, inputs, level=0):
             elif tp.typename == "MultiChoice":
                 raise NotImplementedError(f"{tp.type}")  # TODO: fix the empty list issue.
             elif tp.typename == "Color":
-                c = ColorPicker(label=label)
+                c = gr.ColorPicker(label=label)
                 return push(inputs, c)
             # TODO: MultiChoice, Code, Dataframe, File, RGBImage
         # no need to specialize tuple

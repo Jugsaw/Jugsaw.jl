@@ -42,7 +42,7 @@ class ObjectRef(object):
     def __call__(self):
         url = f"{self.actor.url}/fetch"
         resp = requests.post(url, json={"object_id": self.object_id})
-        return resp.json()
+        return resp.text
 
 
 class Actor(object):
@@ -57,7 +57,8 @@ class Actor(object):
     def __call__(
         self, args: Any, kwds: Any, sig: str = "", fname: str = ""
     ) -> ObjectRef:
-        payload = [sig, [fname, args, kwds], ["fname", "args", "kwargs"]]
+        payload = {"type":str(sig), "values":[str(fname), args, kwds], "fields":["fname", "args", "kwargs"]}
         #).dict(by_alias=True)
+        print(payload)
         r = requests.post(self.url, json=payload)
         return ObjectRef(self, r.json()["object_id"])
