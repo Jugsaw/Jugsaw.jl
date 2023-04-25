@@ -1,0 +1,44 @@
+object: genericobj
+        | type
+        | list
+        | string
+        | float
+        | integer
+        | bool
+        | null
+
+type : typewithparams | typewithoutparams
+typewithparams : (typename | funcname) "{" [typeparam ("," typeparam)*] "}"
+typewithoutparams : (typename | funcname)
+typename : modname "." var
+funcname : modname "." "#" var 
+modname : var
+var : /[^\W0-9]\w*/
+typeparam: type
+        | integer
+        | float
+        | tuple
+        | symbol
+        | bool
+        | null 
+symbol : ":" var
+tuple : "(" [typeparam ","] ")"
+        | "(" typeparam ("," typeparam)+ ")"
+
+genericobj : "{" [pair ("," pair)*] "}"
+pair : string ":" object
+
+list : "[" [object ("," object)*] "]"
+string : ESCAPED_STRING
+float : SIGNED_FLOAT
+integer : INT
+bool : true | false
+true : "true"
+false : "false"
+null : "null"
+
+%import common.ESCAPED_STRING
+%import common.INT
+%import common.SIGNED_FLOAT
+%import common.WS
+%ignore WS

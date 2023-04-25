@@ -17,6 +17,9 @@ class App(object):
         )
         self.demos = demos
 
+    # this is for autocompletion!
+    def __dir__(self):
+        return self.demos.keys()
 
 class Method(object):
     def __init__(self, app: App, method: str) -> None:
