@@ -14,6 +14,9 @@ using Lerche, Test
     print(res)
     #@test res == JugsawType("Core", "Tuple", [])
 
+    @test_broken res = Lerche.parse(jtp, """Core.AnyMod.Tuple{}""")
+    print(res)
+
     res = Lerche.parse(jtp, """Base.Array{Core.Float64, (:x, :y)}""")
     print(res)
     #@test res == JugsawType("Base", "Array", [JugsawType("Core", "Float64", None), (Symbol("x"), Symbol("y"))])

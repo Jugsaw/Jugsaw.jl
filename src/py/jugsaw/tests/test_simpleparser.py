@@ -21,6 +21,11 @@ def test_jtp():
     assert isinstance(res, JugsawType)
     print(res)
 
+def test_nested_mod():
+    res = jtp.parse("""Core.AnyMod.Tuple{}""")
+    assert res == JugsawType("Core.AnyMod", "Tuple", [])
+    print(res)
+
 def test_jp():
     res = jp.parse("""
             {"type" : "Jugsaw.People{Core.Int}", "values" : [32], "fields" : ["age"]}

@@ -10,9 +10,8 @@ object: genericobj
 type : typewithparams | typewithoutparams
 typewithparams : (typename | funcname) "{" [typeparam ("," typeparam)*] "}"
 typewithoutparams : (typename | funcname)
-typename : modname "." var
-funcname : modname "." "#" var 
-modname : var
+typename : var ("." var)*
+funcname : typename ".#" var
 var : /[^\W0-9]\w*/
 typeparam: type
         | integer

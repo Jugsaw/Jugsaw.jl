@@ -85,9 +85,9 @@ class JugsawTransformer(lark.Transformer):
     def typewithoutparams(self, items):
         return JugsawType(*items[0], None)
     def typename(self, items):
-        return (".".join(items[0]), items[1])
+        return (".".join(items[:-1]), items[-1])
     def funcname(self, items):
-        return (".".join(items[0]), "#"+items[1])
+        return (str(items[0]), items[1])
     def var(self, items):
         return str(items[0])
     def typeparam(self, items):
@@ -123,8 +123,6 @@ class JugsawTransformer(lark.Transformer):
         return False
     def null(self, items):
         return None
-    def modname(self, items):
-        return items
 
 # convert a Jugsaw tree to a dict
 def todict(obj):
