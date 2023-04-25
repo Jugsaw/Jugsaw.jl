@@ -10,7 +10,7 @@ function parse4(str::AbstractString;
 end
 
 # TODO: parse by demo!
-function fromdict(m::Module, @nospecialize(t::Type{T}), @nospecialize(d)) where T
+function fromdict(m::Module, @nospecialize(t::Type{T}), d) where T
     if !isconcretetype(T) && T !== Any
         @warn "Abstract type information (useless) found: $T"
         return fromdict(m, Any, d)
@@ -30,6 +30,7 @@ function fromdict(m::Module, @nospecialize(t::Type{T}), @nospecialize(d)) where 
         ::Type{Union} => str2type(m, d)
         ##################### Specified Types ####################
         ::Type{<:Array} => reshape(eltype(T)[fromdict(m, eltype(T), x) for x in d["values"][2]], Int.(d["values"][1])...)
+        ::Type{<:Enum} => T(findfirst(==(d["values"][2]), d["values"][3])-1)
         ::Type{<:Tuple} => begin
             ([fromdict(m, T.parameters[i], v) for (i, v) in enumerate(d["values"])]...,)
         end
@@ -43,9 +44,11 @@ function fromdict(m::Module, @nospecialize(t::Type{T}), @nospecialize(d)) where 
         ::Type{Any} => begin
             if d isa JSONTypes
                 d
-            elseif d isa Vector
-                [fromdict(m, Any, v) for v in d]
-            elseif haskey(d, "type")
+            #elseif d isa Vector
+                #[fromdict(m, Any, v) for v in d]
+            #elseif haskey(d, "type")
+            else
+                @assert d isa Dict && length(d) >= 2 "type parsing fail, missing data information! got: $d"
                 specified_type = str2type(m, d["type"])
                 if isconcretetype(specified_type)
                     fromdict(m, specified_type, d)
@@ -53,22 +56,20 @@ function fromdict(m::Module, @nospecialize(t::Type{T}), @nospecialize(d)) where 
                     @warn "Abstract type information (useless) found: $specified_type"
                     Dict(k=>fromdict(m, Any, v) for (k, v) in d)
                 end
-            else
+            #else
                 # parse its value, in case its value contains type information
-                @warn "no type information found, parsing to dict!"
-                Dict(k=>fromdict(m, Any, v) for (k, v) in d)
+                #@warn "no type information found, parsing to dict!"
+                #Dict(k=>fromdict(m, Any, v) for (k, v) in d)
             end
         end
         IsConcreteType() => begin
-            names = fieldnames(T)
+            @info d
             vals = filter!(x->x!==undef, Any[fromdict(m, T.types[i], d["values"][i]) for i=1:length(T.types)])
             #generic_customized_parsetype(m, T, Tuple(values))
             Core.eval(m, Expr(:new, T, Any[:($vals[$i]) for i=1:length(vals)]...))
         end
     end
 end
-value_type(::Type{<:AbstractDict{T, V}}) where {T,V} = V
-key_type(::Type{<:AbstractDict{T}}) where {T} = T
 
 #   -> generic types (undef handled)
 # @generated function generic_customized_parsetype(m::Module, ::Type{T}, values::NTuple{N,Any}) where {T,N}

@@ -11,6 +11,7 @@ jugsaw = { path = "../../../src/py/jugsaw", develop = true }
 gradio = "^3.22.1"
 uvicorn = "^0.21.1"
 fastapi = "^0.95.0"
+lark = "^1.1.5"
 
 
 [build-system]

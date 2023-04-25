@@ -60,3 +60,6 @@ end
     isconcretetype(x)
 end
 
+value_type(::Type{<:AbstractDict{T, V}}) where {T,V} = V
+key_type(::Type{<:AbstractDict{T}}) where {T} = T
+
