@@ -17,22 +17,37 @@ function jsontype4(::Type{T}) where T
     return JSON.json(types)
 end
 
+struct TypeTable
+    names::Vector{String}
+    defs::Dict{String, Tuple{Vector{String}, Vector{String}}}
+end
+function deftype!(tt::TypeTable, name::String, fieldnames::Vector{String}, fieldtypes::Vector{String})
+    if !haskey(tt.defs, name)
+        push!(tt.names, name)
+        tt.defs[name] = (fieldnames, fieldtypes)
+    end
+end
+
+function def!(tt::TypeTable, name::String, fieldnames::Vector{String}, @nospecialize(fieldvalues::Tuple))
+    deftype!(tt, name, fieldnames, [type2str(typeof(x)) for x in fieldvalues])
+    create_obj(name, collect(Any, fieldvalues))
+end
+
 # data are dumped to (name, value[, fieldnames])
-function todict(@nospecialize(x::T)) where T
+function todict!(@nospecialize(x::T), tt::TypeTable) where T
+    sT = type2str(T)
     @match x begin
         ###################### Basic Types ######################
         ::JSONTypes => x  # natively supported by JSON
-        ::UndefInitializer => create_obj(
-            type2str(T),
-            [],
-            String[],
-        )   # avoid undef parse error
-        ::Float16 || ::Float32 => create_obj(
-            type2str(T),
-            [Float64(x)],
-            String["storage"],
-        )
-        ::DataType => type2str(x)
+        ::UndefInitializer => begin
+            # avoid undef parse error
+            def!(tt, sT, String[], String[])
+        end
+        ::Float16 || ::Float32 => def!(tt, sT, ["content"], [Float64(x)])
+        ::DataType => begin
+        # FROM HERE!
+            def!(tt, "DataType", ["name", "fieldnames", "fieldtypes"], [type2str(String), type2str(Vector{String}), type2str(Vector{String})])
+        end
         ::UnionAll => type2str(x)
         ::Union => type2str(x)
         ::Char || ::Int8 || ::Int16 || ::Int32 || ::Int128 || 
@@ -40,40 +55,37 @@ function todict(@nospecialize(x::T)) where T
             ::Symbol || ::Missing => create_obj(
                 type2str(T),
                 [x],
-                String["storage"],
                )   # can not reduce anymore.
         ##################### Specified Types ####################
         ::Array => create_obj(
             type2str(typeof(x)),
             [collect(size(x)), map(todict, vec(x))],
-            ["size", "storage"],
         )
         ::Enum => create_obj(
             type2str(typeof(x)),
             ["DataType", string(x), String[string(v) for v in instances(typeof(x))]],
-            ["kind", "value", "options"],
         )
         ::Tuple => create_obj(
             type2str(typeof(x)),
             map(todict, x),
-            ["$i" for i=1:length(x)],
         )
-        ::Dict => create_obj(
-            type2str(typeof(x)),
-            [[todict(k) for k in keys(x)], [todict(v) for v in values(x)]],
-            ["keys", "vals"],
-        )
+        ::Dict => begin
+            push!(types, create_type(sT, ["keys", "vals"], [type2str(Vector{key_type(T)}), type2str(Vector{value_type(T)})]))
+            create_obj(
+                type2str(typeof(x)),
+                [[todict(k) for k in keys(x)], [todict(v) for v in values(x)]],
+            )
+        end
         ###################### Generic Compsite Types ######################
         _ => create_obj(
                 type2str(T),
                 map(fn->isdefined(x, fn) ? todict(getfield(x, fn)) : nothing, fieldnames(T)),
-                String.(fieldnames(T)),
             )
     end
 end
 
-function create_obj(type, values, fields)
-    return Dict("type"=>type, "values"=>values, "fields"=>fields)
+function create_obj(type, values)
+    return Dict("type"=>type, "values"=>values)
 end
 
 function typedef!(types::Vector{Any}, @nospecialize(t::Type{T}), typedict::Dict{Any, String}) where T
@@ -84,6 +96,11 @@ function typedef!(types::Vector{Any}, @nospecialize(t::Type{T}), typedict::Dict{
             push!(types, sT)
             sT
         end  # wrap primitive type
+        ::Type{DataType} => begin
+            push!(types, create_type("DataType", ["name", "fieldnames", "fieldtypes"],
+                [type2str(String), type2str(Vector{String}), type2str(Vector{String})]))
+            sT
+        end
         ##################### Specified Types ####################
         ::Type{<:Array} => begin
             def_typeparams!(T, types, typedict)
