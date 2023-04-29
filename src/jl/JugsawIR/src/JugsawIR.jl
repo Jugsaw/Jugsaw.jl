@@ -8,8 +8,8 @@ export json4, parse4, jsontype4
 using Lerche
 
 include("Core.jl")
-include("deserialize.jl")
+#include("deserialize.jl")
 include("serialize.jl")
-include("lark.jl")
+#include("lark.jl")
 
 end

@@ -1,43 +1,23 @@
-object: genericobj
-        | type
+object: genericobj1
+        | genericobj2
+        | genericobj3
         | list
-        | string
-        | float
-        | integer
-        | bool
+        | ESCAPED_STRING
+        | SIGNED_NUMBER
+        | true
+        | false
         | null
 
-type : typewithparams | typewithoutparams
-typewithparams : (typename | funcname) "{" [typeparam ("," typeparam)*] "}"
-typewithoutparams : (typename | funcname)
-typename : var ("." var)*
-funcname : typename ".#" var
-var : /[^\W0-9]\w*/
-typeparam: type
-        | integer
-        | float
-        | tuple
-        | symbol
-        | bool
-        | null 
-symbol : ":" var
-tuple : "(" [typeparam ","] ")"
-        | "(" typeparam ("," typeparam)+ ")"
-
-genericobj : "{" [pair ("," pair)*] "}"
-pair : string ":" object
+genericobj1 : "{" "\"fields\"" ":" list "}"
+genericobj2 : "{" "\"type\"" ":" ESCAPED_STRING "," "\"fields\"" ":" list "}"
+genericobj3 : "{" "\"fields\"" ":" list "," "\"type\"" ":" ESCAPED_STRING "}"
 
 list : "[" [object ("," object)*] "]"
-string : ESCAPED_STRING
-float : SIGNED_FLOAT
-integer : INT
-bool : true | false
 true : "true"
 false : "false"
 null : "null"
 
 %import common.ESCAPED_STRING
-%import common.INT
-%import common.SIGNED_FLOAT
+%import common.SIGNED_NUMBER
 %import common.WS
 %ignore WS

@@ -45,6 +45,17 @@ function type2str(::Type{T}) where T
     end
     return typename
 end
+
+# string as type and type to string
+function str2type(m::Module, str::String)
+    ex = Meta.parse(str)
+    @match ex begin
+        :($mod.$name{$(paras...)}) || :($mod.$name) ||
+            ::Symbol || :($name{$(paras...)}) => Core.eval(m, ex)
+        _ => Any
+    end
+end
+
 function modname(T::DataType)
     mod = T.name.module
     return string(mod)
