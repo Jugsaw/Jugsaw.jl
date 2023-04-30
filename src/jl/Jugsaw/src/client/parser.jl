@@ -37,14 +37,6 @@ function Base.show(io::IO, obj::JugsawObj)
     print(io, ")")
 end
 
-const bootstrap_types = Dict(
-    type2str(JugsawIR.TypeTable) => JugsawObj(type2str(JugsawIR.TypeTable), [type2str(String), type2str(Dict{String, Tuple{Vector{String}, Vector{String}}})], ["names", "defs"]),
-    type2str(Dict{String, Tuple{Vector{String}, Vector{String}}}) => JugsawObj(type2str(Dict{String, Tuple{Vector{String}, Vector{String}}}), [type2str(String), type2str(Vector{Tuple{Vector{String}, Vector{String}}})], ["keys", "vals"]),
-    type2str(Tuple{Vector{String}, Vector{String}}) => JugsawObj(type2str(Tuple{Vector{String}, Vector{String}}), [type2str(Vector{String}), type2str(Vector{String})], ["1", "2"]),
-    type2str(DataType) => JugsawObj(type2str(DataType), [type2str(String), type2str(Vector{String}), type2str(Vector{String})], ["name", "fieldnames", "fieldtypes"]),
-    type2str(Vector{String}) => JugsawObj(type2str(Vector{String}), ["", ""], ["size", "storage"]),  # goto primitive types
-)
-
 load_types_from_file(filename::String) = load_types(read(filename, String))
 load_types(str::String) = JugsawIR.parse4(str, JugsawIR.demoof(TypeTable))
 
