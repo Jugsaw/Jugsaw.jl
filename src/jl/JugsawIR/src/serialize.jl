@@ -16,6 +16,20 @@ struct TypeTable
     defs::Dict{String, Tuple{Vector{String}, Vector{String}}}
 end
 TypeTable() = TypeTable(String[], Dict{String, Tuple{Vector{String}, Vector{String}}}())
+Base.show(io::IO, ::MIME"text/plain", t::TypeTable) = Base.show(io, t)
+function Base.show(io::IO, t::TypeTable)
+    println(io, "TypeTable")
+    for (k, typename) in enumerate(t.names)
+        println(io, "  - $typename")
+        fns, fts = t.defs[typename]
+        for (l, (fn, ft)) in enumerate(zip(fns, fts))
+            print(io, "    - $fn::$ft")
+            if !(k == length(t.names) && l == length(fns))
+                println()
+            end
+        end
+    end
+end
 
 function def!(tt::TypeTable, type::String, fieldnames::Vector{String}, @nospecialize(fieldvalues::Tuple))
     if !haskey(tt.defs, type)
@@ -74,8 +88,8 @@ function fromtree(t::Lerche.Tree, demo::T) where T
         ###################### Basic Types ######################
         ::Nothing || ::Missing || ::UndefInitializer => demo
         ::Bool => Meta.parse(t.children[1].data)
-        ::Char => Meta.parse(t.children[1].value)[1]
-        ::DirectlyRepresentableTypes => T(Meta.parse(t.children[1].value))
+        ::Char => Meta.parse(t.children[1].children[1].value)[1]
+        ::DirectlyRepresentableTypes => T(Meta.parse(t.children[1].children[1].value))
 
         ##################### Specified Types ####################
         ::Type => demo
@@ -86,7 +100,7 @@ function fromtree(t::Lerche.Tree, demo::T) where T
         end
         ::Enum => begin
             kind, value, options = _getfields(t)
-            T(findfirst(==(Meta.parse(value.children[1].value)), [Meta.parse(o.children[1].value) for o in options.children[1].children])-1)
+            T(findfirst(==(Meta.parse(value.children[1].children[1].value)), [Meta.parse(o.children[1].children[1].value) for o in options.children[1].children])-1)
         end
         ::Tuple => begin
             ([fromtree(v, d) for (v, d) in zip(_getfields(t), demo)]...,)

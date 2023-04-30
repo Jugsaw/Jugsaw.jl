@@ -1,24 +1,16 @@
-module Client
-
-using JugsawIR
-using HTTP
-using URIs
-
-export App
-
 struct App
     name::Symbol
     endpoint::URI
     method_demos::Dict{String}
 end
 
-function App(name::Symbol; endpoint="http://localhost:8081/actors/")
+function App(appname::Symbol; endpoint="http://localhost:8081/actors/")
     uri = URI(endpoint)
-    method_demos = request_method_demos(name, uri)
-    return App(name, uri, method_demos)
+    method_demos = request_method_demos(uri, appname)
+    return App(appname, uri, method_demos)
 end
-function request_method_demos(name::String, endpoint::URI)
-    demo_url = joinpath(endpoint, "$name", "demos")
+function request_method_demos(endpoint::URI, appname::String)
+    demo_url = joinpath(endpoint, "$appname", "demos")
     r = HTTP.post(demo_url, ["content-type" => "application/json"], req) # Deserialize
     tree = JugsawIR.Lerche.parse(JugsawIR.jp, String(r.body))
     return tree
@@ -67,4 +59,3 @@ end
 # c(1)
 # c(2)
 # c(3)
-end

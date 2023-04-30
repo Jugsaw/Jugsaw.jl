@@ -11,3 +11,7 @@ end
 @testset "server" begin
     include("server.jl")
 end
+
+@testset "client" begin
+    include("client/Client.jl")
+end

@@ -2,5 +2,5 @@ using Test
 using Jugsaw.Client
 using Jugsaw
 
-@testset "request" begin
+@testset "parser" begin
 end

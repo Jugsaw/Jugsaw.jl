@@ -18,7 +18,7 @@ include("config.jl")
 include("common.jl")
 include("register.jl")
 include("server.jl")
-include("client.jl")
+include("client/Client.jl")
 include("template.jl")
 
 end # module

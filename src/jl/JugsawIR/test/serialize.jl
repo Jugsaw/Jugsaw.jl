@@ -1,5 +1,4 @@
 using JugsawIR: json4, parse4
-using JSON
 using Test, JugsawIR
 
 @testset "demoof" begin
