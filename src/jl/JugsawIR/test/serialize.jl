@@ -20,6 +20,12 @@ end
     struct GraphT
         nv::Int
         edges::Matrix{Int}
+        function GraphT(nv::Int, edges::Matrix{Int})
+            new(nv, edges)
+        end
+        function GraphT(nv::Int)
+            new(nv)
+        end
     end
     @enum ENM e1 e2 e3
     Base.:(==)(g1::GraphT, g2::GraphT) = g1.nv == g2.nv && g1.edges == g2.edges
@@ -36,6 +42,9 @@ end
         (:x, :y),
         (UInt8(3), UInt8(1)),
         (Int, Int),
+        ('x', 'y'),
+        (missing, missing),
+        (undef, undef),
         (1:3, 2:6),
         (1:0.01:2, 1:0.03:4.0),
         (e2, e3),
@@ -43,12 +52,13 @@ end
         (Union{Integer, Float64}, Union{Integer, Float64}),
         (Array{Float64}, Array{Float64}),
         (Array{Int,2},Array{Int,2}),
-        ((1, 2), (3, 4)),
+        ((1, '2'), (3, '4')),
         ([1, 2, 3], [0]),
         ([1+2im, 2+3im], [2+3im]),
         ((; x=4, y=5), (; x=6, y=7)),
         (Dict(2=>3), Dict(5=>2, 4=>3)),
         (Dict(:s=>3), Dict(:x=>5, :z=>6)),
+        (GraphT(4), GraphT(6)),
         ((; complex=1+2im,
              Tensor= randn(3,3),
              Graph = GraphT(6, [2 4 1; 3 1 6]),
@@ -63,7 +73,7 @@ end
         @info typeof(obj)
         str, types = json4(obj)
         res = parse4(str, demo)
-        @test obj == res
+        @test obj === res || obj == res
     end
 end
 

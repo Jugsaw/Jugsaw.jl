@@ -37,9 +37,10 @@ function todict!(@nospecialize(x::T), tt::TypeTable) where T
     @match x begin
         ###################### Basic Types ######################
         ::JSONTypes => x  # natively supported by JSON
+        ::UndefInitializer => nothing
         ::Char || ::Int8 || ::Int16 || ::Int32 || ::Int128 ||    # extra types can be casted directly
             ::UInt8 || ::UInt16 || ::UInt32 || ::UInt128 ||
-            ::Symbol || ::Missing || ::Float16 || ::Float32 || ::UndefInitializer => x
+            ::Symbol || ::Missing || ::Float16 || ::Float32 => x
         #::UnionAll => type2str(x)
         #::Union => type2str(x)
         ##################### Specified Types ####################
@@ -74,12 +75,13 @@ end
 function fromtree(t::Lerche.Tree, demo::T) where T
     @match demo begin
         ###################### Basic Types ######################
-        ::Nothing => nothing
+        ::Nothing || ::Missing || ::UndefInitializer => demo
         ::Bool => Meta.parse(t.children[1].data)
+        ::Char => Meta.parse(t.children[1].value)[1]
         ::JSONTypes => Meta.parse(t.children[1].value)
         ::Char || ::Int8 || ::Int16 || ::Int32 || ::Int128 ||    # extra types can be casted directly
             ::UInt8 || ::UInt16 || ::UInt32 || ::UInt128 ||
-            ::Symbol || ::Missing || ::Float16 || ::Float32 || ::UndefInitializer => T(Meta.parse(t.children[1].value))
+            ::Symbol || ::Float16 || ::Float32 => T(Meta.parse(t.children[1].value))
 
         # NOTE: to get rid of type cast, we should use demo to deserialize an object.
         #::Type{UnionAll} => str2type(m, d)
