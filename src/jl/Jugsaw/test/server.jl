@@ -16,5 +16,6 @@ using Jugsaw
 
     # parse function call
     fcall, _ = Jugsaw.JugsawIR.json4(first(app.method_demos)[2].first)
-    @test Jugsaw.parse_fcall(fcall::String, app.method_demos) == first(app.method_demos)[2].first
+    type_sig, req = Jugsaw.parse_fcall(fcall::String, app.method_demos)
+    @test req == first(app.method_demos)[2].first
 end

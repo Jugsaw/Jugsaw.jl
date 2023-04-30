@@ -40,7 +40,7 @@ class App(object):
     def query_type(self, type:str):
         pass
 
-    def query_method(self, method:str):
+    def query_function(self, method:str):
         pass
 
 class Method(object):

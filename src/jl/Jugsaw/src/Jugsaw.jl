@@ -9,13 +9,9 @@ using Distributed: Future
 using MLStyle
 using TOML
 
-using JSON3
-using URIs
-
 export AppSpecification
 export serve, @register
 export build
-export App
 
 include("typeuniverse.jl")
 include("config.jl")
