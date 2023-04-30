@@ -9,7 +9,6 @@
 function json4(obj)
     obj, type = todict(obj)
     typed, typet = todict(type)
-    @show typet.names
     JSON.json(obj), JSON.json(typed)
 end
 struct TypeTable
@@ -38,13 +37,8 @@ function todict!(@nospecialize(x::T), tt::TypeTable) where T
     sT = type2str(T)
     @match x begin
         ###################### Basic Types ######################
-        ::JSONTypes => x  # natively supported by JSON
         ::UndefInitializer => nothing
-        ::Char || ::Int8 || ::Int16 || ::Int32 || ::Int128 ||    # extra types can be casted directly
-            ::UInt8 || ::UInt16 || ::UInt32 || ::UInt128 ||
-            ::Symbol || ::Missing || ::Float16 || ::Float32 => x
-        #::UnionAll => type2str(x)
-        #::Union => type2str(x)
+        ::DirectlyRepresentableTypes => x
         ##################### Specified Types ####################
         ::DataType => begin
             def!(tt, "DataType", ["name", "fieldnames", "fieldtypes"], (type2str(String), type2str(Vector{String}), type2str(Vector{String})))
@@ -74,20 +68,15 @@ function todict!(@nospecialize(x::T), tt::TypeTable) where T
     end
 end
 
+# NOTE: at least one element is required to help Array and Dict to parse.
 function fromtree(t::Lerche.Tree, demo::T) where T
     @match demo begin
         ###################### Basic Types ######################
         ::Nothing || ::Missing || ::UndefInitializer => demo
         ::Bool => Meta.parse(t.children[1].data)
         ::Char => Meta.parse(t.children[1].value)[1]
-        ::JSONTypes => Meta.parse(t.children[1].value)
-        ::Char || ::Int8 || ::Int16 || ::Int32 || ::Int128 ||    # extra types can be casted directly
-            ::UInt8 || ::UInt16 || ::UInt32 || ::UInt128 ||
-            ::Symbol || ::Float16 || ::Float32 => T(Meta.parse(t.children[1].value))
+        ::DirectlyRepresentableTypes => T(Meta.parse(t.children[1].value))
 
-        # NOTE: to get rid of type cast, we should use demo to deserialize an object.
-        #::Type{UnionAll} => str2type(m, d)
-        #::Type{Union} => str2type(m, d)
         ##################### Specified Types ####################
         ::Type => demo
         ::Array => begin
@@ -134,14 +123,13 @@ function _getfields(t::Lerche.Tree)
     end
 end
 
+###################### Lark ########################
 const jp = Lark(read(joinpath(@__DIR__, "jugsawir.lark"), String),parser="lalr",lexer="contextual", start="object")
 function parse4(str::String, demo)
     tree = Lerche.parse(jp, str)
     fromtree(tree, demo)
 end
 
-using AbstractTrees
-using AbstractTrees: print_tree
 AbstractTrees.children(t::Lerche.Tree) = t.children
 function AbstractTrees.printnode(io::IO, t::Lerche.Tree)
 	print(io, t.data)
@@ -149,3 +137,16 @@ end
 function AbstractTrees.printnode(io::IO, t::Lerche.Token)
     print(io, t.value)
 end
+
+print_clean_tree(t::Lerche.Tree; kwargs...) = print_clean_tree(stdout, t; kwargs...)
+function print_clean_tree(io::IO, t::Lerche.Tree; kwargs...)
+    AbstractTrees.print_tree(io, cleanup(t); kwargs...)
+end
+function cleanup(tree::Lerche.Tree)
+    if tree.data == "object"
+        return cleanup(tree.children[1])
+    else
+        return Tree(tree.data, cleanup.(tree.children), tree._meta)
+    end
+end
+cleanup(t::Lerche.Token) = t

@@ -74,9 +74,7 @@ end
         str, typestr = json4(obj)
         sT = JugsawIR.type2str(typeof(obj))
         types = JugsawIR.Lerche.parse(JugsawIR.jp, typestr)
-        @show sT# ∈ types.names
-        @show types
-        @show types.defs[sT]
+        JugsawIR.print_clean_tree(types)
         res = parse4(str, demo)
         @test obj === res || obj == res
     end
