@@ -12,14 +12,14 @@ Base.getindex(s::StateStore, k) = s.store[k][]
 """
 Describe current status of an actor.
 """
-struct Actor{T<:Pair{<:JugsawFunctionCall}}
+struct Actor{T<:Tuple{<:JugsawFunctionCall, Any, String}}
     # actor is a function demo
     actor::T
     taskref::Ref{Task}
     mailbox::Channel{Message}
 end
 
-function Actor(state_store, actor::Pair{<:JugsawFunctionCall})
+function Actor(state_store, actor::Tuple{<:JugsawFunctionCall, Any, String})
     taskref = Ref{Task}()
     chnl = Channel{Message}(taskref=taskref) do ch
         for msg in ch
@@ -37,8 +37,8 @@ function put_message(a::Actor, msg::Message)
     put!(a.mailbox, msg)
 end
 
-function act!(state_store::StateStore, actor::Pair{<:JugsawFunctionCall}, msg::Message)
-    res = actor.first.fname(msg.request.args...; msg.request.kwargs...)
+function act!(state_store::StateStore, actor::Tuple{<:JugsawFunctionCall, Any, String}, msg::Message)
+    res = first(actor).fname(msg.request.args...; msg.request.kwargs...)
     @info "store result: $res"
     # TODO: custom serializer
     s_res = JugsawIR.json4(res)
@@ -98,7 +98,7 @@ function parse_fcall(fcall::String, demos::Dict{String})
     @info fcall
     type_sig, tree = get_typesig(fcall)
     demo = demos[type_sig]
-    return type_sig, JugsawIR.fromtree(tree, demo.first)
+    return type_sig, JugsawIR.fromtree(tree, first(demo))
 end
 function get_typesig(fcall)
     tree = JugsawIR.Lerche.parse(JugsawIR.jp, fcall)
