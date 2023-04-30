@@ -8,7 +8,9 @@
 # the typed parsing
 function json4(obj)
     obj, type = todict(obj)
-    JSON.json(obj), JSON.json(type)
+    typed, typet = todict(type)
+    @show typet.names
+    JSON.json(obj), JSON.json(typed)
 end
 struct TypeTable
     names::Vector{String}
@@ -136,4 +138,14 @@ const jp = Lark(read(joinpath(@__DIR__, "jugsawir.lark"), String),parser="lalr",
 function parse4(str::String, demo)
     tree = Lerche.parse(jp, str)
     fromtree(tree, demo)
+end
+
+using AbstractTrees
+using AbstractTrees: print_tree
+AbstractTrees.children(t::Lerche.Tree) = t.children
+function AbstractTrees.printnode(io::IO, t::Lerche.Tree)
+	print(io, t.data)
+end
+function AbstractTrees.printnode(io::IO, t::Lerche.Token)
+    print(io, t.value)
 end

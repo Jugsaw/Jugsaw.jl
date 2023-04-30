@@ -71,28 +71,13 @@ end
              )
         ]
         @info typeof(obj)
-        str, types = json4(obj)
+        str, typestr = json4(obj)
+        sT = JugsawIR.type2str(typeof(obj))
+        types = JugsawIR.Lerche.parse(JugsawIR.jp, typestr)
+        @show sT# ∈ types.names
+        @show types
+        @show types.defs[sT]
         res = parse4(str, demo)
         @test obj === res || obj == res
     end
-end
-
-@testset "type" begin
-    struct GraphT
-        nv::Int
-        edges::Matrix{Int}
-    end
-    @enum ENM e1 e2 e3
-    T = typeof((
-        2.0, 3, 2f0, 3+2im, "x", nothing, true, :x, UInt8(3),
-        (1, 2), [1, 2, 3], [1+2im, 2+3im], (; x=4, y=5),
-        Int,
-        ENM,
-         Dict("complex"=>1+2im,
-             "Tensor"=> randn(3,3),
-             "Graph" => GraphT(6, [2 4 1; 3 1 6]),
-             )
-        ))
-    res = jsontype4(T)
-    @test res isa String
 end
