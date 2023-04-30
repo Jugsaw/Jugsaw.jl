@@ -82,6 +82,11 @@ end
         types = JugsawIR.Lerche.parse(JugsawIR.jp, typestr)
         JugsawIR.print_clean_tree(types)
 
+        # get type
+        tree = JugsawIR.Lerche.parse(JugsawIR.jp, str)
+        if !(typeof(obj) <: JugsawIR.DirectlyRepresentableTypes || obj === undef)
+            @test JugsawIR._gettype(tree) == sT
+        end
         # load objects
         res = parse4(str, demo)
         @test obj === res || obj == res

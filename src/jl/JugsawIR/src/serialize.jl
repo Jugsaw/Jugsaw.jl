@@ -41,7 +41,7 @@ function todict!(@nospecialize(x::T), tt::TypeTable) where T
         ::DirectlyRepresentableTypes => x
         ##################### Specified Types ####################
         ::DataType => begin
-            def!(tt, "DataType", ["name", "fieldnames", "fieldtypes"], (type2str(String), type2str(Vector{String}), type2str(Vector{String})))
+            def!(tt, "Core.DataType", ["name", "fieldnames", "fieldtypes"], (type2str(String), type2str(Vector{String}), type2str(Vector{String})))
         end
         ::Array => def!(tt, sT,
             ["size", "storage"],
@@ -126,6 +126,15 @@ function _getfields(t::Lerche.Tree)
         return t.children[1].children[2].children
     else
         return t.children[1].children[1].children
+    end
+end
+function _gettype(t::Lerche.Tree)
+    if t.data == "genericobj1"
+        error("type is not specified!")
+    elseif t.data == "genericobj2"
+        return Meta.parse(t.children[1].children[1].value)
+    else
+        return Meta.parse(t.children[1].children[2].value)
     end
 end
 

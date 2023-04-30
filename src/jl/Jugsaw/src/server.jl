@@ -97,13 +97,12 @@ end
 function parse_fcall(fcall::String, demos::Dict{String})
     @info fcall
     type_sig, tree = get_typesig(fcall)
-    @info type_sig
     demo = demos[type_sig]
-    return JugsawIR.fromtree(tree, demo)
+    return JugsawIR.fromtree(tree, demo.first)
 end
 function get_typesig(fcall)
     tree = JugsawIR.Lerche.parse(JugsawIR.jp, fcall)
-    return first(JugsawIR._getfields(tree)), tree
+    return JugsawIR._gettype(tree), tree
 end
 
 """

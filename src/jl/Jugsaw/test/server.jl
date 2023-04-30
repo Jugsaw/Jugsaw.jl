@@ -13,4 +13,8 @@ using Jugsaw
     newdemos, newtypes = Jugsaw.load_demos_from_dir(path, app.method_demos)
     @test newdemos == app.method_demos
     @test newtypes isa Jugsaw.JugsawIR.TypeTable
+
+    # parse function call
+    fcall, _ = Jugsaw.JugsawIR.json4(first(app.method_demos)[2].first)
+    @test Jugsaw.parse_fcall(fcall::String, app.method_demos) == first(app.method_demos)[2].first
 end
