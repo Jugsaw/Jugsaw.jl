@@ -3,9 +3,15 @@ struct AppSpecification
     name::Symbol
     # `method_demo` is a mapping between function signatures and demos,
     # where a demo is a pair of jugsaw function call and result.
+    method_sigs::Vector{String}
     method_demos::Dict{String}
 end
-AppSpecification(name) = AppSpecification(name, Dict{String,Any}())
+AppSpecification(name) = AppSpecification(name, String[], Dict{String,Any}())
+function nfunctions(app::AppSpecification)
+    @assert length(app.method_sigs) == length(app.method_demos)
+    return length(app.method_sigs)
+end
+Base.:(==)(app::AppSpecification, app2::AppSpecification) = app.name == app2.name && app.method_demos == app.method_demos && app.method_sigs == app.method_sigs
 function Base.show(io::IO, app::AppSpecification)
     println(io, "AppSpecification: $(app.name)")
     println(io, "Method table = [")
@@ -20,7 +26,8 @@ function Base.show(io::IO, app::AppSpecification)
     print(io, "]")
 end
 Base.show(io::IO, ::MIME"text/plain", f::AppSpecification) = Base.show(io, f)
-function empty!(app::AppSpecification)
+function Base.empty!(app::AppSpecification)
+    empty!(app.method_sigs)
     empty!(app.method_demos)
     return app
 end
@@ -30,6 +37,7 @@ function register!(app::AppSpecification, f, args, kwargs)
     sig = function_signature(jf)
     result = f(args...; kwargs...)
     if !haskey(app.method_demos, sig)
+        push!(app.method_sigs, sig)
         app.method_demos[sig] = (jf=>result)
     end
     return result

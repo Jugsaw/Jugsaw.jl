@@ -1,24 +1,3 @@
-struct JugsawTransformer <: Transformer end
-
-@rule object(jt::JugsawTransformer, items) = items[]
-@rule genericobj1(jt::JugsawTransformer, items) = begin
-    d = dict(items)
-    values = d["values"]
-    fields = fieldnames(jt.demo)
-    # fallback
-    vals = Any[fromdict(m, T.types[i], values[i]) for i=1:length(fields) if isdefined(jt.demo, fn)]
-    #generic_customized_parsetype(m, T, Tuple(values))
-    Core.eval(m, Expr(:new, T, Any[:($vals[$i]) for i=1:length(vals)]...))
-end
-@rule list(jt::JugsawTransformer, items) = items
-@rule number(jt::JugsawTransformer, items) = Meta.parse(items[].value)
-@rule string(jt::JugsawTransformer, items) = Meta.parse(items[].value)
-@rule true(jt::JugsawTransformer, items) = true
-@rule false(jt::JugsawTransformer, items) = false
-@rule null(jt::JugsawTransformer, items) = nothing
-
-const jpt = Lark(read(joinpath(pkgdir(JugsawIR), "src", "jugsawir.lark"), String),parser="lalr",lexer="contextual", start="object", transformer=JugsawTransformer())
-
 struct JugsawObj
     typename::String
     fields::Vector
@@ -29,7 +8,7 @@ function Base.show(io::IO, obj::JugsawObj)
     typename, fields, fieldnames = obj.typename, obj.fields, obj.fieldnames
     print(io, "$typename(")
     for (k, (fn, fv)) in enumerate(zip(fieldnames, fields))
-        print(io, "$fn = $fv")
+        print(io, "$fn = $(repr(fv))")
         if k!=length(fields)
             print(io, ", ")
         end
@@ -61,4 +40,18 @@ load_demos(t::Token, types::TypeTable) = Meta.parse(t.value)
 function buildobj(typename, fields, types::TypeTable)
     fns, fts = types.defs[typename]
     return JugsawObj(typename, fields, fns)
+end
+
+print_app(demos::JugsawObj) = print_app(stdout, demos)
+function print_app(io::IO, demos::JugsawObj)
+    name, method_sigs, method_demos = demos.fields
+    println(io, "AppSpecification: $name")
+    demodict = Dict(zip(method_demos.fields...))
+    for fname in method_sigs.fields[2]
+        call, res = demodict[fname].fields
+        fname, args, kwargs = call.fields
+        kwstr = join(["$(repr(k))=$(repr(v))" for (k, v) in kwargs.fields], ", ")
+        argstr = join(["$(repr(v))" for v in args.fields], ", ")
+        println(io, "  - $(fname.typename)($argstr; $kwstr) == $(repr(res))")
+    end
 end

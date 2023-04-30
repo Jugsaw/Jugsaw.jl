@@ -58,7 +58,7 @@ function AppRuntime(mod::Module, app::AppSpecification)
     return AppRuntime(mod, app, Dict{Pair{String,String},Any}(), StateStore(Dict{String,String}()))
 end
 
-function empty!(r::AppRuntime)
+function Base.empty!(r::AppRuntime)
     empty!(r.actors)
     empty!(r.state_store)
 end
@@ -135,7 +135,7 @@ end
 #####
 
 # save demos to the disk
-function save_demos(dir::String, methods)
+function save_demos(dir::String, methods::AppSpecification)
     mkpath(dir)
     demos, types = JugsawIR.json4(methods)
     # dump the method table to the disk
@@ -168,7 +168,7 @@ end
 
 # FIXME: set host to default in k8s
 function serve(runtime::AppRuntime, dir::String; is_async=isdefined(Main, :InteractiveUtils))
-    save_demos(dir, runtime.app.method_demos)
+    save_demos(dir, runtime.app)
 
     # start the service
     ROUTER = HTTP.Router()

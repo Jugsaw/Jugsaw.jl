@@ -8,9 +8,11 @@ using JugsawIR
     for x in [3, true, false, nothing, "##"]
         obj, type = JugsawIR.json4(x)
         #res = JugsawIR.Lerche.parse(Client.jpt, obj)
-        res = Client.fromtree(JugsawIR.Lerche.parse(JugsawIR.jp, obj))
+        res = Client.load_demos(JugsawIR.Lerche.parse(JugsawIR.jp, obj), JugsawIR.TypeTable())
         @test res == x
     end
-end
 
-load_demos_from_dir(dirname::String)
+    demos = Client.load_demos_from_dir(joinpath(dirname(@__DIR__), "testapp"))
+    @test demos isa Client.JugsawObj
+    Client.print_app(demos)
+end
