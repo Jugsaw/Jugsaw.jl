@@ -1,5 +1,3 @@
-using TOML
-
 struct Config
     app::String
 end

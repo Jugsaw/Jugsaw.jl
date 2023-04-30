@@ -1,5 +1,4 @@
 # Ref: https://github.com/JuliaLang/julia/blob/master/stdlib/Distributed/src/messages.jl
-using UUIDs
 
 struct JugsawFunctionCall{F, argsT<:Tuple, kwargsT<:NamedTuple}
     fname::F

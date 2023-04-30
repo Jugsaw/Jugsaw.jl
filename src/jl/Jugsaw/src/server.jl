@@ -1,10 +1,3 @@
-export serve, @register
-
-using UUIDs: uuid4
-using HTTP
-using JugsawIR.JSON
-using Distributed: Future
-
 #####
 struct StateStore
     store::Dict{String,Future}
@@ -90,17 +83,27 @@ end
 function act!(r::AppRuntime, http::HTTP.Request)
     ps = HTTP.getparams(http)
     # find the correct method
-    fcall = JSON.parse(String(http.body))
-    @info fcall
-    a = activate(r, fcall["type"], string(ps["actor_id"]))
+    fcall = String(http.body)
+    fname, req = parse_fcall(fcall, r.app.method_demos)
+    a = activate(r, fname, string(ps["actor_id"]))
     # TODO: load actor state from state store
     #req = JSON3.read(http.body, JugsawFunctionCall)
-    req = JugsawIR.fromdict(r.mod, typeof(a.actor.first), fcall)
     @info "got task: $req"
     resp = ObjectRef()
     r.state_store[resp.object_id] = Future()
     put_message(a, Message(req, resp))
     HTTP.Response(200, ["Content-Type" => "application/json"], JSON.json(resp))
+end
+function parse_fcall(fcall::String, demos::Dict{String})
+    @info fcall
+    type_sig, tree = get_typesig(fcall)
+    @info type_sig
+    demo = demos[type_sig]
+    return JugsawIR.fromtree(tree, demo)
+end
+function get_typesig(fcall)
+    tree = JugsawIR.Lerche.parse(JugsawIR.jp, fcall)
+    return first(JugsawIR._getfields(tree)), tree
 end
 
 """
@@ -132,21 +135,41 @@ end
 # Service
 #####
 
-# FIXME: set host to default in k8s
-function serve(runtime::AppRuntime, dir::String; is_async=isdefined(Main, :InteractiveUtils))
-    demos = runtime.app.method_demos
+# save demos to the disk
+function save_demos(dir::String, methods)
+    mkpath(dir)
+    demos, types = JugsawIR.json4(methods)
     # dump the method table to the disk
-    fmethods = joinpath(dir, "method_table.json")
+    ftypes = joinpath(dir, "types.json")
     # TODO: avoid displaying DataType!!!!
-    @info "dumping method type signatures to: $fmethods"
-    open(fmethods, "w") do f
-        write(f, JugsawIR.jsontype4(typeof((values(demos)...,))))
+    @info "dumping method type signatures to: $ftypes"
+    open(ftypes, "w") do f
+        write(f, types)
     end
-    fdemos = joinpath(dir, "demo.json")
+    fdemos = joinpath(dir, "demos.json")
     @info "dumping demos to: $fdemos"
     open(fdemos, "w") do f
-        write(f, JugsawIR.json4(demos))
+        write(f, demos)
     end
+end
+
+# load demos from the disk
+function load_demos_from_dir(dir::String, demos)
+    ftypes = joinpath(dir, "types.json")
+    fdemos = joinpath(dir, "demos.json")
+    sdemos = read(fdemos, String)
+    stypes = read(ftypes, String)
+    return load_demos(sdemos, stypes, demos)
+end
+function load_demos(sdemos::String, stypes::String, demos)
+    newdemos = JugsawIR.parse4(sdemos, demos)
+    newtypes = JugsawIR.parse4(stypes, JugsawIR.demoof(JugsawIR.TypeTable))
+    return newdemos, newtypes
+end
+
+# FIXME: set host to default in k8s
+function serve(runtime::AppRuntime, dir::String; is_async=isdefined(Main, :InteractiveUtils))
+    save_demos(dir, runtime.app.method_demos)
 
     # start the service
     ROUTER = HTTP.Router()

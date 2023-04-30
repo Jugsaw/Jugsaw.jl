@@ -1,8 +1,3 @@
-export App
-
-using JSON3
-using URIs
-
 struct App
     name::String
     endpoint::URI

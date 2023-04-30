@@ -3,7 +3,7 @@ struct AppSpecification
     name::Symbol
     # `method_demo` is a mapping between function signatures and demos,
     # where a demo is a pair of jugsaw function call and result.
-    method_demos::Dict
+    method_demos::Dict{String}
 end
 AppSpecification(name) = AppSpecification(name, Dict{String,Any}())
 function Base.show(io::IO, app::AppSpecification)
@@ -35,7 +35,6 @@ function register!(app::AppSpecification, f, args, kwargs)
     return result
 end
 
-using MLStyle
 macro register(app, ex)
     reg_statements = []
     register_by_expr(app, ex, reg_statements)

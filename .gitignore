@@ -1,6 +1,6 @@
-method_table.json
-demos.json
 .vscode
+demos.json
+types.json
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

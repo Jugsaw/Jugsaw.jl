@@ -87,6 +87,6 @@ end
         @test obj === res || obj == res
         # load type table
         tt = parse4(typestr, JugsawIR.demoof(JugsawIR.TypeTable))
-        @test tt isa TypeTable
+        @test tt isa JugsawIR.TypeTable
     end
 end
