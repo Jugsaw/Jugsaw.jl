@@ -2,6 +2,12 @@ using JugsawIR: json4, parse4
 using JSON
 using Test, JugsawIR
 
+@testset "demoof" begin
+    for T in [Int64, String, Tuple{Int64, String}, Vector{Int64}, JugsawIR.TypeTable]
+        @test JugsawIR.demoof(T) isa T
+    end
+end
+
 @testset "type string" begin
     struct S{T, C}
     end
@@ -75,7 +81,12 @@ end
         sT = JugsawIR.type2str(typeof(obj))
         types = JugsawIR.Lerche.parse(JugsawIR.jp, typestr)
         JugsawIR.print_clean_tree(types)
+
+        # load objects
         res = parse4(str, demo)
         @test obj === res || obj == res
+        # load type table
+        tt = parse4(typestr, JugsawIR.demoof(JugsawIR.TypeTable))
+        @test tt isa TypeTable
     end
 end

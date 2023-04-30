@@ -107,6 +107,12 @@ end
 demoof(::Type{T}) where T<:Number = zero(T)
 demoof(::Type{T}) where T<:AbstractString = T("")
 demoof(::Type{T}) where T<:Symbol = :x
+demoof(::Type{T}) where T<:Tuple = (demoof.(T.parameters)...,)
+demoof(::Type{T}) where {E,N,T<:AbstractArray{E,N}} = T(reshape([demoof(E)], ones(Int, N)...))
+function demoof(::Type{T}) where T
+    vals = demoof.(T.types)
+    return Core.eval(@__MODULE__, Expr(:new, T, Any[:($vals[$i]) for i=1:length(vals)]...))
+end
 
 function construct_object(t::Lerche.Tree, demo::T) where T
     # there may be a first field "type".

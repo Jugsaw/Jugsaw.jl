@@ -51,6 +51,6 @@ function str2type(m::Module, str::String)
     end
 end
 
-value_type(::Type{<:AbstractDict{T, V}}) where {T,V} = V
-key_type(::Type{<:AbstractDict{T}}) where {T} = T
+value_type(::AbstractDict{T, V}) where {T,V} = V
+key_type(::AbstractDict{T}) where {T} = T
 
