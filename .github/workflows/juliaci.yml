@@ -2,10 +2,10 @@ name: CI
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
     branches:
-      - master
+      - main
 jobs:
   pre_job:
     # continue-on-error: true # Uncomment once integration is finished
