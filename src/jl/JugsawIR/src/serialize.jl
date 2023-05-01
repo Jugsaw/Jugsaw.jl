@@ -115,9 +115,7 @@ function fromtree(t::Lerche.Tree, demo::T) where T
 
         ###################### Generic Compsite Types ######################
         _ => begin
-            print_tree(t)
-            @show demo typeof(demo)
-            construct_object(t, demo)
+            nfields(demo) == 0 ? demo : construct_object(t, demo)
         end
     end
 end

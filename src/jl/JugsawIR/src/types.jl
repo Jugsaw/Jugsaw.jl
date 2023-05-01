@@ -8,7 +8,7 @@ function same_signature(a::JugsawFunctionCall{F1, argsT1, kwargsT1}, b::JugsawFu
     return a.fname == b.fname && argsT1 === argsT2 && kwargsT1 === kwargsT2
 end
 
-feval(f::JugsawFunctionCall) = feval(f, f.args...; f.kwargs...)
+fevalself(f::JugsawFunctionCall) = feval(f, f.args...; f.kwargs...)
 feval(f::JugsawFunctionCall, args...; kwargs...) = f.fname(args...; kwargs...)
 
 # return a string as the function signature
@@ -34,4 +34,4 @@ function Base.show(io::IO, demo::JugsawDemo)
     print(io, demo.fcall)
     print(io, " == $(repr(demo.result))")
 end
-ftest(demo::JugsawDemo) = feval(demo.fcall) == demo.result
+ftest(demo::JugsawDemo) = fevalself(demo.fcall) == demo.result

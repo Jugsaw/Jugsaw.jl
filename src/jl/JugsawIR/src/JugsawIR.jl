@@ -10,7 +10,7 @@ using AbstractTrees
 using AbstractTrees: print_tree
 
 export json4, parse4, jsontype4, print_tree, print_clean_tree
-export JugsawFunctionCall, function_signature, feval
+export JugsawFunctionCall, function_signature, feval, fevalself
 export ftest, JugsawDemo
 
 include("Core.jl")

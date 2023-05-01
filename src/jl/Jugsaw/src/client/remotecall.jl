@@ -18,8 +18,6 @@ end
 function (r::LazyReturn)()
     fet = JSON3.write((; r.object_id))
     res = String(HTTP.post(r.uri, ["Content-Type" => "application/json"], fet).body)
-    println(res)
-    println(r.demo_result)
     return parse4(res, r.demo_result)
 end
 

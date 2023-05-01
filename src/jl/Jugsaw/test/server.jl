@@ -40,6 +40,16 @@ using HTTP, JugsawIR.JSON3
     # empty!
     empty!(app)
     @test Jugsaw.nfunctions(app) == 0
+
+    # register a type function
+    @register app Tuple([1, 2, 3]) == (1, 2, 3)
+    struct A end
+    @register app A()
+    @test Jugsaw.nfunctions(app) == 2
+    demo = first(app.method_demos)[2]
+    @test feval(demo.fcall) == A()
+    demo = app.method_demos[app.method_sigs[1]]
+    @test fevalself(demo.fcall) == (1, 2, 3)
 end
 
 @testset "routes" begin

@@ -4,11 +4,10 @@ using Markdown
 
 @testset "decode_fname" begin
     purename(x) = Client.purename(Meta.parse(x))
-    @test purename("Base.#cos") == :cos
-    @test purename("Test.Base.#cos") == :cos
+    @test purename("Base.cos") == :cos
+    @test purename("Test.Base.cos") == :cos
     @test purename("x.cos{x, y}") == :cos
     @test purename("cos{}") == :cos
-    @test purename("mod.cos") == :cos
 end
 
 @testset "parse" begin

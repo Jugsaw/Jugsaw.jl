@@ -51,6 +51,7 @@ end
 function purename(ex)
     @match ex begin
         ::Symbol => ex
+        :(Jugsaw.TypeAsFunction{$type}) => purename(type)
         :($type{$(args...)}) => purename(type)
         :($a.$b) => purename(b)
         _ => error(string(ex))
@@ -69,7 +70,20 @@ function load_obj(t::Tree, types::TypeTable)
         "genericobj3" => buildobj(load_obj(t.children[2], types), load_obj.(t.children[1].children, Ref(types)), types)
     end
 end
-load_obj(t::Token, types::TypeTable) = Meta.parse(t.value)
+function load_obj(t::Token, types::TypeTable)
+    # wield parsing error when handling interpolated strings
+    local res
+    try
+        res = Meta.parse(t.value)
+    catch e
+        Base.showerror(stdout, e)
+        println(stdout)
+        @info "try fixing! error str: $(t.value)"
+        res = Meta.parse(replace(t.value, "\$"=>"\\\$"))
+    end
+    return res
+end
+
 function buildobj(typename, fields, types::TypeTable)
     fns, fts = types.defs[typename]
     rawname = purename(Meta.parse(typename))
