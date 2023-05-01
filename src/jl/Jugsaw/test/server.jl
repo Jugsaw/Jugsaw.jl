@@ -33,7 +33,7 @@ using HTTP, JugsawIR.JSON3
 
     # 3. compute and fetch the result
     Jugsaw.act!(state_store, demo.fcall, msg)
-    ret, rett = state_store[key]
+    ret = state_store[key]
     res = JugsawIR.parse4(ret, demo.result)
     @test res == feval(demo.fcall, 0.6)
 
@@ -61,5 +61,7 @@ end
     @test id isa String
     fet = JSON3.write((; object_id=id))
     @test parse4(r(HTTP.Request("POST", "/actors/testapp.sin/0/method/fetch", ["Content-Type" => "application/json"], fet)), demo.result) ≈ sin(8.0)
+    loaded_app = Jugsaw.Client.load_app(r(HTTP.Request("GET", "/apps/testapp/demos")))
+    @test loaded_app isa Jugsaw.Client.App
     @test_broken r(HTTP.Request("DELETE", "/actors/testapp.sin/0"))
 end

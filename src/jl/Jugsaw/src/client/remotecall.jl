@@ -16,14 +16,11 @@ function request_app(remote::AbstractHandler, appname::Symbol)
         path = string(remote.uri)
         retstr = read(joinpath(path, "demos.json"), String)
     else
-        demo_url = joinpath(remote.uri, "$appname", "demos")
+        demo_url = joinpath(remote.uri, "apps", "$appname", "demos")
         r = HTTP.post(demo_url, ["content-type" => "application/json"], req) # Deserialize
         retstr = String(r.body)
     end
-    tdemos, ttypes = JugsawIR.Lerche.parse(JugsawIR.jp, retstr).children[].children
-    #print_tree(tree)
-    types = JugsawIR.fromtree(ttypes, JugsawIR.demoof(TypeTable))
-    return load_app(tdemos, types)
+    return load_app(retstr)
 end
 function load_demos_from_dir(dirname::String)
     request_app(LocalHandler(dirname, nothing), :any)
@@ -40,14 +37,15 @@ function call(remote::AbstractHandler, appname::Symbol, demo::Demo, actor_id::St
         end
         remote.handle()
         retstr = read(joinpath(path, "result.json"), String)
+        return () -> parse4(retstr, demo.result)
     else
         act_url = joinpath(remote.uri, "$appname.$fname", actor_id, "method")
         fetch_url = joinpath(act_url, "fetch")
         r = HTTP.post(act_url, ["content-type" => "application/json"], req) # Deserialize
         res = HTTP.post(fetch_url, ["content-type" => "application/json"], r.body)
         retstr = String(res.body)
+        return () -> fetch(remote, JSON3.read(retstr).object_id, appname, fname, actor_id)
     end
-    return parse4(retstr, demo.result)
 end
 
 macro call(remote, ex::Expr)
@@ -58,8 +56,17 @@ macro call(remote, ex::Expr)
         _ => :($error("grammar error, should be `@call remote app.fname(args...; kwargs...)` got function call: $($(QuoteNode(ex)))"))
     end
 end
-
 # TODO: dispatch to the correct type!
 function match_demo(app::App, fname::Symbol, args, kwargs)
     getproperty(app, fname)
 end
+
+# can we access the object without knowing the appname and function name?
+function fetch(remote::RemoteHandler, object_id::String, appname::Symbol, fname::Symbol, actor_id::String)
+    fet = JSON3.write((; object_id))
+    return parse4(HTTP.post(joinpath(string(remote.uri), "actors", "$appname.$fname", actor_id, "method", "fetch"), ["Content-Type" => "application/json"], fet), demo.result)
+end
+
+healthz(remote::RemoteHandler) = JSON3.read(HTTP.get(joinpath(string(remote.uri), "healthz"))).status
+dapr_config(remote::RemoteHandler) = JSON3.read(r(HTTP.get(joinpath(string(remote.uri), "dapr", "config")))).entities
+delete(remote::RemoteHandler, appname::Symbol, fname::Symbol, actor_id="0") = HTTP.delete(joinpath(string(remote.uri), "actors", "$appname.$fname", actor_id))

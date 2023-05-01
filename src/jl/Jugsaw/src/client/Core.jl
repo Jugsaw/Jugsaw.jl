@@ -1,13 +1,13 @@
 struct Demo
     fcall::JugsawFunctionCall
     result
-    docstring::String
+    meta::Dict{String}
 end
 Base.show(io::IO, ::MIME"text/plain", d::Demo) = Base.show(io, d)
 function Base.show(io::IO, d::Demo)
     print(io, "$(d.fcall) = $(d.result)")
 end
-Base.Docs.doc(d::Demo) = Markdown.parse(d.docstring)
+Base.Docs.doc(d::Demo) = Markdown.parse(get(d.meta, "docstring", ""))
 
 # the application instance, potential issues: function names __name, __endpoint and __method_demos, __type_table may cause conflict.
 struct App

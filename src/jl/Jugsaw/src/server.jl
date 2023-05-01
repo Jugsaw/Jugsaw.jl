@@ -166,14 +166,15 @@ function get_router(runtime::AppRuntime)
     r = HTTP.Router()
     HTTP.register!(r, "GET", "/healthz", _ -> JSON3.write((; status="OK")))
     HTTP.register!(r, "GET", "/dapr/config", _ -> JSON3.write((; entities=collect(keys(runtime.actors)))))
+    HTTP.register!(r, "GET", "/apps/{appname}/demos", _ -> ((demos, types) = JugsawIR.json4(runtime.app); "[$demos, $types]"))
     HTTP.register!(r, "POST", "/actors/{actor_type_name}/{actor_id}/method/", req -> act!(runtime, req))
     HTTP.register!(r, "POST", "/actors/{actor_type_name}/{actor_id}/method/fetch", req -> fetch(runtime, req))
     HTTP.register!(r, "DELETE", "/actors/{actor_type_name}/{actor_id}", req -> deactivate!(runtime, req))
     return r
 end
 
-function serve(runtime::AppRuntime, dir::String; is_async=isdefined(Main, :InteractiveUtils))
-    save_demos(dir, runtime.app)
+function serve(runtime::AppRuntime, dir=nothing; is_async=isdefined(Main, :InteractiveUtils))
+    dir === nothing || save_demos(dir, runtime.app)
     r = get_router(runtime)
     if is_async
         HTTP.serve!(r, "0.0.0.0", 8081)

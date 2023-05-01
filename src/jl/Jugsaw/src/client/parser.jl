@@ -16,17 +16,22 @@ function Base.show(io::IO, obj::JugsawObj)
     print(io, ")")
 end
 
-function load_app(t::Tree, types::TypeTable)
+function load_app(str::String)
+    tdemos, ttypes = JugsawIR.Lerche.parse(JugsawIR.jp, str).children[].children
+    types = JugsawIR.fromtree(ttypes, JugsawIR.demoof(TypeTable))
+    return _load_app(tdemos, types)
+end
+function _load_app(t::Tree, types::TypeTable)
     obj = load_obj(t, types)
     name, method_sigs, method_demos = obj.fields
     ks, vs = method_demos.fields
     demodict = Dict(zip(ks, vs))
     demos = OrderedDict{Symbol, Vector{Demo}}()
     for sig in method_sigs.fields[2]
-        (fcall, result, docstring) = demodict[sig].fields
+        (fcall, result, meta) = demodict[sig].fields
         fcall, args, kwargs = fcall.fields
         jf = JugsawFunctionCall(fcall.typename, (args.fields...,), (; zip(kwargs.fields)...))
-        demo = Demo(jf, result, docstring)
+        demo = Demo(jf, result, Dict(zip(meta.fields...)))
         # document the demo
         fname = decode_fname(fcall.typename)
         if haskey(demos, fname)

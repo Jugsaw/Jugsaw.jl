@@ -38,7 +38,7 @@ function register!(app::AppSpecification, f, args, kwargs)
     if !haskey(app.method_demos, sig)
         push!(app.method_sigs, sig)
         doc = string(Base.Docs.doc(Base.Docs.Binding(@__MODULE__, Symbol(f))))
-        app.method_demos[sig] = JugsawDemo(jf, result, doc)
+        app.method_demos[sig] = JugsawDemo(jf, result, Dict{String,Any}("docstring"=>doc))
     end
     return result
 end
