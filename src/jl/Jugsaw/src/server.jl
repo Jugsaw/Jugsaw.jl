@@ -112,7 +112,6 @@ function deactivate!(r::AppRuntime, req::HTTP.Request)
     atype = string(ps["actor_type_name"])
     aid = string(ps["actor_id"])
     actor = get(r.actors, atype => aid, nothing)
-    @show actor
     if !isnothing(actor)
         close(actor)
         delete!(r.actors, atype => aid)
@@ -176,13 +175,14 @@ function serve(runtime::AppRuntime, dir=nothing; is_async=isdefined(Main, :Inter
     dir === nothing || save_demos(dir, runtime.app)
     r = get_router(runtime)
     if is_async
-        HTTP.serve!(r, "0.0.0.0", 8081)
+        #HTTP.serve!(r, "0.0.0.0", 8081)
+        @async HTTP.serve(r, "0.0.0.0", 8081)
     else
         HTTP.serve(r, "0.0.0.0", 8081)
     end
 end
 
-function serve(app::AppSpecification, dir::String; is_async=isdefined(Main, :InteractiveUtils))
+function serve(app::AppSpecification, dir=nothing; is_async=isdefined(Main, :InteractiveUtils))
     # create an application runtime, which will be used to store cached data and actors
     r = Jugsaw.AppRuntime(app)
     serve(r, dir; is_async)

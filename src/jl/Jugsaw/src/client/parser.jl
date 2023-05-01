@@ -15,6 +15,10 @@ function Base.show(io::IO, obj::JugsawObj)
     end
     print(io, ")")
 end
+function JugsawIR.json4(obj::JugsawObj)
+    fields = join(first.(json4.(obj.fields)), ",")
+    return """{"type" : $(repr(obj.typename)), "fields" : [$fields]}""", nothing
+end
 
 function load_app(str::String)
     tdemos, ttypes = JugsawIR.Lerche.parse(JugsawIR.jp, str).children[].children
@@ -26,18 +30,18 @@ function _load_app(t::Tree, types::TypeTable)
     name, method_sigs, method_demos = obj.fields
     ks, vs = method_demos.fields
     demodict = Dict(zip(ks, vs))
-    demos = OrderedDict{Symbol, Vector{Demo}}()
+    demos = OrderedDict{Symbol, Vector{Pair{String, Demo}}}()
     for sig in method_sigs.fields[2]
-        (fcall, result, meta) = demodict[sig].fields
-        fcall, args, kwargs = fcall.fields
+        (_fcall, result, meta) = demodict[sig].fields
+        fcall, args, kwargs = _fcall.fields
         jf = JugsawFunctionCall(fcall.typename, (args.fields...,), (; zip(kwargs.fields)...))
         demo = Demo(jf, result, Dict(zip(meta.fields...)))
         # document the demo
         fname = decode_fname(fcall.typename)
         if haskey(demos, fname)
-            push!(demos[fname], demo)
+            push!(demos[fname], _fcall.typename => demo)
         else
-            demos[fname] = [demo]
+            demos[fname] = [_fcall.typename => demo]
         end
     end
     app = App(Symbol(name), demos, types)

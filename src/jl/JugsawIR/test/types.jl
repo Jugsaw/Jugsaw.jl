@@ -12,7 +12,7 @@ using Test, JugsawIR
     @show function_signature(loaded)
     @test feval(loaded)
 
-    demo = JugsawDemo(jf, feval(jf), "test")
+    demo = JugsawDemo(jf, feval(jf), Dict("docstring"=>"test"))
     str, types = json4(demo)
     ld = parse4(str, demo)
     println(ld)

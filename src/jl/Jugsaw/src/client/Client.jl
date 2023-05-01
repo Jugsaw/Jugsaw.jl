@@ -12,6 +12,7 @@ using Markdown
 
 export App
 export RemoteHandler, LocalHandler, request_app, @call
+export request_app, fetch, call, request_app, healthz, dapr_config, delete, test_demo, @test_demo
 
 include("Core.jl")
 include("parser.jl")

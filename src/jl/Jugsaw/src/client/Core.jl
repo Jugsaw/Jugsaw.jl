@@ -12,13 +12,12 @@ Base.Docs.doc(d::Demo) = Markdown.parse(get(d.meta, "docstring", ""))
 # the application instance, potential issues: function names __name, __endpoint and __method_demos, __type_table may cause conflict.
 struct App
     name::Symbol
-    method_demos::OrderedDict{Symbol, Vector{Demo}}
+    method_demos::OrderedDict{Symbol, Vector{Pair{String, Demo}}}
     type_table::TypeTable
 end
 function Base.getproperty(app::App, fname::Symbol)
     res = app[:method_demos][fname]
-    length(res) > 1 && error("multiple function is not yet supported!")
-    return res[]
+    return res
 end
 Base.getindex(a::App, f::Symbol) = getfield(a, f)
 Base.show(io::IO, ::MIME"text/plain", d::App) = Base.show(io, d)
@@ -27,10 +26,17 @@ function Base.show(io::IO, app::App)
     n = 0
     for (name, demos) in app[:method_demos]
         println(io, "  - $name")
-        for demo in demos
-            n += 1
-            println(io, "    - $demo")
+        k = 0
+        if length(demos) == 1
+            println(io, "    $(demos[].second)")
+            k += 1
+        else
+            for demo in demos
+                println(io, "    $('a' + k): $(demo.second)")
+                k += 1
+            end
         end
+        n += k
     end
     print(io, "$n method instance in total, check `type_table` field for type definitions.")
     #print(io, app.type_table)

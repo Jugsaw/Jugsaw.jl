@@ -18,7 +18,8 @@ end
 
     app = Client.load_demos_from_dir(joinpath(dirname(@__DIR__), "testapp"))
     println(app)
-    @test app.cos isa Client.Demo
-    @test (@doc app.cos) isa Markdown.MD
+    @test app.cos[].second isa Client.Demo
+    print(app.cos[].second.meta["docstring"])
+    @test app.cos[].second.meta["docstring"] isa String
     #Client.print_app(app)
 end
