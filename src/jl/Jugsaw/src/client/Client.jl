@@ -11,7 +11,7 @@ using OrderedCollections: OrderedDict
 
 export App
 
-include("parser.jl")
 include("app.jl")
+include("parser.jl")
 
 end
