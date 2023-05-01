@@ -22,7 +22,7 @@ function Base.show(io::IO, t::TypeTable)
     println(io, "TypeTable")
     for (k, typename) in enumerate(t.names)
         println(io, "  - $typename")
-        fns, fts = t.defs[typename]
+        fns, fts = get(t.defs, typename, ([], []))
         for (l, (fn, ft)) in enumerate(zip(fns, fts))
             print(io, "    - $fn::$ft")
             if !(k == length(t.names) && l == length(fns))
@@ -115,6 +115,8 @@ function fromtree(t::Lerche.Tree, demo::T) where T
 
         ###################### Generic Compsite Types ######################
         _ => begin
+            print_tree(t)
+            @show demo typeof(demo)
             construct_object(t, demo)
         end
     end

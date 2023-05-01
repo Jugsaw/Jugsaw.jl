@@ -3,8 +3,8 @@ using Jugsaw.Universe
 
 using GenericTensorNetworks
 using GenericTensorNetworks: AbstractProperty
-import Graphs
-using Random
+import GenericTensorNetworks.Graphs
+using GenericTensorNetworks.Random
 
 # TODO: we need to support SELECT better! Maybe automatically categorize functions.
 
@@ -75,5 +75,5 @@ end
 
 #####
 
-r= Jugsaw.AppRuntime(@__MODULE__, app)
+r= Jugsaw.AppRuntime(app)
 serve(r, @__DIR__; is_async=false)

@@ -96,6 +96,9 @@ end
 function parse_fcall(fcall::String, demos::Dict{String})
     @info fcall
     type_sig, tree = get_typesig(fcall)
+    if !haskey(demos, type_sig)
+        error("function not available: $(type_sig), the list of functions are $(collect(keys(demos)))")
+    end
     demo = demos[type_sig]
     return type_sig, JugsawIR.fromtree(tree, demo.fcall)
 end

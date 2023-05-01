@@ -17,7 +17,10 @@ struct LazyReturn
 end
 function (r::LazyReturn)()
     fet = JSON3.write((; r.object_id))
-    return parse4(String(HTTP.post(r.uri, ["Content-Type" => "application/json"], fet).body), r.demo_result)
+    res = String(HTTP.post(r.uri, ["Content-Type" => "application/json"], fet).body)
+    println(res)
+    println(r.demo_result)
+    return parse4(res, r.demo_result)
 end
 
 #Base.getproperty(a::App, name::Symbol) = ActorTypeRef(a, string(name))

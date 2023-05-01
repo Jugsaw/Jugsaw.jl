@@ -42,7 +42,7 @@ function Base.show(io::IO, app::App)
     #print(io, app.type_table)
 end
 # for printing docstring
-Base.Docs.Binding(app::App, sym::Symbol) = getproperty(app, sym)
+Base.Docs.Binding(app::App, sym::Symbol) = getproperty(app, sym)[1].second
 
 # print_app(demos::App) = print_app(stdout, demos)
 # function print_app(io::IO, app::App)

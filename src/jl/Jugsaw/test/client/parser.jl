@@ -3,9 +3,12 @@ using JugsawIR
 using Markdown
 
 @testset "decode_fname" begin
-    @test Client.decode_fname("Base.#cos") == :cos
-    @test Client.decode_fname("Test.Base.#cos") == :cos
-    @test Client.decode_fname("Test.Base.cos") == :cos
+    purename(x) = Client.purename(Meta.parse(x))
+    @test purename("Base.#cos") == :cos
+    @test purename("Test.Base.#cos") == :cos
+    @test purename("x.cos{x, y}") == :cos
+    @test purename("cos{}") == :cos
+    @test purename("mod.cos") == :cos
 end
 
 @testset "parse" begin

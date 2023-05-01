@@ -27,9 +27,9 @@ function type2str(::Type{T}) where T
             typename = string(T)
         end
     elseif length(T.parameters) > 0 || T === Tuple{}
-        typename = "$(modname(T)).$(String(T.name.name)){$(join([p isa Type ? type2str(p) : (p isa Symbol ? ":$p" : string(p)) for p in T.parameters], ", "))}"
+        typename = "$(modname(T)).$(strip(String(T.name.name), '#')){$(join([p isa Type ? type2str(p) : (p isa Symbol ? ":$p" : string(p)) for p in T.parameters], ", "))}"
     else
-        typename = "$(modname(T)).$(String(T.name.name))"
+        typename = "$(modname(T)).$(strip(String(T.name.name), '#'))"
     end
     return typename
 end
