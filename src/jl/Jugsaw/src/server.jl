@@ -47,15 +47,14 @@ end
 
 # a run time instance
 struct AppRuntime
-    mod::Module
     app::AppSpecification
     actors::Dict{Pair{String,String},Any}
     # This is a simple in-memory state store which holds the results from the actor calls.
     # We may add many different kinds of state store later (local file or Database).
     state_store::StateStore
 end
-function AppRuntime(mod::Module, app::AppSpecification)
-    return AppRuntime(mod, app, Dict{Pair{String,String},Any}(), StateStore(Dict{String,Future}()))
+function AppRuntime(app::AppSpecification)
+    return AppRuntime(app, Dict{Pair{String,String},Any}(), StateStore(Dict{String,Future}()))
 end
 
 function Base.empty!(r::AppRuntime)
@@ -183,8 +182,8 @@ function serve(runtime::AppRuntime, dir=nothing; is_async=isdefined(Main, :Inter
     end
 end
 
-function serve(mod::Module, app::AppSpecification, dir::String; is_async=isdefined(Main, :InteractiveUtils))
+function serve(app::AppSpecification, dir::String; is_async=isdefined(Main, :InteractiveUtils))
     # create an application runtime, which will be used to store cached data and actors
-    r = Jugsaw.AppRuntime(mod, app)
+    r = Jugsaw.AppRuntime(app)
     serve(r, dir; is_async)
 end

@@ -45,7 +45,7 @@ end
 @testset "routes" begin
     app = AppSpecification(:testapp)
     @register app sin(cos(0.5))::Float64
-    ar = AppRuntime(@__MODULE__, app)
+    ar = AppRuntime(app)
     r = Jugsaw.get_router(ar)
     # services
     # HTTP.register!(r, "GET", "/healthz", _ -> JSON3.write((; status="OK")))

@@ -6,9 +6,19 @@ RemoteHandler(uri::String="http://localhost:8081/actors/") = RemoteHandler(URI(u
 
 struct LocalHandler <: AbstractHandler
     uri::URI
-    handle
 end
-LocalHandler(uri::String, handler) = LocalHandler(URI(uri), handler)
+LocalHandler(uri::String) = LocalHandler(URI(uri))
+
+# NOTE: demo_result is not the return value!
+struct LazyReturn
+    uri::URI
+    object_id::String
+    demo_result
+end
+function (r::LazyReturn)()
+    fet = JSON3.write((; r.object_id))
+    return parse4(HTTP.post(r.uri, ["Content-Type" => "application/json"], fet), demo_result)
+end
 
 #Base.getproperty(a::App, name::Symbol) = ActorTypeRef(a, string(name))
 function request_app(remote::AbstractHandler, appname::Symbol)
@@ -23,7 +33,7 @@ function request_app(remote::AbstractHandler, appname::Symbol)
     return load_app(retstr)
 end
 function load_demos_from_dir(dirname::String)
-    request_app(LocalHandler(dirname, nothing), :any)
+    request_app(LocalHandler(dirname), :any)
 end
 
 function call(remote::AbstractHandler, appname::Symbol, demo::Demo, actor_id::String, args...; kwargs...)
@@ -35,16 +45,16 @@ function call(remote::AbstractHandler, appname::Symbol, demo::Demo, actor_id::St
         open(joinpath(path, "fcall.json"), "w") do f
             write(f, req)
         end
-        remote.handle()
-        retstr = read(joinpath(path, "result.json"), String)
-        return () -> parse4(retstr, demo.result)
+        return () -> parse4(read(joinpath(path, "result.json"), String), demo.result)
     else
         act_url = joinpath(remote.uri, "$appname.$fname", actor_id, "method")
         fetch_url = joinpath(act_url, "fetch")
         r = HTTP.post(act_url, ["content-type" => "application/json"], req) # Deserialize
         res = HTTP.post(fetch_url, ["content-type" => "application/json"], r.body)
         retstr = String(res.body)
-        return () -> fetch(remote, JSON3.read(retstr).object_id, appname, fname, actor_id)
+        uri = URI(joinpath(string(remote.uri), "actors", "$appname.$fname", actor_id, "method", "fetch"))
+        object_id = JSON3.read(retstr).object_id
+        return LazyReturn(uri, object_id, demo.result)
     end
 end
 
