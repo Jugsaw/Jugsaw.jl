@@ -111,4 +111,4 @@ end
 
 healthz(remote::RemoteHandler) = JSON3.read(HTTP.get(joinpath(string(remote.uri), "healthz")).body)
 dapr_config(remote::RemoteHandler) = JSON3.read(HTTP.get(joinpath(string(remote.uri), "dapr", "config")).body).entities
-delete(remote::RemoteHandler, app::App, fname::Symbol, actor_id="0") = HTTP.delete(joinpath(string(remote.uri), "actors", "$(app.name).$fname", actor_id))
+delete(remote::RemoteHandler, app::App, fname::Symbol, actor_id="0") = JSON3.read(HTTP.delete(joinpath(string(remote.uri), "actors", "$(app[:name]).$fname", actor_id)).body)

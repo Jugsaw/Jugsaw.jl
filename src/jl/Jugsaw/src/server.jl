@@ -170,7 +170,7 @@ function get_router(runtime::AppRuntime)
     HTTP.register!(r, "GET", "/apps/{appname}/demos", _ -> ((demos, types) = JugsawIR.json4(runtime.app); "[$demos, $types]"))
     HTTP.register!(r, "POST", "/actors/{actor_type_name}/{actor_id}/method/", req -> act!(runtime, req))
     HTTP.register!(r, "POST", "/actors/{actor_type_name}/{actor_id}/method/fetch", req -> fetch(runtime, req))
-    HTTP.register!(r, "DELETE", "/actors/{actor_type_name}/{actor_id}", req -> deactivate!(runtime, req))
+    HTTP.register!(r, "DELETE", "/actors/{actor_type_name}/{actor_id}", req -> JSON3.write(deactivate!(runtime, req)))
     return r
 end
 

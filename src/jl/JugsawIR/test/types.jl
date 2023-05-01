@@ -8,7 +8,7 @@ using Test, JugsawIR
     str, types = json4(jf)
     loaded = parse4(str, jf)
     @test loaded == jf
-    @test function_signature(loaded) == "JugsawIR.JugsawFunctionCall{Base.#isapprox, Core.Tuple{Core.Float64, Core.Float64}, Core.NamedTuple{(:atol,), Core.Tuple{Core.Float64}}}"
+    @test function_signature(loaded) == "JugsawIR.JugsawFunctionCall{Base.isapprox, Core.Tuple{Core.Float64, Core.Float64}, Core.NamedTuple{(:atol,), Core.Tuple{Core.Float64}}}"
     @show function_signature(loaded)
     @test feval(loaded)
 
