@@ -62,8 +62,9 @@ function smallgraph(s::Symbol)
     g = Graphs.smallgraph(s)
     return Graph(Graphs.nv(g), hcat(collect.(Tuple.(Graphs.edges(g)))...))
 end
-#, :MaximalIS, :SpinGlass, :Coloring, :DominatingSet,
-#:HyperSpinGlass, :Matching, :MaxCut, :OpenPitMining, :PaintShop, :Satisfiability, :SetCovering, :SetPacking]
+# :MaximalIS, :SpinGlass, :Coloring, :DominatingSet,
+# :HyperSpinGlass, :Matching, :MaxCut, :OpenPitMining,
+# :PaintShop, :Satisfiability, :SetCovering, :SetPacking
 app = Jugsaw.AppSpecification(:GenericTN)
 for property in [:(SizeMax()), :(CountingMax()), :(CountingMax(2))]
     @eval @register app solve(IndependentSetConfig(; graph=smallgraph(:petersen), weights=ones(10)), $property;

@@ -1,10 +1,3 @@
-export serve, @register
-
-using UUIDs: uuid4
-using HTTP
-using JugsawIR.JSON
-using Distributed: Future
-
 #####
 struct StateStore
     store::Dict{String,Future}
@@ -19,18 +12,18 @@ Base.getindex(s::StateStore, k) = s.store[k][]
 """
 Describe current status of an actor.
 """
-struct Actor{T<:Pair{<:JugsawFunctionCall}}
+struct Actor
     # actor is a function demo
-    actor::T
+    actor::JugsawDemo
     taskref::Ref{Task}
     mailbox::Channel{Message}
 end
 
-function Actor(state_store, actor::Pair{<:JugsawFunctionCall})
+function Actor(state_store, actor::JugsawDemo)
     taskref = Ref{Task}()
     chnl = Channel{Message}(taskref=taskref) do ch
         for msg in ch
-            act!(state_store, actor, msg)
+            act!(state_store, actor.fcall, msg)
         end
     end
     Actor(deepcopy(actor), taskref, chnl)
@@ -44,8 +37,8 @@ function put_message(a::Actor, msg::Message)
     put!(a.mailbox, msg)
 end
 
-function act!(state_store::StateStore, actor::Pair{<:JugsawFunctionCall}, msg::Message)
-    res = actor.first.fname(msg.request.args...; msg.request.kwargs...)
+function act!(state_store::StateStore, democall::JugsawFunctionCall, msg::Message)
+    res = feval(democall, msg.request.args...; msg.request.kwargs...)
     @info "store result: $res"
     # TODO: custom serializer
     s_res = JugsawIR.json4(res)
@@ -62,10 +55,10 @@ struct AppRuntime
     state_store::StateStore
 end
 function AppRuntime(mod::Module, app::AppSpecification)
-    return AppRuntime(mod, app, Dict{Pair{String,String},Any}(), StateStore(Dict{String,String}()))
+    return AppRuntime(mod, app, Dict{Pair{String,String},Any}(), StateStore(Dict{String,Future}()))
 end
 
-function empty!(r::AppRuntime)
+function Base.empty!(r::AppRuntime)
     empty!(r.actors)
     empty!(r.state_store)
 end
@@ -90,17 +83,26 @@ end
 function act!(r::AppRuntime, http::HTTP.Request)
     ps = HTTP.getparams(http)
     # find the correct method
-    fcall = JSON.parse(String(http.body))
-    @info fcall
-    a = activate(r, fcall["type"], string(ps["actor_id"]))
+    fcall = String(http.body)
+    fname, req = parse_fcall(fcall, r.app.method_demos)
+    a = activate(r, fname, string(ps["actor_id"]))
     # TODO: load actor state from state store
     #req = JSON3.read(http.body, JugsawFunctionCall)
-    req = JugsawIR.fromdict(r.mod, typeof(a.actor.first), fcall)
     @info "got task: $req"
     resp = ObjectRef()
     r.state_store[resp.object_id] = Future()
     put_message(a, Message(req, resp))
-    HTTP.Response(200, ["Content-Type" => "application/json"], JSON.json(resp))
+    HTTP.Response(200, ["Content-Type" => "application/json"], JSON3.write(resp))
+end
+function parse_fcall(fcall::String, demos::Dict{String})
+    @info fcall
+    type_sig, tree = get_typesig(fcall)
+    demo = demos[type_sig]
+    return type_sig, JugsawIR.fromtree(tree, demo.fcall)
+end
+function get_typesig(fcall)
+    tree = JugsawIR.Lerche.parse(JugsawIR.jp, fcall)
+    return JugsawIR._gettype(tree), tree
 end
 
 """
@@ -124,7 +126,7 @@ function fetch(r::AppRuntime, req::HTTP.Request)
     # NOTE: JSON3 errors
     s = String(req.body)
     @info "fetching: $s"
-    ref = ObjectRef(JugsawIR.JSON.parse(s)["object_id"])
+    ref = ObjectRef(JSON3.read(s)["object_id"])
     return r.state_store[ref.object_id]
 end
 
@@ -132,21 +134,41 @@ end
 # Service
 #####
 
-# FIXME: set host to default in k8s
-function serve(runtime::AppRuntime, dir::String; is_async=isdefined(Main, :InteractiveUtils))
-    demos = runtime.app.method_demos
+# save demos to the disk
+function save_demos(dir::String, methods::AppSpecification)
+    mkpath(dir)
+    demos, types = JugsawIR.json4(methods)
     # dump the method table to the disk
-    fmethods = joinpath(dir, "method_table.json")
+    ftypes = joinpath(dir, "types.json")
     # TODO: avoid displaying DataType!!!!
-    @info "dumping method type signatures to: $fmethods"
-    open(fmethods, "w") do f
-        write(f, JugsawIR.jsontype4(typeof((values(demos)...,))))
+    @info "dumping method type signatures to: $ftypes"
+    open(ftypes, "w") do f
+        write(f, types)
     end
-    fdemos = joinpath(dir, "demo.json")
+    fdemos = joinpath(dir, "demos.json")
     @info "dumping demos to: $fdemos"
     open(fdemos, "w") do f
-        write(f, JugsawIR.json4(demos))
+        write(f, demos)
     end
+end
+
+# load demos from the disk
+function load_demos_from_dir(dir::String, demos)
+    ftypes = joinpath(dir, "types.json")
+    fdemos = joinpath(dir, "demos.json")
+    sdemos = read(fdemos, String)
+    stypes = read(ftypes, String)
+    return load_demos(sdemos, stypes, demos)
+end
+function load_demos(sdemos::String, stypes::String, demos)
+    newdemos = JugsawIR.parse4(sdemos, demos)
+    newtypes = JugsawIR.parse4(stypes, JugsawIR.demoof(JugsawIR.TypeTable))
+    return newdemos, newtypes
+end
+
+# FIXME: set host to default in k8s
+function serve(runtime::AppRuntime, dir::String; is_async=isdefined(Main, :InteractiveUtils))
+    save_demos(dir, runtime.app)
 
     # start the service
     ROUTER = HTTP.Router()

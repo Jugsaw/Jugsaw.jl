@@ -1,5 +1,5 @@
 # Extended JSON
-# https://github.com/JuliaIO/JSON.jl
+# https://github.com/quinnj/JSON3.jl
 # `json4` parse an object to string, which can be used to
 # 1. parse a Julia object to a json object, with complete type specification.
 # 2. parse a function specification to a json object, with complete input argument specification.
@@ -7,135 +7,176 @@
 
 # the typed parsing
 function json4(obj)
-    JSON.json(todict(obj))
+    obj, type = todict(obj)
+    typed, typet = todict(type)
+    # TODO: remove json!
+    JSON3.write(obj), JSON3.write(typed)
+end
+struct TypeTable
+    names::Vector{String}
+    defs::Dict{String, Tuple{Vector{String}, Vector{String}}}
+end
+TypeTable() = TypeTable(String[], Dict{String, Tuple{Vector{String}, Vector{String}}}())
+Base.show(io::IO, ::MIME"text/plain", t::TypeTable) = Base.show(io, t)
+function Base.show(io::IO, t::TypeTable)
+    println(io, "TypeTable")
+    for (k, typename) in enumerate(t.names)
+        println(io, "  - $typename")
+        fns, fts = t.defs[typename]
+        for (l, (fn, ft)) in enumerate(zip(fns, fts))
+            print(io, "    - $fn::$ft")
+            if !(k == length(t.names) && l == length(fns))
+                println()
+            end
+        end
+    end
 end
 
-# type specification
-function jsontype4(::Type{T}) where T
-    types = []
-    typedef!(types, T, Dict{Any,String}())
-    return JSON.json(types)
+function def!(tt::TypeTable, type::String, fieldnames::Vector{String}, @nospecialize(fieldvalues::Tuple))
+    if !haskey(tt.defs, type)
+        push!(tt.names, type)
+        tt.defs[type] = (fieldnames, [type2str(typeof(x)) for x in fieldvalues])
+    end
+    return Dict("type"=>type, "fields"=>collect(Any, fieldvalues))
+end
+
+# returns the object and type specification
+function todict(@nospecialize(x::T)) where T
+    tt = TypeTable()
+    res = todict!(x, tt)
+    return res, tt
 end
 
 # data are dumped to (name, value[, fieldnames])
-function todict(@nospecialize(x::T)) where T
+function todict!(@nospecialize(x::T), tt::TypeTable) where T
+    sT = type2str(T)
     @match x begin
         ###################### Basic Types ######################
-        ::JSONTypes => x  # natively supported by JSON
-        ::UndefInitializer => create_obj(
-            type2str(T),
-            [],
-            String[],
-        )   # avoid undef parse error
-        ::Float16 || ::Float32 => create_obj(
-            type2str(T),
-            [Float64(x)],
-            String["storage"],
-        )
-        ::DataType => type2str(x)
-        ::UnionAll => type2str(x)
-        ::Union => type2str(x)
-        ::Char || ::Int8 || ::Int16 || ::Int32 || ::Int128 || 
-            ::UInt8 || ::UInt16 || ::UInt32 || ::UInt128 ||
-            ::Symbol || ::Missing => create_obj(
-                type2str(T),
-                [x],
-                String["storage"],
-               )   # can not reduce anymore.
+        ::UndefInitializer => nothing
+        ::DirectlyRepresentableTypes => x
         ##################### Specified Types ####################
-        ::Array => create_obj(
-            type2str(typeof(x)),
-            [collect(size(x)), map(todict, vec(x))],
+        ::DataType => begin
+            def!(tt, "Core.DataType", ["name", "fieldnames", "fieldtypes"], (type2str(String), type2str(Vector{String}), type2str(Vector{String})))
+        end
+        ::Array => def!(tt, sT,
             ["size", "storage"],
+            (collect(size(x)), map(x->todict!(x, tt), vec(x)))
         )
-        ::Enum => create_obj(
-            type2str(typeof(x)),
-            ["DataType", string(x), String[string(v) for v in instances(typeof(x))]],
+        ::Enum => def!(tt, sT,
             ["kind", "value", "options"],
+            ("DataType", string(x), String[string(v) for v in instances(typeof(x))]),
         )
-        ::Tuple => create_obj(
-            type2str(typeof(x)),
-            map(todict, x),
-            ["$i" for i=1:length(x)],
-        )
-        ::Dict => create_obj(
-            type2str(typeof(x)),
-            [[todict(k) for k in keys(x)], [todict(v) for v in values(x)]],
-            ["keys", "vals"],
-        )
-        ###################### Generic Compsite Types ######################
-        _ => create_obj(
-                type2str(T),
-                map(fn->isdefined(x, fn) ? todict(getfield(x, fn)) : nothing, fieldnames(T)),
-                String.(fieldnames(T)),
+        ::Dict => begin
+            def!(tt, sT,
+                ["keys", "vals"],
+                ([todict!(k, tt) for k in keys(x)], [todict!(v, tt) for v in values(x)]),
             )
-    end
-end
-
-function create_obj(type, values, fields)
-    return Dict("type"=>type, "values"=>values, "fields"=>fields)
-end
-
-function typedef!(types::Vector{Any}, @nospecialize(t::Type{T}), typedict::Dict{Any, String}) where T
-    sT = type2str(T)
-    haskey(typedict, T) && return sT
-    ret = @match T begin
-        ::Type{<:BasicTypes} || ::Type{Any} => begin
-            push!(types, sT)
-            sT
-        end  # wrap primitive type
-        ##################### Specified Types ####################
-        ::Type{<:Array} => begin
-            def_typeparams!(T, types, typedict)
-            push!(types, create_type(sT, ["size", "storage"], [type2str(Vector{Int}), type2str(Vector{eltype(T)})]))
-            sT
-        end
-        ::Type{<:Dict} => begin
-            def_typeparams!(T, types, typedict)
-            push!(types, create_type(sT, ["keys", "vals"], [type2str(Vector{key_type(T)}), type2str(Vector{value_type(T)})]))
-            sT
-        end
-        ::Type{<:Enum} => begin
-            push!(types, create_type("Jugsaw.Universe.Enum", ["kind", "value", "options"], [type2str(String), type2str(Vector{String})]))
-            sT
         end
         ###################### Generic Compsite Types ######################
-        IsConcreteType() => begin  # generic composite type
-            # define parameter types
-            def_typeparams!(T, types, typedict)
-            # define field types recursively
-            d = String[]
-            dT = String[]
-            for (n, t) in zip(fieldnames(T), T.types)
-                push!(d, string(n))
-                push!(dT, typedef!(types, t, typedict))
-                sT
-            end
-            # show self
-            push!(types, create_type(sT, d, dT))
-            sT
-        end
         _ => begin
-            push!(types, sT)
-            sT
-        end
-    end
-    typedict[T] = ret
-    return ret
-end
-
-function def_typeparams!(::Type{T}, types, typedict) where T
-    for t in T.parameters
-        if t isa Type
-            typedef!(types, t, typedict)
+            fns = fieldnames(T)
+            def!(tt, sT,
+                String[string(x) for x in fns],
+                map(fn->isdefined(x, fn) ? todict!(getfield(x, fn), tt) : nothing, fns),
+            )
         end
     end
 end
 
-function create_type(name::String, fieldnames::Vector{String}, fieldtypes::Vector{String})
-    Dict(
-        "type" => "DataType",
-        "values" => [name, fieldnames, fieldtypes],
-        "fields" => ["name", "fieldnames", "fieldtypes"]
-    )
+# NOTE: at least one element is required to help Array and Dict to parse.
+function fromtree(t::Lerche.Tree, demo::T) where T
+    @match demo begin
+        ###################### Basic Types ######################
+        ::Nothing || ::Missing || ::UndefInitializer => demo
+        ::Bool => Meta.parse(t.children[1].data)
+        ::Char => Meta.parse(t.children[1].children[1].value)[1]
+        ::DirectlyRepresentableTypes => T(Meta.parse(t.children[1].children[1].value))
+
+        ##################### Specified Types ####################
+        ::Type => demo
+        ::Array => begin
+            size, storage = _getfields(t)
+            d = length(demo) > 0 ? first(demo) : demoof(eltype(demo))
+            reshape(eltype(T)[fromtree(x, d) for x in storage.children[1].children], Int[fromtree(s, 0) for s in size.children[1].children]...)
+        end
+        ::Enum => begin
+            kind, value, options = _getfields(t)
+            T(findfirst(==(Meta.parse(value.children[1].children[1].value)), [Meta.parse(o.children[1].children[1].value) for o in options.children[1].children])-1)
+        end
+        ::Tuple => begin
+            ([fromtree(v, d) for (v, d) in zip(_getfields(t), demo)]...,)
+        end
+        ::Dict => begin
+            ks, vs = _getfields(t)
+            kd, vd = length(demo) > 0 ? (first(keys(demo)), first(values(demo))) : (demoof(key_type(demo)), demoof(value_type(demo)))
+            T(zip([fromtree(k, kd) for k in ks.children[1].children],
+              [fromtree(v, vd) for v in vs.children[1].children]))
+        end
+
+        ###################### Generic Compsite Types ######################
+        _ => begin
+            construct_object(t, demo)
+        end
+    end
 end
+demoof(::Type{T}) where T<:Number = zero(T)
+demoof(::Type{T}) where T<:AbstractString = T("")
+demoof(::Type{T}) where T<:Symbol = :x
+demoof(::Type{T}) where T<:Tuple = (demoof.(T.parameters)...,)
+demoof(::Type{T}) where {E,N,T<:AbstractArray{E,N}} = T(reshape([demoof(E)], ones(Int, N)...))
+function demoof(::Type{T}) where T
+    vals = demoof.(T.types)
+    return Core.eval(@__MODULE__, Expr(:new, T, Any[:($vals[$i]) for i=1:length(vals)]...))
+end
+
+function construct_object(t::Lerche.Tree, demo::T) where T
+    # there may be a first field "type".
+    vals = [fromtree(t.children[end].children[1].children[i], getfield(demo, fn)) for (i, fn) in enumerate(fieldnames(T)) if isdefined(demo, fn)]
+    return Core.eval(@__MODULE__, Expr(:new, T, Any[:($vals[$i]) for i=1:length(vals)]...))
+end
+function _getfields(t::Lerche.Tree)
+    if t.data == "genericobj1"
+        return t.children[1].children[1].children
+    elseif t.data == "genericobj2"
+        return t.children[1].children[2].children
+    else
+        return t.children[1].children[1].children
+    end
+end
+function _gettype(t::Lerche.Tree)
+    if t.data == "genericobj1"
+        error("type is not specified!")
+    elseif t.data == "genericobj2"
+        return Meta.parse(t.children[1].children[1].value)
+    else
+        return Meta.parse(t.children[1].children[2].value)
+    end
+end
+
+###################### Lark ########################
+const jp = Lark(read(joinpath(@__DIR__, "jugsawir.lark"), String),parser="lalr",lexer="contextual", start="object")
+function parse4(str::String, demo)
+    tree = Lerche.parse(jp, str)
+    fromtree(tree, demo)
+end
+
+AbstractTrees.children(t::Lerche.Tree) = t.children
+function AbstractTrees.printnode(io::IO, t::Lerche.Tree)
+	print(io, t.data)
+end
+function AbstractTrees.printnode(io::IO, t::Lerche.Token)
+    print(io, t.value)
+end
+
+print_clean_tree(t::Lerche.Tree; kwargs...) = print_clean_tree(stdout, t; kwargs...)
+function print_clean_tree(io::IO, t::Lerche.Tree; kwargs...)
+    AbstractTrees.print_tree(io, cleanup(t); kwargs...)
+end
+function cleanup(tree::Lerche.Tree)
+    if tree.data == "object"
+        return cleanup(tree.children[1])
+    else
+        return Tree(tree.data, cleanup.(tree.children), tree._meta)
+    end
+end
+cleanup(t::Lerche.Token) = t

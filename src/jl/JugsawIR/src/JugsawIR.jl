@@ -2,12 +2,19 @@ module JugsawIR
 # BASIC types: nothing, primitive types, Complex{P},
 #              Graph, SparseMatrixCSC{Ti,Tv}, Vector{T}, Tuple{T...},
 #              Tensor{T}
-import JSON
+import JSON3
 using MLStyle: @active, @match
-export json4, parse4, jsontype4
+import MLStyle
+using Lerche
+using AbstractTrees
+using AbstractTrees: print_tree
+
+export json4, parse4, jsontype4, print_tree, print_clean_tree
+export JugsawFunctionCall, function_signature, feval
+export ftest, JugsawDemo
 
 include("Core.jl")
-include("deserialize.jl")
 include("serialize.jl")
+include("types.jl")
 
 end

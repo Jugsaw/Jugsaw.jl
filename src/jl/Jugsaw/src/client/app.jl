@@ -1,14 +1,31 @@
-export App
-
-using JSON3
-using URIs
-
+struct Demo
+    fcall::JugsawFunctionCall
+    result
+    docstring::String
+end
 struct App
-    name::String
+    name::Symbol
     endpoint::URI
+    method_demos::OrderedDict{String, Demo}
+    type_table::TypeTable
 end
 
-App(name::String=""; endpoint="http://localhost:8081/actors/") = App(name, URI(endpoint))
+function App(appname::Symbol; endpoint="http://localhost:8081/actors/")
+    uri = URI(endpoint)
+    method_demos, type_table = request_method_demos(uri, appname)
+    return App(appname, uri, method_demos, type_table)
+end
+function request_method_demos(endpoint::URI, appname::String)
+    demo_url = joinpath(endpoint, "$appname", "demos")
+    r = HTTP.post(demo_url, ["content-type" => "application/json"], req) # Deserialize
+    tree = JugsawIR.Lerche.parse(JugsawIR.jp, String(r.body))
+    return tree
+end
+
+function query_function()
+end
+function query_type()
+end
 
 struct ActorTypeRef
     app::App

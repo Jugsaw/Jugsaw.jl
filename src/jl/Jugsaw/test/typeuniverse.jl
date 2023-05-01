@@ -13,8 +13,8 @@ using Test
         File("七里香.mp3", rand(UInt8, 100)),
         RGBImage(rand(3, 100, 100))
         ]
-        js = json4(x)
-        obj = parse4(js, mod=@__MODULE__)
+        js, tp = json4(x)
+        obj = parse4(js, x)
         @test x == obj
     end
 end
