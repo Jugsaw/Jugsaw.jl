@@ -1,5 +1,5 @@
 # Extended JSON
-# https://github.com/JuliaIO/JSON.jl
+# https://github.com/quinnj/JSON3.jl
 # `json4` parse an object to string, which can be used to
 # 1. parse a Julia object to a json object, with complete type specification.
 # 2. parse a function specification to a json object, with complete input argument specification.
@@ -9,7 +9,8 @@
 function json4(obj)
     obj, type = todict(obj)
     typed, typet = todict(type)
-    JSON.json(obj), JSON.json(typed)
+    # TODO: remove json!
+    JSON3.write(obj), JSON3.write(typed)
 end
 struct TypeTable
     names::Vector{String}

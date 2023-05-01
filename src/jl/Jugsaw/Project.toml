@@ -6,7 +6,6 @@ version = "0.1.0"
 [deps]
 Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
-JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 JugsawIR = "6340f1c1-b722-4800-8081-8412e0693b45"
 LibGit2 = "76f85450-5226-5b5a-8eaa-529ad045b433"
 MLStyle = "d8e11817-5142-5d16-987a-aa16d5891078"
@@ -14,6 +13,14 @@ OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 URIs = "5c2747f8-b7ea-4ff2-ba2e-563bfd36b1d4"
 UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
+
+[compat]
+HTTP = "1"
+JugsawIR = "1"
+OrderedCollections = "1"
+TOML = "1"
+URIs = "1"
+julia = "1"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

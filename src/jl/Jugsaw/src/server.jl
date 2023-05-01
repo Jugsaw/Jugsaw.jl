@@ -92,7 +92,7 @@ function act!(r::AppRuntime, http::HTTP.Request)
     resp = ObjectRef()
     r.state_store[resp.object_id] = Future()
     put_message(a, Message(req, resp))
-    HTTP.Response(200, ["Content-Type" => "application/json"], JSON.json(resp))
+    HTTP.Response(200, ["Content-Type" => "application/json"], JSON3.write(resp))
 end
 function parse_fcall(fcall::String, demos::Dict{String})
     @info fcall
@@ -126,7 +126,7 @@ function fetch(r::AppRuntime, req::HTTP.Request)
     # NOTE: JSON3 errors
     s = String(req.body)
     @info "fetching: $s"
-    ref = ObjectRef(JugsawIR.JSON.parse(s)["object_id"])
+    ref = ObjectRef(JSON3.read(s)["object_id"])
     return r.state_store[ref.object_id]
 end
 

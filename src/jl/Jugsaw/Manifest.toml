@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0-rc2"
 manifest_format = "2.0"
-project_hash = "30f4ee5e3470b21db015ff5a428b5d4aa2bf4176"
+project_hash = "0e2b129957f132a9c7d6f0394253e39eb5fffb05"
 
 [[deps.AbstractTrees]]
 git-tree-sha1 = "faa260e4cb5aba097a73fab382dd4b5819d8ec8c"
@@ -75,12 +75,6 @@ git-tree-sha1 = "abc9885a7ca2052a736a600f7fa66209f96506e1"
 uuid = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
 version = "1.4.1"
 
-[[deps.JSON]]
-deps = ["Dates", "Mmap", "Parsers", "Unicode"]
-git-tree-sha1 = "31e996f0a15c7b280ba9f76636b3ff9e2ae58c9a"
-uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
-version = "0.21.4"
-
 [[deps.JSON3]]
 deps = ["Dates", "Mmap", "Parsers", "SnoopPrecompile", "StructTypes", "UUIDs"]
 git-tree-sha1 = "84b10656a41ef564c39d2d477d7236966d2b5683"
@@ -88,7 +82,7 @@ uuid = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 version = "1.12.0"
 
 [[deps.JugsawIR]]
-deps = ["AbstractTrees", "Base64", "JSON", "Lerche", "MLStyle"]
+deps = ["AbstractTrees", "Base64", "JSON3", "Lerche", "MLStyle"]
 path = "../JugsawIR"
 uuid = "6340f1c1-b722-4800-8081-8412e0693b45"
 version = "1.0.0-DEV"

@@ -32,7 +32,8 @@ function load_app(t::Tree, types::TypeTable, endpoint::String)
     demos = OrderedDict{String, Demo}()
     for sig in method_sigs.fields[2]
         (fcall, result, docstring) = demodict[sig].fields
-        jf = JugsawFunctionCall(fcall.fields...)
+        fcall, args, kwargs = fcall.fields
+        jf = JugsawFunctionCall(fcall, (args.fields...,), (; zip(kwargs.fields)...))
         return Demo(jf, result, docstring)
     end
     App(name, endpoint, demos, types)
@@ -55,9 +56,9 @@ function buildobj(typename, fields, types::TypeTable)
     return JugsawObj(typename, fields, fns)
 end
 
-print_app(demos::JugsawObj) = print_app(stdout, demos)
-function print_app(io::IO, demos::JugsawObj)
-    name, method_sigs, method_demos = demos.fields
+print_app(demos::App) = print_app(stdout, demos)
+function print_app(io::IO, app::App)
+    name, method_sigs, method_demos, type_table = app.name, app.endpoint, app.method_demos, app.type_table
     println(io, "AppSpecification: $name")
     demodict = Dict(zip(method_demos.fields...))
     for fname in method_sigs.fields[2]
