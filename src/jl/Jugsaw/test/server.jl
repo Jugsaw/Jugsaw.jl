@@ -1,5 +1,5 @@
 using Test
-using Jugsaw
+using Jugsaw, JugsawIR
 
 @testset "parse fcall" begin
     app = AppSpecification(:testapp)
@@ -15,7 +15,7 @@ using Jugsaw
     @test newtypes isa Jugsaw.JugsawIR.TypeTable
 
     # parse function call
-    fcall, _ = Jugsaw.JugsawIR.json4(first(app.method_demos)[2].fcall)
+    fcall, _ = json4(first(app.method_demos)[2].fcall)
     type_sig, req = Jugsaw.parse_fcall(fcall::String, app.method_demos)
     @test req == first(app.method_demos)[2].fcall
     @test Jugsaw.nfunctions(app) == 2

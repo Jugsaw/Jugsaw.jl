@@ -1,5 +1,12 @@
 using Test, Jugsaw.Client
 using JugsawIR
+using Markdown
+
+@testset "decode_fname" begin
+    @test Client.decode_fname("Base.#cos") == :cos
+    @test Client.decode_fname("Test.Base.#cos") == :cos
+    @test Client.decode_fname("Test.Base.cos") == :cos
+end
 
 @testset "parse" begin
     tt = Client.load_types_from_file(joinpath(dirname(joinpath(@__DIR__)), "testapp", "types.json"))
@@ -12,7 +19,9 @@ using JugsawIR
         @test res == x
     end
 
-    demos = Client.load_demos_from_dir(joinpath(dirname(@__DIR__), "testapp"))
-    @test demos isa Client.Demo
+    app = Client.load_demos_from_dir(joinpath(dirname(@__DIR__), "testapp"))
+    println(app)
+    @test app.cos isa Client.Demo
+    @test (@doc app.cos) isa Markdown.MD
     #Client.print_app(app)
 end
