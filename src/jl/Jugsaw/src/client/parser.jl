@@ -16,14 +16,6 @@ function Base.show(io::IO, obj::JugsawObj)
     print(io, ")")
 end
 
-load_types_from_file(filename::String) = load_types(read(filename, String))
-load_types(str::String) = JugsawIR.parse4(str, JugsawIR.demoof(TypeTable))
-
-function load_demos_from_dir(dirname::String)
-    types = load_types(read(joinpath(dirname, "types.json"), String))
-    tdemos = Lerche.parse(JugsawIR.jp, read(joinpath(dirname, "demos.json"), String))
-    return load_app(tdemos, types)
-end
 function load_app(t::Tree, types::TypeTable)
     obj = load_obj(t, types)
     name, method_sigs, method_demos = obj.fields
@@ -70,18 +62,4 @@ load_obj(t::Token, types::TypeTable) = Meta.parse(t.value)
 function buildobj(typename, fields, types::TypeTable)
     fns, fts = types.defs[typename]
     return JugsawObj(typename, fields, fns)
-end
-
-print_app(demos::App) = print_app(stdout, demos)
-function print_app(io::IO, app::App)
-    name, method_sigs, method_demos, type_table = app.name, app.method_demos, app.type_table
-    println(io, "AppSpecification: $name")
-    demodict = Dict(zip(method_demos.fields...))
-    for fname in method_sigs.fields[2]
-        call, res = demodict[fname].fields
-        fname, args, kwargs = call.fields
-        kwstr = join(["$(repr(k))=$(repr(v))" for (k, v) in kwargs.fields], ", ")
-        argstr = join(["$(repr(v))" for v in args.fields], ", ")
-        println(io, "  - $(fname.typename)($argstr; $kwstr) == $(repr(res))")
-    end
 end

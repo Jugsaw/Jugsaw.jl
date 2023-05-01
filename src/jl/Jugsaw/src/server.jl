@@ -138,31 +138,22 @@ end
 function save_demos(dir::String, methods::AppSpecification)
     mkpath(dir)
     demos, types = JugsawIR.json4(methods)
-    # dump the method table to the disk
-    ftypes = joinpath(dir, "types.json")
-    # TODO: avoid displaying DataType!!!!
-    @info "dumping method type signatures to: $ftypes"
-    open(ftypes, "w") do f
-        write(f, types)
-    end
     fdemos = joinpath(dir, "demos.json")
     @info "dumping demos to: $fdemos"
     open(fdemos, "w") do f
-        write(f, demos)
+        write(f, "[$demos, $types]")
     end
 end
 
 # load demos from the disk
 function load_demos_from_dir(dir::String, demos)
-    ftypes = joinpath(dir, "types.json")
-    fdemos = joinpath(dir, "demos.json")
-    sdemos = read(fdemos, String)
-    stypes = read(ftypes, String)
-    return load_demos(sdemos, stypes, demos)
+    sdemos = read(joinpath(dir, "demos.json"), String)
+    return load_demos(sdemos, demos)
 end
-function load_demos(sdemos::String, stypes::String, demos)
-    newdemos = JugsawIR.parse4(sdemos, demos)
-    newtypes = JugsawIR.parse4(stypes, JugsawIR.demoof(JugsawIR.TypeTable))
+function load_demos(sdemos::String, demos)
+    ds, ts = JugsawIR.Lerche.parse(JugsawIR.jp, sdemos).children[].children
+    newdemos = JugsawIR.fromtree(ds, demos)
+    newtypes = JugsawIR.fromtree(ts, JugsawIR.demoof(JugsawIR.TypeTable))
     return newdemos, newtypes
 end
 

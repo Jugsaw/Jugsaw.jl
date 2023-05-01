@@ -9,9 +9,6 @@ using Markdown
 end
 
 @testset "parse" begin
-    tt = Client.load_types_from_file(joinpath(dirname(joinpath(@__DIR__)), "testapp", "types.json"))
-    @test tt isa JugsawIR.TypeTable
-
     for x in [3, true, false, nothing, "##"]
         obj, type = JugsawIR.json4(x)
         #res = JugsawIR.Lerche.parse(Client.jpt, obj)
