@@ -1,10 +1,9 @@
 module Jugsaw
 
-import JugsawIR
+using JugsawIR
 using UUIDs
 using UUIDs: uuid4
 using HTTP
-using JugsawIR.JSON
 using Distributed: Future
 using MLStyle
 using TOML

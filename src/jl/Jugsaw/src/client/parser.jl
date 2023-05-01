@@ -22,21 +22,34 @@ load_types(str::String) = JugsawIR.parse4(str, JugsawIR.demoof(TypeTable))
 function load_demos_from_dir(dirname::String)
     types = load_types(read(joinpath(dirname, "types.json"), String))
     tdemos = Lerche.parse(JugsawIR.jp, read(joinpath(dirname, "demos.json"), String))
-    return load_demos(tdemos, types)
+    return load_app(tdemos, types, "local file: $dirname")
 end
-function load_demos(t::Tree, types::TypeTable)
+function load_app(t::Tree, types::TypeTable, endpoint::String)
+    obj = load_obj(t, types)
+    name, method_sigs, method_demos = obj.fields
+    ks, vs = method_demos.fields
+    demodict = Dict(zip(ks, vs))
+    demos = OrderedDict{String, Demo}()
+    for sig in method_sigs.fields[2]
+        (fcall, result, docstring) = demodict[sig].fields
+        jf = JugsawFunctionCall(fcall.fields...)
+        return Demo(jf, result, docstring)
+    end
+    App(name, endpoint, demos, types)
+end
+function load_obj(t::Tree, types::TypeTable)
     @match t.data begin
-        "object" || "number" || "string" => load_demos(t.children[], types)
+        "object" || "number" || "string" => load_obj(t.children[], types)
         "true" => true
         "false" => false
         "null" => nothing
-        "list" => load_demos.(t.children, Ref(types))
+        "list" => load_obj.(t.children, Ref(types))
         "genericobj1" => error("type name not specified!")
-        "genericobj2" => buildobj(load_demos(t.children[1], types), load_demos.(t.children[2].children, Ref(types)), types)
-        "genericobj3" => buildobj(load_demos(t.children[2], types), load_demos.(t.children[1].children, Ref(types)), types)
+        "genericobj2" => buildobj(load_obj(t.children[1], types), load_obj.(t.children[2].children, Ref(types)), types)
+        "genericobj3" => buildobj(load_obj(t.children[2], types), load_obj.(t.children[1].children, Ref(types)), types)
     end
 end
-load_demos(t::Token, types::TypeTable) = Meta.parse(t.value)
+load_obj(t::Token, types::TypeTable) = Meta.parse(t.value)
 function buildobj(typename, fields, types::TypeTable)
     fns, fts = types.defs[typename]
     return JugsawObj(typename, fields, fns)

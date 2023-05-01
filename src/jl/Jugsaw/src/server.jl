@@ -12,18 +12,18 @@ Base.getindex(s::StateStore, k) = s.store[k][]
 """
 Describe current status of an actor.
 """
-struct Actor{T<:Tuple{<:JugsawFunctionCall, Any, String}}
+struct Actor
     # actor is a function demo
-    actor::T
+    actor::JugsawDemo
     taskref::Ref{Task}
     mailbox::Channel{Message}
 end
 
-function Actor(state_store, actor::Tuple{<:JugsawFunctionCall, Any, String})
+function Actor(state_store, actor::JugsawDemo)
     taskref = Ref{Task}()
     chnl = Channel{Message}(taskref=taskref) do ch
         for msg in ch
-            act!(state_store, actor, msg)
+            act!(state_store, actor.fcall, msg)
         end
     end
     Actor(deepcopy(actor), taskref, chnl)
@@ -37,8 +37,8 @@ function put_message(a::Actor, msg::Message)
     put!(a.mailbox, msg)
 end
 
-function act!(state_store::StateStore, actor::Tuple{<:JugsawFunctionCall, Any, String}, msg::Message)
-    res = first(actor).fname(msg.request.args...; msg.request.kwargs...)
+function act!(state_store::StateStore, democall::JugsawFunctionCall, msg::Message)
+    res = feval(democall, msg.request.args...; msg.request.kwargs...)
     @info "store result: $res"
     # TODO: custom serializer
     s_res = JugsawIR.json4(res)
@@ -55,7 +55,7 @@ struct AppRuntime
     state_store::StateStore
 end
 function AppRuntime(mod::Module, app::AppSpecification)
-    return AppRuntime(mod, app, Dict{Pair{String,String},Any}(), StateStore(Dict{String,String}()))
+    return AppRuntime(mod, app, Dict{Pair{String,String},Any}(), StateStore(Dict{String,Future}()))
 end
 
 function Base.empty!(r::AppRuntime)
@@ -98,7 +98,7 @@ function parse_fcall(fcall::String, demos::Dict{String})
     @info fcall
     type_sig, tree = get_typesig(fcall)
     demo = demos[type_sig]
-    return type_sig, JugsawIR.fromtree(tree, first(demo))
+    return type_sig, JugsawIR.fromtree(tree, demo.fcall)
 end
 function get_typesig(fcall)
     tree = JugsawIR.Lerche.parse(JugsawIR.jp, fcall)

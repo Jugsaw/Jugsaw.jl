@@ -8,3 +8,7 @@ end
 @testset "serialize" begin
     include("serialize.jl")
 end
+
+@testset "types" begin
+    include("types.jl")
+end

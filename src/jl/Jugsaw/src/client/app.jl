@@ -1,13 +1,19 @@
+struct Demo
+    fcall::JugsawFunctionCall
+    result
+    docstring::String
+end
 struct App
     name::Symbol
     endpoint::URI
-    method_demos::Dict{String}
+    method_demos::OrderedDict{String, Demo}
+    type_table::TypeTable
 end
 
 function App(appname::Symbol; endpoint="http://localhost:8081/actors/")
     uri = URI(endpoint)
-    method_demos = request_method_demos(uri, appname)
-    return App(appname, uri, method_demos)
+    method_demos, type_table = request_method_demos(uri, appname)
+    return App(appname, uri, method_demos, type_table)
 end
 function request_method_demos(endpoint::URI, appname::String)
     demo_url = joinpath(endpoint, "$appname", "demos")
