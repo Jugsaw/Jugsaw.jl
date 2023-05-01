@@ -9,7 +9,7 @@ using HTTP
 using Distributed: Future
 using TOML
 
-export AppSpecification
+export AppSpecification, AppRuntime
 export serve, @register
 export build
 

@@ -2,7 +2,7 @@ using Jugsaw
 
 greet(x::String) = "Hello, $(x)!"
 
-app = Jugsaw.AppSpecification("helloworld")
+app = Jugsaw.AppSpecification(:helloworld)
 @register app greet("Jugsaw")
 
 #####

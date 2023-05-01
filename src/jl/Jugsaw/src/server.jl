@@ -41,7 +41,7 @@ function act!(state_store::StateStore, democall::JugsawFunctionCall, msg::Messag
     res = feval(democall, msg.request.args...; msg.request.kwargs...)
     @info "store result: $res"
     # TODO: custom serializer
-    s_res = JugsawIR.json4(res)
+    s_res, _ = JugsawIR.json4(res)
     state_store[msg.response.object_id] = s_res
 end
 
@@ -108,15 +108,18 @@ end
 """
 Remove idle actors. Actors may be configure to persistent its current state.
 """
-function deactivate!(actors::Dict, req::HTTP.Request)
+function deactivate!(r::AppRuntime, req::HTTP.Request)
     ps = HTTP.getparams(req)
     atype = string(ps["actor_type_name"])
     aid = string(ps["actor_id"])
-    actor = get(actors, atype => aid, nothing)
+    actor = get(r.actors, atype => aid, nothing)
+    @show actor
     if !isnothing(actor)
         close(actor)
-        delete!(actors, atype => aid)
+        delete!(r.actors, atype => aid)
+        return true
     end
+    return false
 end
 
 """
@@ -158,21 +161,24 @@ function load_demos(sdemos::String, demos)
 end
 
 # FIXME: set host to default in k8s
+function get_router(runtime::AppRuntime)
+    # start the service
+    r = HTTP.Router()
+    HTTP.register!(r, "GET", "/healthz", _ -> JSON3.write((; status="OK")))
+    HTTP.register!(r, "GET", "/dapr/config", _ -> JSON3.write((; entities=collect(keys(runtime.actors)))))
+    HTTP.register!(r, "POST", "/actors/{actor_type_name}/{actor_id}/method/", req -> act!(runtime, req))
+    HTTP.register!(r, "POST", "/actors/{actor_type_name}/{actor_id}/method/fetch", req -> fetch(runtime, req))
+    HTTP.register!(r, "DELETE", "/actors/{actor_type_name}/{actor_id}", req -> deactivate!(runtime, req))
+    return r
+end
+
 function serve(runtime::AppRuntime, dir::String; is_async=isdefined(Main, :InteractiveUtils))
     save_demos(dir, runtime.app)
-
-    # start the service
-    ROUTER = HTTP.Router()
-    HTTP.register!(ROUTER, "GET", "/healthz", _ -> JSON3.write((; status="OK")))
-    HTTP.register!(ROUTER, "GET", "/dapr/config", _ -> JSON3.write((; entities=collect(keys(runtime.actors)))))
-    HTTP.register!(ROUTER, "POST", "/actors/{actor_type_name}/{actor_id}/method/", req -> act!(runtime, req))
-    HTTP.register!(ROUTER, "POST", "/actors/{actor_type_name}/{actor_id}/method/fetch", req -> fetch(runtime, req))
-    HTTP.register!(ROUTER, "DELETE", "/actors/{actor_type_name}/{actor_id}", req -> deactivate!(runtime, req))
-
+    r = get_router(runtime)
     if is_async
-        HTTP.serve!(ROUTER, "0.0.0.0", 8081)
+        HTTP.serve!(r, "0.0.0.0", 8081)
     else
-        HTTP.serve(ROUTER, "0.0.0.0", 8081)
+        HTTP.serve(r, "0.0.0.0", 8081)
     end
 end
 
