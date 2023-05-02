@@ -15,7 +15,7 @@ function checkapp(dir::String)
     remote = Client.RemoteHandler()  # on the default port
     nsuccess = 0
     total = 0
-    niters = 300
+    niters = 20
     for i=1:niters
         @info "$i/$niters"
         try

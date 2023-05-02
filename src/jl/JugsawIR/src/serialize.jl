@@ -160,7 +160,7 @@ function _gettype(t::Lerche.Tree)
     elseif data == "genericobj2"
         return Meta.parse(t.children[1].children[1].value)
     else
-        @assert data == "genericobj3"
+        @assert data == "genericobj3" "got: $data"
         return Meta.parse(t.children[1].children[2].value)
     end
 end

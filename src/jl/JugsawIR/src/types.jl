@@ -8,8 +8,11 @@ function same_signature(a::JugsawFunctionCall{F1, argsT1, kwargsT1}, b::JugsawFu
     return a.fname == b.fname && argsT1 === argsT2 && kwargsT1 === kwargsT2
 end
 
-fevalself(f::JugsawFunctionCall) = feval(f, f.args...; f.kwargs...)
 feval(f::JugsawFunctionCall, args...; kwargs...) = f.fname(args...; kwargs...)
+# evaluate nested function call
+fevalself(x) = x
+fevalself(f::JugsawFunctionCall) = feval(f, map(fevalself, f.args)...; map(fevalself, f.kwargs)...)
+fevalself(f::Pair) = f.first=>fevalself(f.second)
 
 # return a string as the function signature
 function function_signature(f::JugsawFunctionCall)

@@ -23,7 +23,7 @@ function Actor(state_store, actor::JugsawDemo)
     taskref = Ref{Task}()
     chnl = Channel{Message}(taskref=taskref) do ch
         for msg in ch
-            act!(state_store, actor.fcall, msg)
+            do!(state_store, actor.fcall, msg)
         end
     end
     Actor(deepcopy(actor), taskref, chnl)
@@ -37,8 +37,9 @@ function put_message(a::Actor, msg::Message)
     put!(a.mailbox, msg)
 end
 
-function act!(state_store::StateStore, democall::JugsawFunctionCall, msg::Message)
-    res = feval(democall, msg.request.args...; msg.request.kwargs...)
+# do the computation
+function do!(state_store::StateStore, democall::JugsawFunctionCall, msg::Message)
+    res = fevalself(JugsawFunctionCall(democall.fname, msg.request.args, msg.request.kwargs))
     @info "store result: $res"
     # TODO: custom serializer
     s_res, _ = JugsawIR.json4(res)
@@ -80,31 +81,90 @@ function activate(r::AppRuntime, actor_type::String, actor_id::String)
 end
 
 function act!(r::AppRuntime, http::HTTP.Request)
-    ps = HTTP.getparams(http)
-    # find the correct method
-    fcall = String(http.body)
-    fname, req = parse_fcall(fcall, r.app.method_demos)
-    a = activate(r, fname, string(ps["actor_id"]))
-    # TODO: load actor state from state store
-    #req = JSON3.read(http.body, JugsawFunctionCall)
-    @info "got task: $req"
+    params = HTTP.getparams(http)
+    # NOTE: actor_id is harmful to nested call!
+    actor_id = string(params["actor_id"])
+    tree = JugsawIR.Lerche.parse(JugsawIR.jp, String(http.body))
+    # top level function call
+    # add a job to the queue
+    func_sig = JugsawIR._gettype(tree)
+    # handle function request error
+    if !haskey(r.app.method_demos, func_sig)
+        return _error_nodemo(func_sig)
+    end
+
+    # add jobs recursively to the queue
+    thisdemo = r.app.method_demos[func_sig].fcall
+    try
+        resp = addjob!(r, tree, thisdemo, r.app.method_demos, actor_id, 0)
+        return HTTP.Response(200, ["Content-Type" => "application/json"], JSON3.write(resp))
+    catch e
+        if e isa NoDemoException
+            return _error_nodemo(e.func_sig)
+        end
+        Base.rethrow(e)
+    end
+end
+_error_nodemo(func_sig::String) = HTTP.Response(400, ["Content-Type" => "application/json"], JSON3.write((; error="method does not exist, got: $func_sig")))
+struct NoDemoException <: Exception
+    func_sig::String
+end
+
+function addjob!(r::AppRuntime, tree::Tree, thisdemo, demos::Dict{String}, actor_id, level)
+    func_sig = _match_jugsawfunctioncall(tree)
+    # IF tree is a normal object, return the value directly.
+    if func_sig === nothing
+        return JugsawIR.fromtree(tree, thisdemo)
+    elseif !haskey(demos, func_sig)
+        throw(NoDemoException(func_sig))
+    end
+
+    nextdemo = demos[func_sig].fcall
+    fname, _args, _kwargs = JugsawIR._getfields(tree)
+    args = JugsawIR._getfields(_args)
+    kwargs = typeof(nextdemo.kwargs)(JugsawIR._getfields(_kwargs))
+    # IF tree is a function call, return an `object_id` for return value.
+    #     recurse over args and kwargs to get `JugsawFunctionCall` parsed.
+    req = JugsawFunctionCall(nextdemo.fname,
+        ntuple(i->addjob!(r, args[i], nextdemo.args[i], demos, actor_id, level+1), length(args)),
+        typeof(kwargs)(ntuple(i->addjob!(r, kwargs[i], nextdemo.kwargs[i], demos, actor_id, level+1), length(kwargs)))
+    )
+    if !haskey(demos, func_sig)
+        error("function not available: $(func_sig), the list of functions are $(collect(keys(demos)))")
+    end
+
+    # add task to the queue
+    @info "task added to the queue: $req"
     resp = ObjectRef()
     r.state_store[resp.object_id] = Future()
+    # TODO: load actor state from state store
+    a = activate(r, func_sig, actor_id)
     put_message(a, Message(req, resp))
-    HTTP.Response(200, ["Content-Type" => "application/json"], JSON3.write(resp))
-end
-function parse_fcall(fcall::String, demos::Dict{String})
-    @info fcall
-    type_sig, tree = get_typesig(fcall)
-    if !haskey(demos, type_sig)
-        error("function not available: $(type_sig), the list of functions are $(collect(keys(demos)))")
+
+    if level == 0
+        # IF this is the top level call, return a `ObjectRef` instance.
+        return resp
+    else
+        # OTHERWISE, return an object getter, which is a `JugsawFunctionCall` instance that fetch jobs from the state_store.
+        return object_getter(r.state_store, resp.object_id)
     end
-    demo = demos[type_sig]
-    return type_sig, JugsawIR.fromtree(tree, demo.fcall)
 end
-function get_typesig(fcall)
-    tree = JugsawIR.Lerche.parse(JugsawIR.jp, fcall)
-    return JugsawIR._gettype(tree), tree
+
+# returns the function signature
+function _match_jugsawfunctioncall(tree::Tree)
+    @assert tree.data == "object"
+    tree.children[1].children[1] isa JugsawIR.Lerche.Token && return nothing
+    func_sig = JugsawIR._gettype(tree)
+    ex = Meta.parse(func_sig)
+    return @match ex begin
+        :(JugsawIR.JugsawFunctionCall{$(_...)}) => func_sig
+        _ => nothing
+    end
+end
+
+# an object getter to load return values of a function call from the state store
+function object_getter(state_store::StateStore, object_id::String)
+    JugsawFunctionCall(Base.getindex, (state_store, object_id), (;))
 end
 
 """

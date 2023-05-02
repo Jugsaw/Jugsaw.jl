@@ -16,8 +16,17 @@ using HTTP, JugsawIR.JSON3
 
     # parse function call
     fcall, _ = json4(first(app.method_demos)[2].fcall)
-    type_sig, req = Jugsaw.parse_fcall(fcall::String, app.method_demos)
-    @test req == first(app.method_demos)[2].fcall
+    
+    r = AppRuntime(app)
+    req = HTTP.Request("POST", "/actors/testapp.sin/0/method/", ["Content-Type" => "application/json"], fcall; context=Dict(:params=>Dict("actor_id"=>"0")))
+    ret = Jugsaw.act!(r, req)
+    @test JSON3.read(String(ret.body)).object_id isa String
+    #@test req == first(app.method_demos)[2].fcall
+    @test Jugsaw.nfunctions(app) == 2
+
+    fcall2 = "{\"fields\":[{\"fields\":[],\"type\":\"Base.sinx\"},{\"fields\":[0.8775825618903728],\"type\":\"Core.Tuple{Core.Float64}\"},{\"fields\":[],\"type\":\"Core.NamedTuple{(), Core.Tuple{}}\"}],\"type\":\"JugsawIR.JugsawFunctionCall{Base.sinx, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}\"}"
+    req = HTTP.Request("POST", "/actors/testapp.sinx/0/method/", ["Content-Type" => "application/json"], fcall2; context=Dict(:params=>Dict("actor_id"=>"0")))
+    @test Jugsaw.act!(r, req).status == 400
     @test Jugsaw.nfunctions(app) == 2
     # act!
     # 1. create a state store
@@ -31,7 +40,7 @@ using HTTP, JugsawIR.JSON3
     msg = Jugsaw.Message(fcall, Jugsaw.ObjectRef(key))
 
     # 3. compute and fetch the result
-    Jugsaw.act!(state_store, demo.fcall, msg)
+    Jugsaw.do!(state_store, demo.fcall, msg)
     ret = state_store[key]
     res = JugsawIR.parse4(ret, demo.result)
     @test res == feval(demo.fcall, 0.6)
