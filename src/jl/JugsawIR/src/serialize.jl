@@ -56,7 +56,9 @@ function todict!(@nospecialize(x::T), tt::TypeTable) where T
         ::DirectlyRepresentableTypes => x
         ##################### Specified Types ####################
         ::DataType => begin
-            def!(tt, "Core.DataType", ["name", "fieldnames", "fieldtypes"], (type2str(String), type2str(Vector{String}), type2str(Vector{String})))
+            def!(tt, "Core.DataType",
+                ["name", "fieldnames", "fieldtypes"],
+                (type2str(x), isabstracttype(x) ? String[] : collect(string.(fieldnames(x))), Tuple(type2str.(x.types))))
         end
         ::Array => def!(tt, sT,
             ["size", "storage"],
@@ -122,6 +124,7 @@ end
 demoof(::Type{T}) where T<:Number = zero(T)
 demoof(::Type{T}) where T<:AbstractString = T("")
 demoof(::Type{T}) where T<:Symbol = :x
+demoof(::Type{T}) where T<:DataType = Float64
 demoof(::Type{T}) where T<:Tuple = (demoof.(T.parameters)...,)
 demoof(::Type{T}) where {E,N,T<:AbstractArray{E,N}} = T(reshape([demoof(E)], ones(Int, N)...))
 function demoof(::Type{T}) where T

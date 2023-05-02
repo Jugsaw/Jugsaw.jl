@@ -94,3 +94,9 @@ end
         @test tt isa JugsawIR.TypeTable
     end
 end
+
+@testset "datatype" begin
+    type, tt = json4(ComplexF64)
+    @test type == "{\"fields\":[\"Base.Complex{Core.Float64}\",[\"re\",\"im\"],[\"Core.Float64\",\"Core.Float64\"]],\"type\":\"Core.DataType\"}"
+    println(tt)
+end

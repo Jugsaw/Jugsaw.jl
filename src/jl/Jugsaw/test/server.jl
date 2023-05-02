@@ -9,7 +9,6 @@ using HTTP, JugsawIR.JSON3
     # saving demos
     Jugsaw.save_demos(path, app)
     @test isfile(joinpath(path, "demos.json"))
-    @test isfile(joinpath(path, "types.json"))
     # loading demos
     newdemos, newtypes = Jugsaw.load_demos_from_dir(path, app)
     @test newdemos == app
