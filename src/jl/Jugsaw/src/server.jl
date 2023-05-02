@@ -164,7 +164,7 @@ end
 
 # an object getter to load return values of a function call from the state store
 function object_getter(state_store::StateStore, object_id::String)
-    JugsawFunctionCall(Base.getindex, (state_store, object_id), (;))
+    JugsawFunctionCall((s, id)->Meta.parse(Base.getindex(s, id)), (state_store, object_id), (;))
 end
 
 """

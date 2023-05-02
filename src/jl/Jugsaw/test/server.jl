@@ -23,11 +23,32 @@ using HTTP, JugsawIR.JSON3
     @test JSON3.read(String(ret.body)).object_id isa String
     #@test req == first(app.method_demos)[2].fcall
     @test Jugsaw.nfunctions(app) == 2
+    object_id = JSON3.read(String(ret.body)).object_id
+    @test Meta.parse(r.state_store[object_id]) ≈ sin(0.8775825618903728)
+    @test length(r.state_store.store) == 1
 
+    # call functions not exist
     fcall2 = "{\"fields\":[{\"fields\":[],\"type\":\"Base.sinx\"},{\"fields\":[0.8775825618903728],\"type\":\"Core.Tuple{Core.Float64}\"},{\"fields\":[],\"type\":\"Core.NamedTuple{(), Core.Tuple{}}\"}],\"type\":\"JugsawIR.JugsawFunctionCall{Base.sinx, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}\"}"
     req = HTTP.Request("POST", "/actors/testapp.sinx/0/method/", ["Content-Type" => "application/json"], fcall2; context=Dict(:params=>Dict("actor_id"=>"0")))
     @test Jugsaw.act!(r, req).status == 400
-    @test Jugsaw.nfunctions(app) == 2
+    @test length(r.state_store.store) == 1
+
+    # nested function call
+    cos_call = """{"fields":[{"fields":[],"type":"Base.cos"},
+    {"fields":[8.0],"type":"Core.Tuple{Core.Float64}"},
+    {"fields":[],"type":"Core.NamedTuple{(), Core.Tuple{}}"}],
+    "type":"JugsawIR.JugsawFunctionCall{Base.cos, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}"}"""
+
+    fcall3 = """{"fields":[{"fields":[],"type":"Base.sin"},
+    {"fields":[$cos_call],"type":"Core.Tuple{Core.Float64}"},
+    {"fields":[],"type":"Core.NamedTuple{(), Core.Tuple{}}"}],
+    "type":"JugsawIR.JugsawFunctionCall{Base.sin, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}"}"""
+    req = HTTP.Request("POST", "/actors/testapp.sinx/0/method/", ["Content-Type" => "application/json"], fcall3; context=Dict(:params=>Dict("actor_id"=>"0")))
+    ret = Jugsaw.act!(r, req)
+    @test ret.status == 200
+    object_id = JSON3.read(String(ret.body)).object_id
+    @test length(r.state_store.store) == 3
+    @test Meta.parse(r.state_store[object_id]) ≈ sin(cos(8.0))
     # act!
     # 1. create a state store
     key = string(Jugsaw.uuid4())
