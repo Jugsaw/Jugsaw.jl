@@ -11,8 +11,11 @@ using OrderedCollections: OrderedDict
 using Markdown
 
 export App
+export RemoteHandler, LocalHandler, request_app, @call
+export request_app, fetch, call, request_app, healthz, dapr_config, delete, test_demo, @test_demo
 
-include("app.jl")
+include("Core.jl")
 include("parser.jl")
+include("remotecall.jl")
 
 end

@@ -4,6 +4,10 @@ using Jugsaw, Test
     include("template.jl")
 end
 
+@testset "register" begin
+    include("register.jl")
+end
+
 @testset "typeuniverse" begin
     include("typeuniverse.jl")
 end
@@ -14,4 +18,8 @@ end
 
 @testset "client" begin
     include("client/Client.jl")
+end
+
+@testset "checkapp" begin
+    include("checkapp.jl")
 end

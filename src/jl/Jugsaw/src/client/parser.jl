@@ -3,6 +3,8 @@ struct JugsawObj
     fields::Vector
     fieldnames::Vector
 end
+Base.:(==)(a::JugsawObj, b::JugsawObj) = a.typename == b.typename && a.fields == b.fields
+Base.isapprox(a::JugsawObj, b::JugsawObj; kwargs...) = a.typename == b.typename && isapprox(a.fields, b.fields; kwargs...)
 Base.show(io::IO, ::MIME"plain/text", obj::JugsawObj) = Base.show(io, obj)
 function Base.show(io::IO, obj::JugsawObj)
     typename, fields, fieldnames = obj.typename, obj.fields, obj.fieldnames
@@ -15,32 +17,30 @@ function Base.show(io::IO, obj::JugsawObj)
     end
     print(io, ")")
 end
-
-load_types_from_file(filename::String) = load_types(read(filename, String))
-load_types(str::String) = JugsawIR.parse4(str, JugsawIR.demoof(TypeTable))
-
-function load_demos_from_dir(dirname::String)
-    types = load_types(read(joinpath(dirname, "types.json"), String))
-    tdemos = Lerche.parse(JugsawIR.jp, read(joinpath(dirname, "demos.json"), String))
-    return load_app(tdemos, types)
+function JugsawIR.todict!(x::JugsawObj, tt::TypeTable)
+    JugsawIR.def!(tt::TypeTable, x.typename, x.fieldnames, (JugsawIR.todict!.(x.fields, Ref(tt))...,))
 end
-function load_app(t::Tree, types::TypeTable)
+
+function load_app(str::String)
+    tdemos, ttypes = JugsawIR.Lerche.parse(JugsawIR.jp, str).children[].children
+    types = JugsawIR.fromtree(ttypes, JugsawIR.demoof(TypeTable))
+    return _load_app(tdemos, types)
+end
+function _load_app(t::Tree, types::TypeTable)
     obj = load_obj(t, types)
     name, method_sigs, method_demos = obj.fields
-    ks, vs = method_demos.fields
-    demodict = Dict(zip(ks, vs))
-    demos = OrderedDict{Symbol, Vector{Demo}}()
-    for sig in method_sigs.fields[2]
-        (fcall, result, docstring) = demodict[sig].fields
-        fcall, args, kwargs = fcall.fields
-        jf = JugsawFunctionCall(fcall.typename, (args.fields...,), (; zip(kwargs.fields)...))
-        demo = Demo(jf, result, docstring)
+    demos = OrderedDict{Symbol, Vector{Pair{String, Demo}}}()
+    for sig in method_sigs
+        (_fcall, result, meta) = method_demos[sig].fields
+        fcall, args, kwargs = _fcall.fields
+        jf = JugsawFunctionCall(fcall.typename, args, (; zip(Symbol.(kwargs.fieldnames), kwargs.fields)...))
+        demo = Demo(jf, result, meta)
         # document the demo
-        fname = decode_fname(fcall.typename)
+        fname = purename(Meta.parse(fcall.typename))
         if haskey(demos, fname)
-            push!(demos[fname], demo)
+            push!(demos[fname], _fcall.typename => demo)
         else
-            demos[fname] = [demo]
+            demos[fname] = [_fcall.typename => demo]
         end
     end
     app = App(Symbol(name), demos, types)
@@ -48,10 +48,14 @@ function load_app(t::Tree, types::TypeTable)
     @eval Base.fieldnames(::Type{App}) = $((keys(app[:method_demos])...,))
     return app
 end
-function decode_fname(fname::AbstractString)
-    m = match(r".*\.#?(.*)$", fname)
-    m === nothing && error("function name not parsed successfully: $fname")
-    return Symbol(m[1])
+function purename(ex)
+    @match ex begin
+        ::Symbol => ex
+        :(Jugsaw.TypeAsFunction{$type}) => purename(type)
+        :($type{$(args...)}) => purename(type)
+        :($a.$b) => purename(b)
+        _ => error(string(ex))
+    end
 end
 
 function load_obj(t::Tree, types::TypeTable)
@@ -66,22 +70,35 @@ function load_obj(t::Tree, types::TypeTable)
         "genericobj3" => buildobj(load_obj(t.children[2], types), load_obj.(t.children[1].children, Ref(types)), types)
     end
 end
-load_obj(t::Token, types::TypeTable) = Meta.parse(t.value)
-function buildobj(typename, fields, types::TypeTable)
-    fns, fts = types.defs[typename]
-    return JugsawObj(typename, fields, fns)
+function load_obj(t::Token, types::TypeTable)
+    # wield parsing error when handling interpolated strings
+    local res
+    try
+        res = Meta.parse(t.value)
+    catch e
+        Base.showerror(stdout, e)
+        println(stdout)
+        @info "try fixing! error str: $(t.value)"
+        res = Meta.parse(replace(t.value, "\$"=>"\\\$"))
+    end
+    return res
 end
 
-print_app(demos::App) = print_app(stdout, demos)
-function print_app(io::IO, app::App)
-    name, method_sigs, method_demos, type_table = app.name, app.method_demos, app.type_table
-    println(io, "AppSpecification: $name")
-    demodict = Dict(zip(method_demos.fields...))
-    for fname in method_sigs.fields[2]
-        call, res = demodict[fname].fields
-        fname, args, kwargs = call.fields
-        kwstr = join(["$(repr(k))=$(repr(v))" for (k, v) in kwargs.fields], ", ")
-        argstr = join(["$(repr(v))" for v in args.fields], ", ")
-        println(io, "  - $(fname.typename)($argstr; $kwstr) == $(repr(res))")
+function buildobj(typename, fields, types::TypeTable)
+    fns, fts = types.defs[typename]
+    rawname = purename(Meta.parse(typename))
+    @match rawname begin
+        :Array => reshape(fields[2], fields[1]...)
+        :Dict => Dict(zip(fields[1], fields[2]))
+        :Enum => error("I do not want to support it!")
+        :Tuple => (fields...,)
+        _ => JugsawObj(typename, fields, fns)
     end
+end
+
+function JugsawIR.construct_object(t::Lerche.Tree, demo::JugsawObj)
+    # there may be a first field "type".
+    flds = JugsawIR._getfields(t)
+    vals = [JugsawIR.fromtree(val, demoval) for (val, demoval) in zip(flds, demo.fields)]
+    JugsawObj(demo.typename, vals, demo.fieldnames)
 end

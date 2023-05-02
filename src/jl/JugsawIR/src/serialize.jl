@@ -22,7 +22,7 @@ function Base.show(io::IO, t::TypeTable)
     println(io, "TypeTable")
     for (k, typename) in enumerate(t.names)
         println(io, "  - $typename")
-        fns, fts = t.defs[typename]
+        fns, fts = get(t.defs, typename, ([], []))
         for (l, (fn, ft)) in enumerate(zip(fns, fts))
             print(io, "    - $fn::$ft")
             if !(k == length(t.names) && l == length(fns))
@@ -93,7 +93,7 @@ function fromtree(t::Lerche.Tree, demo::T) where T
         ::DirectlyRepresentableTypes => T(Meta.parse(t.children[1].children[1].value))
 
         ##################### Specified Types ####################
-        ::Type => demo
+        ::Type || ::Function => demo
         ::Array => begin
             size, storage = _getfields(t)
             d = length(demo) > 0 ? first(demo) : demoof(eltype(demo))
@@ -115,7 +115,7 @@ function fromtree(t::Lerche.Tree, demo::T) where T
 
         ###################### Generic Compsite Types ######################
         _ => begin
-            construct_object(t, demo)
+            nfields(demo) == 0 ? demo : construct_object(t, demo)
         end
     end
 end
@@ -131,24 +131,33 @@ end
 
 function construct_object(t::Lerche.Tree, demo::T) where T
     # there may be a first field "type".
-    vals = [fromtree(t.children[end].children[1].children[i], getfield(demo, fn)) for (i, fn) in enumerate(fieldnames(T)) if isdefined(demo, fn)]
+    #t.children[end].children[1].children[i]
+    flds = _getfields(t)
+    vals = [fromtree(flds[i], getfield(demo, fn)) for (i, fn) in enumerate(fieldnames(T)) if isdefined(demo, fn)]
     return Core.eval(@__MODULE__, Expr(:new, T, Any[:($vals[$i]) for i=1:length(vals)]...))
 end
 function _getfields(t::Lerche.Tree)
-    if t.data == "genericobj1"
-        return t.children[1].children[1].children
-    elseif t.data == "genericobj2"
-        return t.children[1].children[2].children
+    @assert t.data == "object"
+    t1 = t.children[1]
+    data = t1.data
+    if data == "genericobj1"
+        return t1.children[1].children
+    elseif data == "genericobj2"
+        return t1.children[2].children
     else
-        return t.children[1].children[1].children
+        @assert data == "genericobj3"
+        return t1.children[1].children
     end
 end
 function _gettype(t::Lerche.Tree)
-    if t.data == "genericobj1"
+    @assert t.data == "object"
+    data = t.children[1].data
+    if data == "genericobj1"
         error("type is not specified!")
-    elseif t.data == "genericobj2"
+    elseif data == "genericobj2"
         return Meta.parse(t.children[1].children[1].value)
     else
+        @assert data == "genericobj3"
         return Meta.parse(t.children[1].children[2].value)
     end
 end

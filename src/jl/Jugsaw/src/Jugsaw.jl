@@ -9,7 +9,7 @@ using HTTP
 using Distributed: Future
 using TOML
 
-export AppSpecification
+export AppSpecification, AppRuntime
 export serve, @register
 export build
 
@@ -20,5 +20,6 @@ include("register.jl")
 include("server.jl")
 include("client/Client.jl")
 include("template.jl")
+include("checkapp.jl")
 
 end # module

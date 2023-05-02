@@ -31,17 +31,27 @@ function Base.empty!(app::AppSpecification)
     return app
 end
 
-function register!(app::AppSpecification, f, args, kwargs)
+struct TypeAsFunction{T} end
+protect_type(::Type{T}) where T = TypeAsFunction{T}()
+protect_type(x) = x
+(::TypeAsFunction{T})(args...; kwargs...) where T = T(args...; kwargs...)
+
+function register!(app::AppSpecification, _f, args, kwargs)
+    f = protect_type(_f)
     jf = JugsawFunctionCall(f, args, kwargs)
     sig = function_signature(jf)
     result = f(args...; kwargs...)
     if !haskey(app.method_demos, sig)
         push!(app.method_sigs, sig)
-        doc = string(Base.Docs.doc(Base.Docs.Binding(@__MODULE__, Symbol(f))))
-        app.method_demos[sig] = JugsawDemo(jf, result, doc)
+        doc = string(Base.Docs.doc(Base.Docs.Binding(module_and_symbol(f)...)))
+        app.method_demos[sig] = JugsawDemo(jf, result, Dict{String,Any}("docstring"=>doc))
     end
     return result
 end
+module_and_symbol(f::DataType) = f.name.module, f.name.name
+module_and_symbol(f::Function) = typeof(f).name.module, Symbol(f)
+module_and_symbol(f::UnionAll) = module_and_symbol(f.body)
+module_and_symbol(::TypeAsFunction{T}) where T = module_and_symbol(T)
 
 macro register(app, ex)
     reg_statements = []
@@ -80,6 +90,7 @@ function register_by_expr(app, ex, exs)
             register_by_expr.(Ref(app), body, Ref(exs))
         end 
         ::LineNumberNode => nothing
+        _ => (@warn("not handled expression: $ex"); ex)
     end
 end
 
