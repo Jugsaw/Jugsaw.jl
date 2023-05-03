@@ -5,8 +5,7 @@ function checkapp(dir::String)
     mod = Core.eval(@__MODULE__, :(module Workspace
         using Pkg
         Pkg.activate($dir)
-        Pkg.develop(path=$jugsawdir)
-        Pkg.develop(path=$jugsawirdir)
+        Pkg.develop([Pkg.PackageSpec(path=$jugsawdir), Pkg.PackageSpec(; path=$jugsawirdir)])
         Pkg.instantiate()
     end))
     t = @async Core.eval(Workspace, :(include(joinpath($dir, "app.jl"))))
