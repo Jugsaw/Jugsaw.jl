@@ -1,7 +1,7 @@
-struct JugsawFunctionCall{F, argsT<:Tuple, kwargsT<:NamedTuple}
+struct JugsawFunctionCall
     fname::F
-    args::argsT
-    kwargs::kwargsT
+    args::Vector
+    kwargs::Vector{Pair{String, Any}}
 end
 
 function same_signature(a::JugsawFunctionCall{F1, argsT1, kwargsT1}, b::JugsawFunctionCall{F2, argsT2, kwargsT2}) where {F1, F2, argsT1, kwargsT1, argsT2, kwargsT2}

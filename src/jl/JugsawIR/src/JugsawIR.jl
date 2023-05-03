@@ -8,6 +8,7 @@ import MLStyle
 using Lerche
 using AbstractTrees
 using AbstractTrees: print_tree
+using Expronicon
 
 export json4, parse4, jsontype4, print_tree, print_clean_tree, TypeTable
 export JugsawFunctionCall, function_signature, feval, fevalself
@@ -16,5 +17,6 @@ export ftest, JugsawDemo
 include("Core.jl")
 include("serialize.jl")
 include("types.jl")
+include("adt.jl")
 
 end
