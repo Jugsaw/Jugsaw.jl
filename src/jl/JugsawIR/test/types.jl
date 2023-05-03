@@ -17,4 +17,7 @@ using Test, JugsawIR
     ld = parse4(str, demo)
     println(ld)
     @test ftest(ld)
+
+    jf = JugsawFunctionCall(isapprox, (JugsawFunctionCall(sin, (2.0,), (;)), 0.9092974268256817), (; atol=JugsawFunctionCall(x->x/10, (1e-2,), (;))))
+    @test fevalself(jf)
 end

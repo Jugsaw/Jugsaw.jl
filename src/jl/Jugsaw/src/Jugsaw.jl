@@ -2,7 +2,7 @@ module Jugsaw
 
 using JugsawIR
 using JugsawIR.JSON3
-using JugsawIR: @match
+using JugsawIR: @match, Tree
 using UUIDs
 using UUIDs: uuid4
 using HTTP
@@ -12,8 +12,10 @@ using TOML
 export AppSpecification, AppRuntime
 export serve, @register
 export build
+export NoDemoException
 
 include("typeuniverse.jl")
+include("errors.jl")
 include("config.jl")
 include("common.jl")
 include("register.jl")

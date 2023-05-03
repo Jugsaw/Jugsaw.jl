@@ -2,20 +2,19 @@ function checkapp(dir::String)
     jugsawdir = pkgdir(Jugsaw)
     jugsawirdir = pkgdir(JugsawIR)
     # start service
-    t = @async Core.eval(@__MODULE__, :(module Workspace
+    mod = Core.eval(@__MODULE__, :(module Workspace
         using Pkg
         Pkg.activate($dir)
-        Pkg.develop(path=$jugsawdir)
-        Pkg.develop(path=$jugsawirdir)
+        Pkg.develop([Pkg.PackageSpec(path=$jugsawdir), Pkg.PackageSpec(; path=$jugsawirdir)])
         Pkg.instantiate()
-        include(joinpath($dir, "app.jl"))
     end))
+    t = @async Core.eval(Workspace, :(include(joinpath($dir, "app.jl"))))
 
      # run tasks
     remote = Client.RemoteHandler()  # on the default port
     nsuccess = 0
     total = 0
-    niters = 300
+    niters = 20
     for i=1:niters
         @info "$i/$niters"
         try

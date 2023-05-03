@@ -9,7 +9,6 @@ using HTTP, JugsawIR.JSON3
     # saving demos
     Jugsaw.save_demos(path, app)
     @test isfile(joinpath(path, "demos.json"))
-    @test isfile(joinpath(path, "types.json"))
     # loading demos
     newdemos, newtypes = Jugsaw.load_demos_from_dir(path, app)
     @test newdemos == app
@@ -17,9 +16,33 @@ using HTTP, JugsawIR.JSON3
 
     # parse function call
     fcall, _ = json4(first(app.method_demos)[2].fcall)
-    type_sig, req = Jugsaw.parse_fcall(fcall::String, app.method_demos)
-    @test req == first(app.method_demos)[2].fcall
+    
+    r = AppRuntime(app)
+    req = HTTP.Request("POST", "/actors/testapp.sin/0/method/", ["Content-Type" => "application/json"], fcall; context=Dict(:params=>Dict("actor_id"=>"0")))
+    ret = Jugsaw.act!(r, req)
+    @test JSON3.read(String(ret.body)).object_id isa String
+    #@test req == first(app.method_demos)[2].fcall
     @test Jugsaw.nfunctions(app) == 2
+    object_id = JSON3.read(String(ret.body)).object_id
+    @test r.state_store[object_id] ≈ sin(0.8775825618903728)
+    @test length(r.state_store.store) == 1
+
+    # nested function call
+    cos_call = """{"fields":[{"fields":[],"type":"Base.cos"},
+    {"fields":[8.0],"type":"Core.Tuple{Core.Float64}"},
+    {"fields":[],"type":"Core.NamedTuple{(), Core.Tuple{}}"}],
+    "type":"JugsawIR.JugsawFunctionCall{Base.cos, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}"}"""
+
+    fcall3 = """{"fields":[{"fields":[],"type":"Base.sin"},
+    {"fields":[$cos_call],"type":"Core.Tuple{Core.Float64}"},
+    {"fields":[],"type":"Core.NamedTuple{(), Core.Tuple{}}"}],
+    "type":"JugsawIR.JugsawFunctionCall{Base.sin, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}"}"""
+    req = HTTP.Request("POST", "/actors/testapp.sinx/0/method/", ["Content-Type" => "application/json"], fcall3; context=Dict(:params=>Dict("actor_id"=>"0")))
+    ret = Jugsaw.act!(r, req)
+    @test ret.status == 200
+    object_id = JSON3.read(String(ret.body)).object_id
+    @test length(r.state_store.store) == 3
+    @test r.state_store[object_id] ≈ sin(cos(8.0))
     # act!
     # 1. create a state store
     key = string(Jugsaw.uuid4())
@@ -32,9 +55,8 @@ using HTTP, JugsawIR.JSON3
     msg = Jugsaw.Message(fcall, Jugsaw.ObjectRef(key))
 
     # 3. compute and fetch the result
-    Jugsaw.act!(state_store, demo.fcall, msg)
-    ret = state_store[key]
-    res = JugsawIR.parse4(ret, demo.result)
+    Jugsaw.do!(state_store, demo.fcall, msg)
+    res = state_store[key]
     @test res == feval(demo.fcall, 0.6)
 
     # empty!

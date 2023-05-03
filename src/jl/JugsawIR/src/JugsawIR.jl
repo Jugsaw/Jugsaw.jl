@@ -9,7 +9,7 @@ using Lerche
 using AbstractTrees
 using AbstractTrees: print_tree
 
-export json4, parse4, jsontype4, print_tree, print_clean_tree
+export json4, parse4, jsontype4, print_tree, print_clean_tree, TypeTable
 export JugsawFunctionCall, function_signature, feval, fevalself
 export ftest, JugsawDemo
 

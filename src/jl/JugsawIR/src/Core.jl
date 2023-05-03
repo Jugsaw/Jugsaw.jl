@@ -27,11 +27,16 @@ function type2str(::Type{T}) where T
             typename = string(T)
         end
     elseif length(T.parameters) > 0 || T === Tuple{}
-        typename = "$(modname(T)).$(strip(String(T.name.name), '#')){$(join([p isa Type ? type2str(p) : (p isa Symbol ? ":$p" : string(p)) for p in T.parameters], ", "))}"
+        typename = "$(modname(T)).$(_nosharp(T.name.name)){$(join([p isa Type ? type2str(p) : repr(p) for p in T.parameters], ", "))}"
     else
-        typename = "$(modname(T)).$(strip(String(T.name.name), '#'))"
+        typename = "$(modname(T)).$(_nosharp(T.name.name))"
     end
     return typename
+end
+# remove `#` from the function name to avoid parsing error
+function _nosharp(s::Symbol)
+    s = strip(String(s), '#')
+    return first(split(s, "#"))
 end
 function modname(T::DataType)
     mod = T.name.module

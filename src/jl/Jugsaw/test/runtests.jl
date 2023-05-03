@@ -20,6 +20,10 @@ end
     include("client/Client.jl")
 end
 
+@testset "errors" begin
+    include("errors.jl")
+end
+
 @testset "checkapp" begin
     include("checkapp.jl")
 end
