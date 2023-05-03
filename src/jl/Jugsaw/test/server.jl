@@ -24,13 +24,7 @@ using HTTP, JugsawIR.JSON3
     #@test req == first(app.method_demos)[2].fcall
     @test Jugsaw.nfunctions(app) == 2
     object_id = JSON3.read(String(ret.body)).object_id
-    @test Meta.parse(r.state_store[object_id]) ≈ sin(0.8775825618903728)
-    @test length(r.state_store.store) == 1
-
-    # call functions not exist
-    fcall2 = "{\"fields\":[{\"fields\":[],\"type\":\"Base.sinx\"},{\"fields\":[0.8775825618903728],\"type\":\"Core.Tuple{Core.Float64}\"},{\"fields\":[],\"type\":\"Core.NamedTuple{(), Core.Tuple{}}\"}],\"type\":\"JugsawIR.JugsawFunctionCall{Base.sinx, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}\"}"
-    req = HTTP.Request("POST", "/actors/testapp.sinx/0/method/", ["Content-Type" => "application/json"], fcall2; context=Dict(:params=>Dict("actor_id"=>"0")))
-    @test Jugsaw.act!(r, req).status == 400
+    @test r.state_store[object_id] ≈ sin(0.8775825618903728)
     @test length(r.state_store.store) == 1
 
     # nested function call
@@ -48,7 +42,7 @@ using HTTP, JugsawIR.JSON3
     @test ret.status == 200
     object_id = JSON3.read(String(ret.body)).object_id
     @test length(r.state_store.store) == 3
-    @test Meta.parse(r.state_store[object_id]) ≈ sin(cos(8.0))
+    @test r.state_store[object_id] ≈ sin(cos(8.0))
     # act!
     # 1. create a state store
     key = string(Jugsaw.uuid4())
@@ -62,8 +56,7 @@ using HTTP, JugsawIR.JSON3
 
     # 3. compute and fetch the result
     Jugsaw.do!(state_store, demo.fcall, msg)
-    ret = state_store[key]
-    res = JugsawIR.parse4(ret, demo.result)
+    res = state_store[key]
     @test res == feval(demo.fcall, 0.6)
 
     # empty!

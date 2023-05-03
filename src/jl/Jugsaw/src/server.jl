@@ -39,13 +39,16 @@ end
 
 # do the computation
 function do!(state_store::StateStore, democall::JugsawFunctionCall, msg::Message)
-    res = fevalself(JugsawFunctionCall(democall.fname, msg.request.args, msg.request.kwargs))
-    @info "store result: $res"
-    # TODO: custom serializer
-    s_res, _ = JugsawIR.json4(res)
-    state_store[msg.response.object_id] = s_res
+    try
+        res = fevalself(JugsawFunctionCall(democall.fname, msg.request.args, msg.request.kwargs))
+        @info "store result: $res"
+        # TODO: custom serializer
+        state_store[msg.response.object_id] = res
+    catch e
+        # if the program errors, returns a cached error object to be thrown.
+        state_store[msg.response.object_id] = CachedError(e, _error_msg(e))
+    end
 end
-
 # a run time instance
 struct AppRuntime
     app::AppSpecification
@@ -90,7 +93,7 @@ function act!(r::AppRuntime, http::HTTP.Request)
     func_sig = JugsawIR._gettype(tree)
     # handle function request error
     if !haskey(r.app.method_demos, func_sig)
-        return _error_nodemo(func_sig)
+        return _error_response(NoDemoException(func_sig, collect(keys(r.app.method_demos))))
     end
 
     # add jobs recursively to the queue
@@ -99,24 +102,20 @@ function act!(r::AppRuntime, http::HTTP.Request)
         resp = addjob!(r, tree, thisdemo, r.app.method_demos, actor_id, 0)
         return HTTP.Response(200, ["Content-Type" => "application/json"], JSON3.write(resp))
     catch e
-        if e isa NoDemoException
-            return _error_nodemo(e.func_sig)
-        end
-        Base.rethrow(e)
+        return _error_response(e)
     end
-end
-_error_nodemo(func_sig::String) = HTTP.Response(400, ["Content-Type" => "application/json"], JSON3.write((; error="method does not exist, got: $func_sig")))
-struct NoDemoException <: Exception
-    func_sig::String
 end
 
 function addjob!(r::AppRuntime, tree::Tree, thisdemo, demos::Dict{String}, actor_id, level)
     func_sig = _match_jugsawfunctioncall(tree)
     # IF tree is a normal object, return the value directly.
     if func_sig === nothing
+        if level == 0
+            throw(BadSyntax(tree))
+        end
         return JugsawIR.fromtree(tree, thisdemo)
     elseif !haskey(demos, func_sig)
-        throw(NoDemoException(func_sig))
+        throw(NoDemoException(func_sig, collect(keys(demos))))
     end
 
     nextdemo = demos[func_sig].fcall
@@ -130,7 +129,8 @@ function addjob!(r::AppRuntime, tree::Tree, thisdemo, demos::Dict{String}, actor
         typeof(kwargs)(ntuple(i->addjob!(r, kwargs[i], nextdemo.kwargs[i], demos, actor_id, level+1), length(kwargs)))
     )
     if !haskey(demos, func_sig)
-        error("function not available: $(func_sig), the list of functions are $(collect(keys(demos)))")
+        throw(NoDemoException(func_sig, collect(keys(demos))))
+        #error("function not available: $(func_sig), the list of functions are $(collect(keys(demos)))")
     end
 
     # add task to the queue
@@ -145,7 +145,7 @@ function addjob!(r::AppRuntime, tree::Tree, thisdemo, demos::Dict{String}, actor
         # IF this is the top level call, return a `ObjectRef` instance.
         return resp
     else
-        # OTHERWISE, return an object getter, which is a `JugsawFunctionCall` instance that fetch jobs from the state_store.
+        # OTHERWISE, return an object getter, which is a `JugsawFunctionCall` instance that fetches objects from the state_store.
         return object_getter(r.state_store, resp.object_id)
     end
 end
@@ -164,7 +164,13 @@ end
 
 # an object getter to load return values of a function call from the state store
 function object_getter(state_store::StateStore, object_id::String)
-    JugsawFunctionCall((s, id)->Meta.parse(Base.getindex(s, id)), (state_store, object_id), (;))
+    function getter(s::StateStore, id::String)
+        res = s[id]
+        # rethrow a cached error
+        res isa CachedError && Base.rethrow(res.exception)
+        return res
+    end
+    JugsawFunctionCall(getter, (state_store, object_id), (;))
 end
 
 """
@@ -191,7 +197,11 @@ function fetch(r::AppRuntime, req::HTTP.Request)
     s = String(req.body)
     @info "fetching: $s"
     ref = ObjectRef(JSON3.read(s)["object_id"])
-    return r.state_store[ref.object_id]
+    res = r.state_store[ref.object_id]
+    if res isa CachedError
+        return _error_response(res.exception)
+    end
+    return json4(res)[1]
 end
 
 #####

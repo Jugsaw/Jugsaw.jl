@@ -12,8 +12,10 @@ using TOML
 export AppSpecification, AppRuntime
 export serve, @register
 export build
+export NoDemoException
 
 include("typeuniverse.jl")
+include("errors.jl")
 include("config.jl")
 include("common.jl")
 include("register.jl")
