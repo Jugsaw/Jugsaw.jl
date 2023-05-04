@@ -1,0 +1,5 @@
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+Jugsaw = "506f6749-58fa-473a-ada6-eb0172fb6950"
+JugsawIR = "6340f1c1-b722-4800-8081-8412e0693b45"
+LiveServer = "16fef848-5104-11e9-1b77-fb7a48bbb589"

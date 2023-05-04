@@ -1,3 +1,9 @@
+```@meta
+DocTestSetup = quote
+    using JugsawIR
+end 
+```
+
 # Jugsaw IR
 
 [JugsawIR](@ref) is an intermediate representation (IR) for exposing and using cloud scientific applications.
@@ -81,4 +87,11 @@ null : "null"
 %import common.SIGNED_NUMBER
 %import common.WS
 %ignore WS
+```
+
+## APIs
+
+```@autodocs
+Modules = [JugsawIR]
+Order = [:function, :macro, :type, :module]
 ```
