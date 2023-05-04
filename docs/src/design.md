@@ -1,5 +1,7 @@
 # Design
 
+![](assets/workflow.png)
+
 ## Overview
 
 <!--

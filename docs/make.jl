@@ -6,7 +6,7 @@ makedocs(;
     modules=[Jugsaw, JugsawIR],
     authors="Jugsaw Computing Inc.",
     repo="https://github.com/Jugsaw/Jugsaw.jl/blob/{commit}{path}#{line}",
-    sitename="Jugsaw.jl",
+    sitename = "Documentation | Jugsaw",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
         canonical="https://Jugsaw.github.io/Jugsaw.jl",
@@ -21,6 +21,7 @@ makedocs(;
     ],
 )
 
+DocumenterTools.generate(path=@__DIR__; name = nothing, format = :markdown)
 deploydocs(;
     repo="github.com/Jugsaw/Jugsaw.jl",
     devbranch="main",
