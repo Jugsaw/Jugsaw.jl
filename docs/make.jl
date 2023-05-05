@@ -21,7 +21,7 @@ for fmt in formats
     @info "generating documents of format: $format"
 
     makedocs(;
-        build=joinpath(@__DIR__, folder),
+        build=joinpath(@__DIR__, build),
         modules=[Jugsaw, JugsawIR],
         authors="Jugsaw Computing Inc.",
         repo="https://github.com/Jugsaw/Jugsaw.jl/blob/{commit}{path}#{line}",
