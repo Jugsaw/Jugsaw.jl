@@ -15,7 +15,7 @@ for fmt in formats
             assets=String[],
         ), "build"
     else
-        DocumenterMarkdown.Markdown(), "build-markdown"
+        DocumenterMarkdown.Markdown(), joinpath("build", "markdown")
     end
 
     @info "generating documents of format: $format"
