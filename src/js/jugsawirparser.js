@@ -3950,51 +3950,6 @@ const NAMESPACE = {
     TerminalDef: TerminalDef
 }
 
-module.exports = {
-  LarkError,
-  ConfigurationError,
-  GrammarError,
-  ParseError,
-  LexError,
-  UnexpectedInput,
-  UnexpectedEOF,
-  UnexpectedCharacters,
-  UnexpectedToken,
-  VisitError,
-  Meta,
-  Tree,
-  Discard,
-  Transformer,
-  Transformer_InPlace,
-  Transformer_NonRecursive,
-  Transformer_InPlaceRecursive,
-  VisitorBase,
-  Visitor,
-  Visitor_Recursive,
-  Interpreter,
-  Symbol,
-  Terminal,
-  NonTerminal,
-  RuleOptions,
-  Rule,
-  Pattern,
-  PatternStr,
-  PatternRE,
-  TerminalDef,
-  Token,
-  Lexer,
-  LexerConf,
-  ParserConf,
-  InteractiveParser,
-  ImmutableInteractiveParser,
-  PostLex,
-  Lark,
-  DedentError,
-  Indenter,
-  PythonIndenter,
-  get_parser,
-};
-
 var DATA={
   "parser": {
     "lexer_conf": {
