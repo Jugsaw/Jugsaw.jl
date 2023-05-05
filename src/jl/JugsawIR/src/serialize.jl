@@ -6,12 +6,26 @@
 # `parse4` is the inverse of `json4`.
 
 # the typed parsing
+"""
+    json4(obj)
+
+Convert a Julia object to json compatiple Jugsaw intermediate representation (IR), as the name `json4` suggests.
+The return value is a tuple with two string, one representing the object, and another representing the types involved.
+"""
 function json4(obj)
     obj, type = todict(obj)
     typed, typet = todict(type)
     # TODO: remove json!
     JSON3.write(obj), JSON3.write(typed)
 end
+
+"""
+    TypeTable
+    TypeTable()
+
+A TypeTable is basically an ordered dict for storing the type definitions.
+A type definition contains a vector of string for field names and another vector of strings for field types.
+"""
 struct TypeTable
     names::Vector{String}
     defs::Dict{String, Tuple{Vector{String}, Vector{String}}}

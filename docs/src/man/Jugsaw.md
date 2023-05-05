@@ -1,4 +1,10 @@
-# Developer Menu
+```@meta
+DocTestSetup = quote
+    using Jugsaw
+end 
+```
+
+# Jugsaw
 
 ## Chained function call
 
@@ -24,3 +30,10 @@ The nested `JugsawFunctionCall` is then executed by the `JugsawIR.fevalself` wit
 2. while rendering the arguments of `sin`, the object getter(`JugsawFunctionCall`) will trigger the `state_store[id1]`,
 3. wait for the `cos` function to complete,
 4. with the returned object, execute the `sin` function.
+
+## APIs
+
+```@autodocs
+Modules = [Jugsaw]
+Order = [:function, :macro, :type, :module]
+```

@@ -1,5 +1,5 @@
 # Get started
-![](framework.png)
+![](assets/framework.png)
 
 * Developers can register a Jugsaw app on the Jugsaw website.
 * Users (including the developer) can use Jugsaw intances for launching applications on an endpoint.
