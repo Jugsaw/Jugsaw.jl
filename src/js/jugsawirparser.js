@@ -3950,7 +3950,7 @@ const NAMESPACE = {
     TerminalDef: TerminalDef
 }
 
-export default {
+module.exports = {
   LarkError,
   ConfigurationError,
   GrammarError,
