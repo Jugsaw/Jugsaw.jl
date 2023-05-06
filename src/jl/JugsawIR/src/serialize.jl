@@ -1,37 +1,17 @@
 # Extended JSON
 # https://github.com/quinnj/JSON3.jl
-# `json4` parse an object to string, which can be used to
+# `julia2ir` parse an object to string, which can be used to
 # 1. parse a Julia object to a json object, with complete type specification.
 # 2. parse a function specification to a json object, with complete input argument specification.
-# `parse4` is the inverse of `json4`.
+# `ir2julia` is the inverse of `julia2ir`.
 
 # the typed parsing
-function json4(obj)
-    obj, type = todict(obj)
-    typed, typet = todict(type)
+function julia2ir(obj)
+    obj, type = julia2adt(obj)
+    typed, typet = julia2adt(type)
     # TODO: remove json!
     JSON3.write(obj), JSON3.write(typed)
 end
-struct TypeTable
-    names::Vector{String}
-    defs::Dict{String, Tuple{Vector{String}, Vector{String}}}
-end
-TypeTable() = TypeTable(String[], Dict{String, Tuple{Vector{String}, Vector{String}}}())
-Base.show(io::IO, ::MIME"text/plain", t::TypeTable) = Base.show(io, t)
-function Base.show(io::IO, t::TypeTable)
-    println(io, "TypeTable")
-    for (k, typename) in enumerate(t.names)
-        println(io, "  - $typename")
-        fns, fts = get(t.defs, typename, ([], []))
-        for (l, (fn, ft)) in enumerate(zip(fns, fts))
-            print(io, "    - $fn::$ft")
-            if !(k == length(t.names) && l == length(fns))
-                println()
-            end
-        end
-    end
-end
-
 function def!(tt::TypeTable, type::String, fieldnames::Vector{String}, @nospecialize(fieldvalues::Tuple))
     if !haskey(tt.defs, type)
         push!(tt.names, type)
@@ -40,53 +20,8 @@ function def!(tt::TypeTable, type::String, fieldnames::Vector{String}, @nospecia
     return Dict("type"=>type, "fields"=>collect(Any, fieldvalues))
 end
 
-# returns the object and type specification
-function todict(@nospecialize(x::T)) where T
-    tt = TypeTable()
-    res = todict!(x, tt)
-    return res, tt
-end
-
-# data are dumped to (name, value[, fieldnames])
-function todict!(@nospecialize(x::T), tt::TypeTable) where T
-    sT = type2str(T)
-    @match x begin
-        ###################### Basic Types ######################
-        ::UndefInitializer => nothing
-        ::DirectlyRepresentableTypes => x
-        ##################### Specified Types ####################
-        ::DataType => begin
-            def!(tt, "Core.DataType",
-                ["name", "fieldnames", "fieldtypes"],
-                (type2str(x), isabstracttype(x) ? String[] : collect(string.(fieldnames(x))), Tuple(type2str.(x.types))))
-        end
-        ::Array => def!(tt, sT,
-            ["size", "storage"],
-            (collect(size(x)), map(x->todict!(x, tt), vec(x)))
-        )
-        ::Enum => def!(tt, sT,
-            ["kind", "value", "options"],
-            ("DataType", string(x), String[string(v) for v in instances(typeof(x))]),
-        )
-        ::Dict => begin
-            def!(tt, sT,
-                ["keys", "vals"],
-                ([todict!(k, tt) for k in keys(x)], [todict!(v, tt) for v in values(x)]),
-            )
-        end
-        ###################### Generic Compsite Types ######################
-        _ => begin
-            fns = fieldnames(T)
-            def!(tt, sT,
-                String[string(x) for x in fns],
-                map(fn->isdefined(x, fn) ? todict!(getfield(x, fn), tt) : nothing, fns),
-            )
-        end
-    end
-end
-
 # NOTE: at least one element is required to help Array and Dict to parse.
-function fromtree(t::Lerche.Tree, demo::T) where T
+function tree2julia(t::Lerche.Tree, demo::T) where T
     @match demo begin
         ###################### Basic Types ######################
         ::Nothing || ::Missing || ::UndefInitializer => demo
@@ -99,20 +34,20 @@ function fromtree(t::Lerche.Tree, demo::T) where T
         ::Array => begin
             size, storage = _getfields(t)
             d = length(demo) > 0 ? first(demo) : demoof(eltype(demo))
-            reshape(eltype(T)[fromtree(x, d) for x in storage.children[1].children], Int[fromtree(s, 0) for s in size.children[1].children]...)
+            reshape(eltype(T)[tree2julia(x, d) for x in storage.children[1].children], Int[tree2julia(s, 0) for s in size.children[1].children]...)
         end
         ::Enum => begin
             kind, value, options = _getfields(t)
             T(findfirst(==(Meta.parse(value.children[1].children[1].value)), [Meta.parse(o.children[1].children[1].value) for o in options.children[1].children])-1)
         end
         ::Tuple => begin
-            ([fromtree(v, d) for (v, d) in zip(_getfields(t), demo)]...,)
+            ([tree2julia(v, d) for (v, d) in zip(_getfields(t), demo)]...,)
         end
         ::Dict => begin
             ks, vs = _getfields(t)
             kd, vd = length(demo) > 0 ? (first(keys(demo)), first(values(demo))) : (demoof(key_type(demo)), demoof(value_type(demo)))
-            T(zip([fromtree(k, kd) for k in ks.children[1].children],
-              [fromtree(v, vd) for v in vs.children[1].children]))
+            T(zip([tree2julia(k, kd) for k in ks.children[1].children],
+              [tree2julia(v, vd) for v in vs.children[1].children]))
         end
 
         ###################### Generic Compsite Types ######################
@@ -121,22 +56,11 @@ function fromtree(t::Lerche.Tree, demo::T) where T
         end
     end
 end
-demoof(::Type{T}) where T<:Number = zero(T)
-demoof(::Type{T}) where T<:AbstractString = T("")
-demoof(::Type{T}) where T<:Symbol = :x
-demoof(::Type{T}) where T<:DataType = Float64
-demoof(::Type{T}) where T<:Tuple = (demoof.(T.parameters)...,)
-demoof(::Type{T}) where {E,N,T<:AbstractArray{E,N}} = T(reshape([demoof(E)], ones(Int, N)...))
-function demoof(::Type{T}) where T
-    vals = demoof.(T.types)
-    return Core.eval(@__MODULE__, Expr(:new, T, Any[:($vals[$i]) for i=1:length(vals)]...))
-end
-
 function construct_object(t::Lerche.Tree, demo::T) where T
     # there may be a first field "type".
     #t.children[end].children[1].children[i]
     flds = _getfields(t)
-    vals = [fromtree(flds[i], getfield(demo, fn)) for (i, fn) in enumerate(fieldnames(T)) if isdefined(demo, fn)]
+    vals = [tree2julia(flds[i], getfield(demo, fn)) for (i, fn) in enumerate(fieldnames(T)) if isdefined(demo, fn)]
     return Core.eval(@__MODULE__, Expr(:new, T, Any[:($vals[$i]) for i=1:length(vals)]...))
 end
 function _getfields(t::Lerche.Tree)
@@ -167,9 +91,11 @@ end
 
 ###################### Lark ########################
 const jp = Lark(read(joinpath(@__DIR__, "jugsawir.lark"), String),parser="lalr",lexer="contextual", start="object")
-function parse4(str::String, demo)
-    tree = Lerche.parse(jp, str)
-    fromtree(tree, demo)
+ir2tree(str::String) = Lerche.parse(jp, str)
+function ir2julia(str::String, demo)
+    tree = ir2tree(str)
+    adt = tree2adt(tree)
+    return adt2julia(adt, demo)
 end
 
 AbstractTrees.children(t::Lerche.Tree) = t.children

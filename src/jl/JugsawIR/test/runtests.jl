@@ -5,10 +5,14 @@ using JugsawIR
     include("lark.jl")
 end
 
-@testset "serialize" begin
-    include("serialize.jl")
+@testset "adt" begin
+    include("adt.jl")
 end
 
-@testset "types" begin
-    include("types.jl")
+@testset "ir" begin
+    include("ir.jl")
+end
+
+@testset "Core" begin
+    include("Core.jl")
 end

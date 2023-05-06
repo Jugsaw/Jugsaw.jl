@@ -3,10 +3,11 @@
 #       <-----------------------------
 using Expronicon
 using Expronicon.ADT: @adt
+export tree2adt
 
 @adt JugsawADT begin
     struct Object
-        type::String
+        typename::String
         fields::Vector
     end
     struct Call
@@ -17,90 +18,135 @@ using Expronicon.ADT: @adt
     end
     struct Type
         name::String
-        fieldnames::Vector
-        fieldtypes::Vector
+        fieldnames::Vector{String}
+        fieldtypes::Vector{String}
+    end
+end
+Base.:(==)(a::JugsawADT, b::JugsawADT) = all(fn->getfield(a, fn) == getfield(b, fn), fieldnames(JugsawADT))
+Base.show(io::IO, ::MIME"text/plain", a::JugsawADT) = Base.show(io, a)
+function Base.show(io::IO, a::JugsawADT)
+    @match a begin
+        JugsawADT.Object(typename, fields) => print(io, "$typename($(join(fields, ", ")))")
+        JugsawADT.Call(fname, args, kwargnames, kwargvalues) => print(io, "$fname($(join(repr.(args), ", ")); $(join(["$k=$(repr(v))" for (k, v) in zip(kwargnames, kwargvalues)], ", ")))")
+        JugsawADT.Type(name, fieldnames, fieldtypes) => print(io, "$name($(join(["$n::$t" for (n, t) in zip(fieldnames, fieldtypes)], ", ")))")
     end
 end
 
-#=
-obj = JugsawADT.Object("T", [1, "4"])
-ex = JugsawADT.Call("T", [1, "4"], ["x"=>4, "y"=>obj])
-
-using MLStyle
-ex = 2
-@match ex begin
-    JugsawADT.Object(type, fields) => "find object: $type, $fields"
-    JugsawADT.Call(fname, args, kwargs) => "find call: $args, $kwargs"
-    _ => ex
+struct TypeTable
+    names::Vector{String}
+    defs::Dict{String, JugsawADT}
 end
-=#
-
-##################### load object without demo
-function load_obj(t)
-    @match t begin
-        ::Tree => @match t.data begin
-            "object" || "number" || "string" => load_obj(t.children[])
-            "true" => true
-            "false" => false
-            "null" => nothing
-            "list" => load_obj.(t.children)
-            "genericobj1" => error("type name not specified!")
-            "genericobj2" => buildobj(load_obj(t.children[1]), load_obj.(t.children[2].children))
-            "genericobj3" => buildobj(load_obj(t.children[2]), load_obj.(t.children[1].children))
-        end
-        ::Token => begin
-            try
-                return Meta.parse(t.value)
-            catch e
-                # wield parsing error when handling interpolated strings
-                # TODO: fix this problem!
-                Base.showerror(stdout, e)
-                println(stdout)
-                @info "try fixing! error str: $(t.value)"
-                return Meta.parse(replace(t.value, "\$"=>"\\\$"))
+TypeTable() = TypeTable(String[], Dict{String, Tuple{Vector{String}, Vector{String}}}())
+function pushtype!(tt::TypeTable, type::JugsawADT)
+    if !haskey(tt.defs, type.name)
+        push!(tt.names, type.name)
+        tt.defs[type.name] = type
+    end
+    return tt
+end
+Base.show(io::IO, ::MIME"text/plain", t::TypeTable) = Base.show(io, t)
+function Base.show(io::IO, t::TypeTable)
+    println(io, "TypeTable")
+    for (k, typename) in enumerate(t.names)
+        println(io, "  - $typename")
+        fns, fts = get(t.defs, typename, ([], []))
+        for (l, (fn, ft)) in enumerate(zip(fns, fts))
+            print(io, "    - $fn::$ft")
+            if !(k == length(t.names) && l == length(fns))
+                println()
             end
         end
     end
 end
-function buildobj(type::String, fields::Vector)
-    @match Meta.parse(type) begin
-        :(Jugsaw.TypeAsFunction{$type}) => buildobj(type, fields)
-        :($type{$(args...)}) => buildobj(type, fields)
-        :(Core.DataType) => JugsawADT.Type(fields...)
-        :(JugsawIR.JugsawFunctionCall) => JugsawADT.Call(fields...)
-        :(Core.Array) => reshape(fields[2], fields[1]...)
-        :(Base.Dict) => Dict(zip(fields[1], fields[2]))
-        :(Base.Enum) => error("I do not want to support it!")
-        :(Core.Tuple) => (fields...,)
-        _ => Object(type, fields)
-    end
+
+########################## Julia to ADT
+# returns the object and type specification
+function julia2adt(@nospecialize(x::T)) where T
+    tt = TypeTable()
+    res = julia2adt!(x, tt)
+    # dump type table
+    return res, JugsawADT[tt.defs[s] for s in tt.names]
 end
 
-############## construct an object from the Lerche.Tree and JugsawADT demo.
-# note JugsawADT demo parsing does not following the rule for the generic types.
-function construct_object(t::Lerche.Tree, demo::JugsawADT)
+# data are dumped to (name, value[, fieldnames])
+function julia2adt!(@nospecialize(x::T), tt::TypeTable) where T
+    sT = type2str(T)
+    @match x begin
+        ###################### Basic Types ######################
+        ::UndefInitializer => nothing
+        ::DirectlyRepresentableTypes => x
+        ##################### Specified Types ####################
+        ::DataType => begin
+            def!(tt, "Core.DataType",
+                ["name", "fieldnames", "fieldtypes"],
+                Any[type2str(x), isabstracttype(x) ? String[] : collect(string.(fieldnames(x))), String[type2str(x) for x in x.types]])
+        end
+        ::Array => def!(tt, sT,
+            ["size", "storage"],
+            Any[collect(size(x)), map(x->julia2adt!(x, tt), vec(x))]
+        )
+        ::Enum => def!(tt, sT,
+            ["kind", "value", "options"],
+            Any["DataType", string(x), String[string(v) for v in instances(typeof(x))]],
+        )
+        ::Dict => begin
+            def!(tt, sT,
+                ["keys", "vals"],
+                Any[[julia2adt!(k, tt) for k in keys(x)], [julia2adt!(v, tt) for v in values(x)]],
+            )
+        end
+        ###################### Generic Compsite Types ######################
+        _ => begin
+            fns = fieldnames(T)
+            def!(tt, sT,
+                String[string(x) for x in fns],
+                Any[isdefined(x, fn) ? julia2adt!(getfield(x, fn), tt) : nothing for fn in fns],
+            )
+        end
+    end
+end
+function def!(tt::TypeTable, typename::String, fieldnames::Vector{String}, fieldvalues::Vector{Any})
+    pushtype!(tt, JugsawADT.Type(typename, fieldnames, String[type2str(typeof(x)) for x in fieldvalues]))
+    return JugsawADT.Object(typename, fieldvalues)
+end
+
+###################### ADT to julia
+function adt2julia(t, demo::T) where T
     @match demo begin
-        JugsawADT.Object(type, fields) => begin
-            # there may be a first field "type".
-            _newfields = _getfields(t)
-            newfields = Any[fromtree(val, demoval) for (val, demoval) in zip(_newfields, fields)]
-            JugsawADT.Object(type, newfields)
+        ###################### Basic Types ######################
+        ::Nothing || ::Missing || ::UndefInitializer => demo
+        ::Char => T(t[1])
+        ::DirectlyRepresentableTypes => T(t)
+
+        ##################### Specified Types ####################
+        ::Type || ::Function => demo
+        ::Array => begin
+            size, storage = t.fields
+            d = length(demo) > 0 ? first(demo) : demoof(eltype(demo))
+            reshape(eltype(T)[adt2julia(x, d) for x in storage], Int[adt2julia(s, 0) for s in size]...)
         end
-        JugsawADT.Call(fname, args, kwargnames, kwargvalues) => begin
-            fname, _newargs, _newkwargs = _getfields(t)
-            _newkwargvalues = _getfields(t)[2]
-            newargs = Any[fromtree(val, demoval) for (val, demoval) in zip(_newargs, args)]
-            newkwargvalues = Any[fromtree(val, demoval) for (val, demoval) in zip(_newkwargvalues, kwargvalues)]
-            JugsawADT.Call(fname, newargs, kwargnames, newkwargvalues)
+        ::Enum => begin
+            kind, value, options = t.fields
+            T(findfirst(==(value), options)-1)
         end
-        JugsawADT.Type(name, fieldnames, fieldtypes) => begin
-            JugsawADT.Type(_getfields(t)...)
+        ::Tuple => begin
+            ([adt2julia(v, d) for (v, d) in zip(t.fields, demo)]...,)
+        end
+        ::Dict => begin
+            ks, vs = t.fields
+            kd, vd = length(demo) > 0 ? (first(keys(demo)), first(values(demo))) : (demoof(key_type(demo)), demoof(value_type(demo)))
+            T(zip([adt2julia(k, kd) for k in ks],
+              [adt2julia(v, vd) for v in vs]))
+        end
+
+        ###################### Generic Compsite Types ######################
+        _ => begin
+            nfields(demo) == 0 ? demo : construct_object(t, demo)
         end
     end
 end
-
-###################### Parse Jugsaw ADT to JugsawIR code
-function todict!(x::JugsawADT, tt::TypeTable)
-    def!(tt::TypeTable, x.type, x.fieldnames, (todict!.(x.fields, Ref(tt))...,))
+function construct_object(t::JugsawADT, demo::T) where T
+    flds = t.fields
+    vals = [adt2julia(flds[i], getfield(demo, fn)) for (i, fn) in enumerate(fieldnames(T)) if isdefined(demo, fn)]
+    return Core.eval(@__MODULE__, Expr(:new, T, Any[:($vals[$i]) for i=1:length(vals)]...))
 end
-
