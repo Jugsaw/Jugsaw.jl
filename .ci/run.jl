@@ -37,7 +37,6 @@ function main()
         packages = map(package_names) do pkg
             Pkg.PackageSpec(path = joinpath(root_directory, "src", "jl", pkg))
         end
-        push!(packages, Pkg.PackageSpec(path = root_directory))
         Pkg.develop(packages)
         Pkg.instantiate()
     end
