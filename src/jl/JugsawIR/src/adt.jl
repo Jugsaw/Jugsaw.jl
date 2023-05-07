@@ -21,6 +21,19 @@ export tree2adt
         fieldnames::Vector{String}
         fieldtypes::Vector{String}
     end
+    struct Dict
+        keys::Vector
+        vals::Vector
+    end
+    struct Array
+        size::Vector{Int}
+        storage::Vector
+    end
+    struct Enum
+        kind::String
+        value::String
+        options::Vector{String}
+    end
 end
 Base.:(==)(a::JugsawADT, b::JugsawADT) = all(fn->getfield(a, fn) == getfield(b, fn), fieldnames(JugsawADT))
 Base.show(io::IO, ::MIME"text/plain", a::JugsawADT) = Base.show(io, a)
@@ -28,19 +41,23 @@ function Base.show(io::IO, a::JugsawADT)
     @match a begin
         JugsawADT.Object(typename, fields) => print(io, "$typename($(join(fields, ", ")))")
         JugsawADT.Call(fname, args, kwargnames, kwargvalues) => print(io, "$fname($(join(repr.(args), ", ")); $(join(["$k=$(repr(v))" for (k, v) in zip(kwargnames, kwargvalues)], ", ")))")
-        JugsawADT.Type(name, fieldnames, fieldtypes) => print(io, "$name($(join(["$n::$t" for (n, t) in zip(fieldnames, fieldtypes)], ", ")))")
+        JugsawADT.Type(name, fns, fieldtypes) => print(io, "$name($(join(["$n::$t" for (n, t) in zip(fns, fieldtypes)], ", ")))")
+        JugsawADT.Array(size, storage) => print(io, "Array($size, $storage)")
+        JugsawADT.Dict(keys, values) => print(io, "Dict($(join(["$k=$v" for (k, v) in zip(keys, values)], ", ")))")
+        JugsawADT.Enum(kind, value, options) => print(io, "$kind($value, $options)")
     end
 end
 
 struct TypeTable
     names::Vector{String}
-    defs::Dict{String, JugsawADT}
+    defs::Dict{String, DataType}
 end
 TypeTable() = TypeTable(String[], Dict{String, Tuple{Vector{String}, Vector{String}}}())
-function pushtype!(tt::TypeTable, type::JugsawADT)
-    if !haskey(tt.defs, type.name)
-        push!(tt.names, type.name)
-        tt.defs[type.name] = type
+function pushtype!(tt::TypeTable, type::Type{T}) where T
+    sT = type2str(T)
+    if !haskey(tt.defs, sT)
+        push!(tt.names, sT)
+        tt.defs[sT] = T
     end
     return tt
 end
@@ -58,6 +75,12 @@ function Base.show(io::IO, t::TypeTable)
         end
     end
 end
+function Base.merge!(t1::TypeTable, t2::TypeTable)
+    for name in t2.names
+        pushtype!(t1, t2.defs[name])
+    end
+    return t1
+end
 
 ########################## Julia to ADT
 # returns the object and type specification
@@ -65,49 +88,53 @@ function julia2adt(@nospecialize(x::T)) where T
     tt = TypeTable()
     res = julia2adt!(x, tt)
     # dump type table
-    return res, JugsawADT[tt.defs[s] for s in tt.names]
+    ttres = julia2adt!(tt, TypeTable())
+    return res, ttres
+end
+
+function get_fieldnames(::Type{T}) where T
+    @match T begin
+        ::Type{<:Array} => ["size", "storage"]
+        ::Type{<:Dict} => ["keys", "vals"]
+        ::Type{<:DataType} => ["name", "fieldnames", "fieldtypes"]
+        ::Type{<:Enum} => ["kind", "value", "options"]
+        _ => begin
+            if isabstracttype(T)
+                String[]
+            else
+                String[string(fn) for fn in fieldnames(T)]
+            end
+        end
+    end
 end
 
 # data are dumped to (name, value[, fieldnames])
 function julia2adt!(@nospecialize(x::T), tt::TypeTable) where T
-    sT = type2str(T)
+    (x isa UndefInitializer || x isa DirectlyRepresentableTypes) && pushtype!(tt, T)
     @match x begin
         ###################### Basic Types ######################
         ::UndefInitializer => nothing
         ::DirectlyRepresentableTypes => x
         ##################### Specified Types ####################
         ::DataType => begin
-            def!(tt, "Core.DataType",
-                ["name", "fieldnames", "fieldtypes"],
-                Any[type2str(x), isabstracttype(x) ? String[] : collect(string.(fieldnames(x))), String[type2str(x) for x in x.types]])
+            JugsawADT.Type(type2str(x), get_fieldnames(x), String[type2str(x) for x in x.types])
         end
-        ::Array => def!(tt, sT,
-            ["size", "storage"],
-            Any[collect(size(x)), map(x->julia2adt!(x, tt), vec(x))]
-        )
-        ::Enum => def!(tt, sT,
-            ["kind", "value", "options"],
-            Any["DataType", string(x), String[string(v) for v in instances(typeof(x))]],
-        )
+        ::Array => begin
+            JugsawADT.Array(collect(size(x)), map(x->julia2adt!(x, tt), vec(x)))
+        end
+        ::Enum => begin
+            JugsawADT.Enum(type2str(T), string(x), String[string(v) for v in instances(typeof(x))])
+        end
         ::Dict => begin
-            def!(tt, sT,
-                ["keys", "vals"],
-                Any[[julia2adt!(k, tt) for k in keys(x)], [julia2adt!(v, tt) for v in values(x)]],
-            )
+            JugsawADT.Dict([julia2adt!(k, tt) for k in keys(x)], [julia2adt!(v, tt) for v in values(x)])
         end
         ###################### Generic Compsite Types ######################
         _ => begin
-            fns = fieldnames(T)
-            def!(tt, sT,
-                String[string(x) for x in fns],
-                Any[isdefined(x, fn) ? julia2adt!(getfield(x, fn), tt) : nothing for fn in fns],
+            JugsawADT.Object(type2str(T), 
+                Any[isdefined(x, fn) ? julia2adt!(getfield(x, fn), tt) : undef for fn in fieldnames(T)]
             )
         end
     end
-end
-function def!(tt::TypeTable, typename::String, fieldnames::Vector{String}, fieldvalues::Vector{Any})
-    pushtype!(tt, JugsawADT.Type(typename, fieldnames, String[type2str(typeof(x)) for x in fieldvalues]))
-    return JugsawADT.Object(typename, fieldvalues)
 end
 
 ###################### ADT to julia
@@ -121,19 +148,19 @@ function adt2julia(t, demo::T) where T
         ##################### Specified Types ####################
         ::Type || ::Function => demo
         ::Array => begin
-            size, storage = t.fields
+            size, storage = t.size, t.storage
             d = length(demo) > 0 ? first(demo) : demoof(eltype(demo))
             reshape(eltype(T)[adt2julia(x, d) for x in storage], Int[adt2julia(s, 0) for s in size]...)
         end
         ::Enum => begin
-            kind, value, options = t.fields
+            value, options = t.value, t.options
             T(findfirst(==(value), options)-1)
         end
         ::Tuple => begin
             ([adt2julia(v, d) for (v, d) in zip(t.fields, demo)]...,)
         end
         ::Dict => begin
-            ks, vs = t.fields
+            ks, vs = t.keys, t.vals
             kd, vd = length(demo) > 0 ? (first(keys(demo)), first(values(demo))) : (demoof(key_type(demo)), demoof(value_type(demo)))
             T(zip([adt2julia(k, kd) for k in ks],
               [adt2julia(v, vd) for v in vs]))

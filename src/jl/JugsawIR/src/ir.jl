@@ -80,17 +80,21 @@ end
 # end
 
 ###################### ADT to IR
-function adt2ir(x)
+adt2ir(x) = JSON3.write(_adt2ir(x))
+function _adt2ir(x)
+    @show x
     @match x begin
         JugsawADT.Object(type, fields) => begin
             _makedict(type, Any[adt2ir(v) for v in fields])
         end
         JugsawADT.Call(fname, args, kwargnames, kwargvalues) => begin
-            _makedict(type2str(Call), Any[fname, args, kwargnames, kwargvalues])
+            _makedict(type2str(Call), Any[fname, Any[adt2ir(arg) for arg in args], kwargnames, Any[adt2ir(arg) for arg in kwargvalues]])
         end
         JugsawADT.Type(name, fieldnames, fieldtypes) => begin
-            _makedict(type, Any[adt2ir(v) for v in fields])
+            _makedict(type2str(DataType), Any[name, fieldnames, fieldtypes])
         end
+        ::DirectlyRepresentableTypes => x
+        _ => error("type can not be casted to IR, got: $x of type $(typeof(x))")
     end
 end
 function _makedict(type::String, fields::Vector{Any})
@@ -101,6 +105,6 @@ end
 function julia2ir(obj)
     obj, tt = julia2adt(obj)
     # TODO: remove json!
-    JSON3.write(obj), JSON3.write(tt)
+    adt2ir(obj), adt2ir(tt)
 end
 

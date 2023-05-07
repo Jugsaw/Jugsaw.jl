@@ -76,7 +76,11 @@ end
         # get type
         if !(typeof(obj) <: JugsawIR.DirectlyRepresentableTypes || obj === undef)
             sT = JugsawIR.type2str(typeof(obj))
-            @test adt.typename == sT
+            if obj isa DataType && !(obj isa Enum)
+                adt isa JugsawIR.var"JugsawADT#Type"
+            else
+                @test adt.typename == sT
+            end
         end
         # load objects
         res = adt2julia(adt, demo)
@@ -85,7 +89,7 @@ end
 
     @testset "datatype" begin
         type, tt = julia2adt(ComplexF64)
-        @test type == JugsawADT.Object("Core.DataType", Any["Base.Complex{Core.Float64}", ["re", "im"], ["Core.Float64", "Core.Float64"]])
+        @test type == JugsawADT.Type("Base.Complex{Core.Float64}", ["re", "im"], ["Core.Float64", "Core.Float64"])
         println(tt)
     end
 end

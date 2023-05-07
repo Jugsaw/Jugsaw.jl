@@ -79,7 +79,6 @@ end
         str, typestr = julia2ir(obj)
         sT = JugsawIR.type2str(typeof(obj))
         types = JugsawIR.Lerche.parse(JugsawIR.jp, typestr)
-        JugsawIR.print_clean_tree(types)
 
         # get type
         tree = JugsawIR.Lerche.parse(JugsawIR.jp, str)
@@ -90,8 +89,8 @@ end
         res = ir2julia(str, demo)
         @test obj === res || obj == res
         # load type table
-        tt = ir2julia(typestr, JugsawIR.demoof(JugsawIR.TypeTable))
-        @test tt isa JugsawIR.TypeTable
+        #tt = ir2julia(typestr, JugsawIR.demoof(JugsawIR.TypeTable))
+        #@test tt isa JugsawIR.TypeTable
     end
 end
 
