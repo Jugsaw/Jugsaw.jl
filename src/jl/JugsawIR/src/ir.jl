@@ -46,12 +46,7 @@ function buildobj(type::String, fields::Vector)
     @match Meta.parse(type) begin
         :(Jugsaw.TypeAsFunction{$type}) => buildobj(type, fields)
         :($type{$(args...)}) => buildobj(type, fields)
-        :(Core.DataType) => JugsawADT.Type(fields...)
         :(JugsawIR.Call) => JugsawADT.Call(fields...)
-        :(Core.Array) => reshape(fields[2], fields[1]...)
-        :(Base.Dict) => Dict(zip(fields[1], fields[2]))
-        :(Base.Enum) => error("I do not want to support it!")
-        :(Core.Tuple) => (fields...,)
         _ => Object(type, fields)
     end
 end
@@ -89,9 +84,6 @@ function _adt2ir(x)
         end
         JugsawADT.Call(fname, args, kwargnames, kwargvalues) => begin
             _makedict(type2str(Call), Any[fname, Any[adt2ir(arg) for arg in args], kwargnames, Any[adt2ir(arg) for arg in kwargvalues]])
-        end
-        JugsawADT.Type(name, fieldnames, fieldtypes) => begin
-            _makedict(type2str(DataType), Any[name, fieldnames, fieldtypes])
         end
         ::DirectlyRepresentableTypes => x
         _ => error("type can not be casted to IR, got: $x of type $(typeof(x))")

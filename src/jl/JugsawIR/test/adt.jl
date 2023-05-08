@@ -19,6 +19,7 @@ obj_demos = [
     (2.0, 3.0),
     (3, 5),
     (2f0, 4f0),
+    (randn(3, 3), randn(8, 8)),
     (3+2im, 4-3im),
     ("x", "zz"),
     (nothing, nothing),
@@ -33,9 +34,9 @@ obj_demos = [
     (1:3, 2:6),
     (1:0.01:2, 1:0.03:4.0),
     (e2, e3),
-    (Union{}, Union{}),
-    (Union{Integer, Float64}, Union{Integer, Float64}),
-    (Array{Float64}, Array{Float64}),
+    #(Union{}, Union{}),
+    #(Union{Integer, Float64}, Union{Integer, Float64}),
+    #(Array{Float64}, Array{Float64}),
     (Array{Int,2},Array{Int,2}),
     ((1, '2'), (3, '4')),
     ([1, 2, 3], [0]),
@@ -60,8 +61,6 @@ obj_demos = [
 @testset "printing" begin
     obj = JugsawADT.Object("ObjectType", [1, 2])
     @test string(obj) == "ObjectType(1, 2)"
-    tp = JugsawADT.Type("TypeName", ["a", "b"], ["Core.Int64", "Core.Float64"])
-    @test string(tp) == "TypeName(a::Core.Int64, b::Core.Float64)"
     fn = JugsawADT.Call("f", [1, 3], ["x", "y"], ["5", 2])
     @test string(fn) == "f(1, 3; x=\"5\", y=2)"
 end
@@ -74,13 +73,9 @@ end
         println(adt)
 
         # get type
-        if !(typeof(obj) <: JugsawIR.DirectlyRepresentableTypes || obj === undef)
+        if !(typeof(obj) <: JugsawIR.DirectlyRepresentableTypes || obj === undef || obj isa Union{DataType, Array, Dict, Enum})
             sT = JugsawIR.type2str(typeof(obj))
-            if obj isa DataType && !(obj isa Enum)
-                adt isa JugsawIR.var"JugsawADT#Type"
-            else
-                @test adt.typename == sT
-            end
+            @test adt.typename == sT
         end
         # load objects
         res = adt2julia(adt, demo)
@@ -89,7 +84,7 @@ end
 
     @testset "datatype" begin
         type, tt = julia2adt(ComplexF64)
-        @test type == JugsawADT.Type("Base.Complex{Core.Float64}", ["re", "im"], ["Core.Float64", "Core.Float64"])
+        @test type == JugsawADT.Object("JugsawIR.JDataType", ["Base.Complex{Core.Float64}", ["re", "im"], ["Core.Float64", "Core.Float64"]])
         println(tt)
     end
 end

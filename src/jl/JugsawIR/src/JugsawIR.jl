@@ -18,5 +18,6 @@ include("Core.jl")
 #include("serialize.jl")
 include("adt.jl")
 include("ir.jl")
+include("extendedtypes.jl")
 
 end
