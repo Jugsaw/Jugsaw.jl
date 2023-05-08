@@ -12,8 +12,8 @@ end
 function construct_object(t::JugsawADT, demo::Dict)
     ks, vs = t.fields
     kd, vd = length(demo) > 0 ? (first(keys(demo)), first(values(demo))) : (demoof(key_type(demo)), demoof(value_type(demo)))
-    typeof(demo)(zip([adt2julia(k, kd) for k in ks],
-        [adt2julia(v, vd) for v in vs]))
+    typeof(demo)(zip([adt2julia(k, kd) for k in ks.storage],
+        [adt2julia(v, vd) for v in vs.storage]))
 end
 
 ##### Array
@@ -33,7 +33,7 @@ end
 function construct_object(t::JugsawADT, demo::Array{T}) where T
     size, storage = t.fields
     d = demoofarray(demo)
-    reshape(T[adt2julia(x, d) for x in storage], Int[adt2julia(s, 0) for s in size]...)
+    reshape(T[adt2julia(x, d) for x in storage.storage], Int[adt2julia(s, 0) for s in size.storage]...)
 end
 
 ##### Enum
@@ -47,7 +47,7 @@ function native2jugsaw(x::Enum)
 end
 function construct_object(t::JugsawADT, demo::Enum)
     kind, value, options = t.fields
-    typeof(demo)(findfirst(==(value), options)-1)
+    typeof(demo)(findfirst(==(value), options.storage)-1)
 end
 
 ##### DataType

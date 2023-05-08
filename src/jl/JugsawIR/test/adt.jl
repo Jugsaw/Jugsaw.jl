@@ -84,7 +84,8 @@ end
 
     @testset "datatype" begin
         type, tt = julia2adt(ComplexF64)
-        @test type == JugsawADT.Object("JugsawIR.JDataType", ["Base.Complex{Core.Float64}", ["re", "im"], ["Core.Float64", "Core.Float64"]])
+        @test type == JugsawADT.Object("JugsawIR.JDataType", ["Base.Complex{Core.Float64}",
+            JugsawADT.Vector(["re", "im"]), JugsawADT.Vector(["Core.Float64", "Core.Float64"])])
         println(tt)
     end
 end

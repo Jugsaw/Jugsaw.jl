@@ -77,7 +77,7 @@ end
 feval(f::Call, args...; kwargs...) = f.fname(args...; kwargs...)
 # evaluate nested function call
 fevalself(x) = x
-fevalself(f::Call) = feval(f, map(fevalself, f.args)...; zip(f.kwargnames, map(fevalself, f.kwargvalues))...)
+fevalself(f::Call) = feval(f, map(fevalself, f.args)...; zip(Symbol.(f.kwargnames), map(fevalself, f.kwargvalues))...)
 
 # return a string as the function signature
 # function function_signature(f::Call)

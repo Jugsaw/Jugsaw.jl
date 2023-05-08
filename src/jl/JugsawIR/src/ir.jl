@@ -23,10 +23,10 @@ function tree2adt(t)
             "true" => true
             "false" => false
             "null" => nothing
-            "list" => tree2adt.(t.children)
+            "list" => JugsawIR.Vector(tree2adt.(t.children))
             "genericobj1" => error("type name not specified!")
-            "genericobj2" => buildobj(tree2adt(t.children[1]), tree2adt.(t.children[2].children))
-            "genericobj3" => buildobj(tree2adt(t.children[2]), tree2adt.(t.children[1].children))
+            "genericobj2" => buildobj(Meta.parse(tree2adt(t.children[1])), tree2adt.(t.children[2].children))
+            "genericobj3" => buildobj(Meta.parse(tree2adt(t.children[2])), tree2adt.(t.children[1].children))
         end
         ::Token => begin
             try
@@ -42,12 +42,12 @@ function tree2adt(t)
         end
     end
 end
-function buildobj(type::String, fields::Vector)
-    @match Meta.parse(type) begin
+function buildobj(type, fields::Vector)
+    @match type begin
         :(Jugsaw.TypeAsFunction{$type}) => buildobj(type, fields)
         :($type{$(args...)}) => buildobj(type, fields)
         :(JugsawIR.Call) => JugsawADT.Call(fields...)
-        _ => Object(type, fields)
+        _ => JugsawADT.Object(string(type), fields)
     end
 end
 
@@ -77,14 +77,14 @@ end
 ###################### ADT to IR
 adt2ir(x) = JSON3.write(_adt2ir(x))
 function _adt2ir(x)
-    @show x
     @match x begin
         JugsawADT.Object(type, fields) => begin
-            _makedict(type, Any[adt2ir(v) for v in fields])
+            _makedict(type, Any[_adt2ir(v) for v in fields])
         end
         JugsawADT.Call(fname, args, kwargnames, kwargvalues) => begin
-            _makedict(type2str(Call), Any[fname, Any[adt2ir(arg) for arg in args], kwargnames, Any[adt2ir(arg) for arg in kwargvalues]])
+            _makedict(type2str(Call), Any[fname, Any[_adt2ir(arg) for arg in args], kwargnames, Any[_adt2ir(arg) for arg in kwargvalues]])
         end
+        JugsawADT.Vector(storage) => _adt2ir.(storage)
         ::DirectlyRepresentableTypes => x
         _ => error("type can not be casted to IR, got: $x of type $(typeof(x))")
     end
