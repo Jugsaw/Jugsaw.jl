@@ -10,12 +10,6 @@ export tree2adt
         typename::String
         fields::Vector
     end
-    struct Call
-        fname::String
-        args::Vector
-        kwargnames::Vector{String}
-        kwargvalues::Vector
-    end
     struct Vector
         storage::Vector
     end
@@ -25,7 +19,6 @@ Base.show(io::IO, ::MIME"text/plain", a::JugsawADT) = Base.show(io, a)
 # function Base.show(io::IO, a::JugsawADT)
 #     @match a begin
 #         JugsawADT.Object(typename, fields) => print(io, "$typename($(join(fields, ", ")))")
-#         JugsawADT.Call(fname, args, kwargnames, kwargvalues) => print(io, "$fname($(join(repr.(args), ", ")); $(join(["$k=$(repr(v))" for (k, v) in zip(kwargnames, kwargvalues)], ", ")))")
 #         JugsawADT.Vector(storage) => print(io, storage)
 #     end
 # end
@@ -103,10 +96,6 @@ function adt2julia(t, demo::T) where T
         ::Char => T(t[1])
         ::DirectlyRepresentableTypes => T(t)
         ::Vector => T(adt2julia.(t.storage, demoofarray(demo)))
-        ::Call => begin
-            @show t, demo
-            Call(demo.fname, adt2julia.(t.args, demo.args), demo.kwargnames, adt2julia.(t.kwargvalues, demo.kwargvalues))
-        end
         ###################### Generic Compsite Types ######################
         _ => begin
             construct_object(t, demo)

@@ -23,7 +23,7 @@ function tree2adt(t)
             "true" => true
             "false" => false
             "null" => nothing
-            "list" => JugsawIR.Vector(tree2adt.(t.children))
+            "list" => JugsawADT.Vector(tree2adt.(t.children))
             "genericobj1" => error("type name not specified!")
             "genericobj2" => buildobj(Meta.parse(tree2adt(t.children[1])), tree2adt.(t.children[2].children))
             "genericobj3" => buildobj(Meta.parse(tree2adt(t.children[2])), tree2adt.(t.children[1].children))
@@ -46,7 +46,6 @@ function buildobj(type, fields::Vector)
     @match type begin
         :(Jugsaw.TypeAsFunction{$type}) => buildobj(type, fields)
         :($type{$(args...)}) => buildobj(type, fields)
-        :(JugsawIR.Call) => JugsawADT.Call(fields...)
         _ => JugsawADT.Object(string(type), fields)
     end
 end
@@ -80,9 +79,6 @@ function _adt2ir(x)
     @match x begin
         JugsawADT.Object(type, fields) => begin
             _makedict(type, Any[_adt2ir(v) for v in fields])
-        end
-        JugsawADT.Call(fname, args, kwargnames, kwargvalues) => begin
-            _makedict(type2str(Call), Any[fname, Any[_adt2ir(arg) for arg in args], kwargnames, Any[_adt2ir(arg) for arg in kwargvalues]])
         end
         JugsawADT.Vector(storage) => _adt2ir.(storage)
         ::DirectlyRepresentableTypes => x

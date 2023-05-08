@@ -58,13 +58,6 @@ obj_demos = [
             )
     ]
 
-@testset "printing" begin
-    obj = JugsawADT.Object("ObjectType", [1, 2])
-    @test string(obj) == "ObjectType(1, 2)"
-    fn = JugsawADT.Call("f", [1, 3], ["x", "y"], ["5", 2])
-    @test string(fn) == "f(1, 3; x=\"5\", y=2)"
-end
-
 # typed parse
 @testset "julia2adt" begin
     for (obj, demo) in obj_demos

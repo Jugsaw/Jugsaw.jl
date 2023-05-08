@@ -22,7 +22,7 @@ end
     println(ld)
     @test ftest(ld)
 
-    jf = JugsawFunctionCall(isapprox, (JugsawFunctionCall(sin, (2.0,), (;)), 0.9092974268256817), (; atol=JugsawFunctionCall(x->x/10, (1e-2,), (;))))
+    jf = JugsawIR.Call(isapprox, [JugsawIR.Call(sin, [2.0], [], []), 0.9092974268256817], ["atol"], [JugsawIR.Call(x->x/10, [1e-2], [], [])])
     @test fevalself(jf)
 end
 
