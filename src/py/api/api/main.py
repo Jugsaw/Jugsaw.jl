@@ -2,13 +2,31 @@ from enum import Enum
 from functools import cache
 from typing import Literal, Union
 from typing_extensions import Annotated
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request, HTTPException, status
+from fastapi.security import HTTPBearer, APIKeyHeader, HTTPAuthorizationCredentials
 from dapr.clients import DaprClient
 from pydantic import BaseModel, BaseSettings, Field
 from uuid import uuid4
 from time import time
 
 app = FastAPI()
+
+BEARER = HTTPBearer()
+
+
+def get_user_from_token(
+    token: Annotated[HTTPAuthorizationCredentials, Depends(BEARER)]
+):
+    return "abc"
+
+
+API_KEY_HEADER = APIKeyHeader(name="JUGSAW-API-KEY")
+
+
+def get_user_from_api_key(
+    token: Annotated[HTTPAuthorizationCredentials, Depends(API_KEY_HEADER)]
+):
+    return "xx"
 
 
 class Config(BaseSettings):
@@ -28,7 +46,6 @@ class Job(BaseModel):
     application: str
     function: str
     version: str
-    signature: str
     data: bytes
 
 
@@ -83,21 +100,83 @@ class JobStatus(BaseModel):
     events: list[JobEvent] = []
 
 
-@app.post("/v1/app/{application}/{function}")
-async def call(
+class JugsawApiKey(BaseModel):
+    key: str
+
+
+class Application(BaseModel):
+    name: str
+    version: str
+
+
+#####
+
+
+@app.get("/v1/app", tags=["api"])
+async def list_apps(user: Annotated[str, Depends(get_user_from_api_key)]) -> list[str]:
+    # TODO: pagination
+    ...
+
+
+@app.get("/v1/app/{app}", tags=["api"])
+async def list_app_versions(
+    user: Annotated[str, Depends(get_user_from_api_key)], app: str
+) -> list[str]:
+    # TODO: pagination
+    ...
+
+
+@app.get("/v1/app/{app}/{app_ver}", tags=["api"])
+async def describe_app(
+    user: Annotated[str, Depends(get_user_from_api_key)],
+    app: str,
+    app_ver: str = "latest",
+) -> str:
+    ...
+
+
+@app.delete("/v1/app/{app}/{app_ver}", tags=["api"])
+async def delete_app(
+    user: Annotated[str, Depends(get_user_from_api_key)],
+    app: str,
+    app_ver: str = "latest",
+) -> str:
+    ...
+
+
+@app.get("/v1/app/{app}/{app_ver}/func", tags=["api"])
+async def list_functions(
+    user: Annotated[str, Depends(get_user_from_api_key)],
+    app: str,
+    app_ver: str = "latest",
+) -> str:
+    ...
+
+
+@app.get("/v1/app/{app}/{app_ver}/func/{func}", tags=["api"])
+async def get_function_schema(
+    user: Annotated[str, Depends(get_user_from_api_key)],
+    app: str,
+    func: str,
+    app_ver: str = "latest",
+) -> str:
+    ...
+
+
+@app.post("/v1/app/{app}/{app_ver}/func/{function}", tags=["api"])
+async def submit_job(
+    user: Annotated[str, Depends(get_user_from_api_key)],
     request: Request,
-    application: str,
-    function: str,
-    version: str = "latest",
-    signature: str = "",
+    app: str,
+    func: str,
+    ver: str = "latest",
 ) -> JobStatus:
     config = get_config()
     job = Job(
-        created_by="annoymous",  # FIXME: get user_id from token
-        application=application,
-        function=function,
-        version=version,
-        signature=signature,
+        created_by=user,
+        application=app,
+        function=func,
+        version=ver,
         data=await request.body(),
     )
     with DaprClient() as client:
@@ -107,11 +186,66 @@ async def call(
     return JobStatus(id=job.id)
 
 
-@app.get("/v1/job/{job_id}")
-async def get_job_status(job_id: str) -> JobStatus:
+@app.get("/v1/job/{job_id}", tags=["api"])
+async def get_job_status(
+    user: Annotated[str, Depends(get_user_from_api_key)], job_id: str
+) -> JobStatus:
     ...
 
 
-@app.get("/ping")
-async def ping():
+@app.delete("/v1/job/{job_id}", tags=["api"])
+async def cancel_job(
+    user: Annotated[str, Depends(get_user_from_api_key)], job_id: str
+) -> JobStatus:
+    ...
+
+
+@app.get("/v1/ping/api", tags=["api", "ping"])
+async def ping_api(user: Annotated[str, Depends(get_user_from_api_key)]) -> str:
     return "pong"
+
+
+#####
+
+
+@app.get("/v1/user/key", tags=["auth"])
+async def get_api_key(
+    user: Annotated[str, Depends(get_user_from_token)]
+) -> JugsawApiKey:
+    ...
+
+
+@app.post("/v1/user/key", tags=["auth"])
+async def create_api_key(
+    user: Annotated[str, Depends(get_user_from_token)]
+) -> JugsawApiKey:
+    ...
+
+
+@app.patch("/v1/user/key", tags=["auth"])
+async def revoke_api_key(
+    user: Annotated[str, Depends(get_user_from_token)]
+) -> JugsawApiKey:
+    ...
+
+
+@app.get("/v1/ping/auth", tags=["auth", "ping"])
+async def ping_key(user: Annotated[str, Depends(get_user_from_token)]) -> str:
+    return "pong"
+
+
+#####
+
+
+@app.get("/v1/user/jobs", tags=["account"])
+async def get_user_jobs(
+    user: Annotated[str, Depends(get_user_from_token)]
+) -> list[str]:
+    ...
+
+
+@app.get("/v1/user/apps", tags=["account"])
+async def get_user_apps(
+    user: Annotated[str, Depends(get_user_from_token)]
+) -> list[str]:
+    ...
