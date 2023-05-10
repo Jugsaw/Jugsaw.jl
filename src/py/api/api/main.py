@@ -126,6 +126,14 @@ async def list_app_versions(
     ...
 
 
+@app.post("/v1/app/{app}", tags=["api"])
+async def create_app(
+    user: Annotated[str, Depends(get_user_from_api_key)], app: str
+) -> list[str]:
+    # TODO: pagination
+    ...
+
+
 @app.get("/v1/app/{app}/{app_ver}", tags=["api"])
 async def describe_app(
     user: Annotated[str, Depends(get_user_from_api_key)],
@@ -208,28 +216,28 @@ async def ping_api(user: Annotated[str, Depends(get_user_from_api_key)]) -> str:
 #####
 
 
-@app.get("/v1/user/key", tags=["auth"])
+@app.get("/v1/user/key", tags=["account"])
 async def get_api_key(
     user: Annotated[str, Depends(get_user_from_token)]
 ) -> JugsawApiKey:
     ...
 
 
-@app.post("/v1/user/key", tags=["auth"])
+@app.post("/v1/user/key", tags=["account"])
 async def create_api_key(
     user: Annotated[str, Depends(get_user_from_token)]
 ) -> JugsawApiKey:
     ...
 
 
-@app.patch("/v1/user/key", tags=["auth"])
+@app.patch("/v1/user/key", tags=["account"])
 async def revoke_api_key(
     user: Annotated[str, Depends(get_user_from_token)]
 ) -> JugsawApiKey:
     ...
 
 
-@app.get("/v1/ping/auth", tags=["auth", "ping"])
+@app.get("/v1/ping/auth", tags=["account", "ping"])
 async def ping_key(user: Annotated[str, Depends(get_user_from_token)]) -> str:
     return "pong"
 
