@@ -43,38 +43,6 @@ function tree2adt(t)
     end
 end
 buildobj(type::String, fields::Vector) = JugsawADT.Object(type, fields)
-# buildobj(type::String, fields::Vector) = buildobj(Meta.parse(type), typename, fields)
-# function buildobj(typeexpr, typename::String, fields::Vector)
-#     @match typeexpr begin
-#         # protect type as function
-#         :(JugsawIR.TypeAsFunction{$ftype}) => buildobj(ftype, string(@show ftype) fields)
-#         :($type{$(args...)}) => buildobj(type, typename, fields)
-#         _ => JugsawADT.Object(typename, fields)
-#     end
-# end
-
-############## construct an object from the Lerche.Tree and JugsawADT demo.
-# note JugsawADT demo parsing does not following the rule for the generic types.
-# function construct_object(t::Lerche.Tree, demo::JugsawADT)
-#     @match demo begin
-#         JugsawADT.Object(type, fields) => begin
-#             # there may be a first field "type".
-#             _newfields = _getfields(t)
-#             newfields = Any[tree2julia(val, demoval) for (val, demoval) in zip(_newfields, fields)]
-#             JugsawADT.Object(type, newfields)
-#         end
-#         JugsawADT.Call(fname, args, kwargnames, kwargvalues) => begin
-#             fname, _newargs, _newkwargs = _getfields(t)
-#             _newkwargvalues = _getfields(t)[2]
-#             newargs = Any[tree2julia(val, demoval) for (val, demoval) in zip(_newargs, args)]
-#             newkwargvalues = Any[tree2julia(val, demoval) for (val, demoval) in zip(_newkwargvalues, kwargvalues)]
-#             JugsawADT.Call(fname, newargs, kwargnames, newkwargvalues)
-#         end
-#         JugsawADT.Type(name, fieldnames, fieldtypes) => begin
-#             JugsawADT.Type(_getfields(t)...)
-#         end
-#     end
-# end
 
 ###################### ADT to IR
 adt2ir(x) = JSON3.write(_adt2ir(x))

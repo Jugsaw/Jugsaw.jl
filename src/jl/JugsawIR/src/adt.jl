@@ -65,7 +65,8 @@ function julia2adt!(@nospecialize(_x::T), tt::TypeTable) where T
         ::UndefInitializer => nothing
         ::DirectlyRepresentableTypes => x
         ::Vector => JugsawADT.Vector(julia2adt!.(x, Ref(tt)))
-        ::Function => safe_f2str(x)
+        ::Function => string(x)
+        ::UnionAll => type2str(x)
         ###################### Generic Compsite Types ######################
         _ => begin
             JugsawADT.Object(type2str(Tx), 
@@ -73,11 +74,6 @@ function julia2adt!(@nospecialize(_x::T), tt::TypeTable) where T
             )
         end
     end
-end
-function safe_f2str(f)
-    sf = string(f)
-    '.' ∈ sf && throw("function must be imported to the `Main` module before it can be exposed!")
-    return sf
 end
 
 ###################### ADT to julia
@@ -88,6 +84,7 @@ function adt2julia(t, demo::T) where T
         ::Char => T(t[1])
         ::DirectlyRepresentableTypes => T(t)
         ::Vector => T(adt2julia.(t.storage, Ref(demoofarray(demo))))
+        ::JugsawADT => t
         ###################### Generic Compsite Types ######################
         _ => begin
             construct_object(t, demo)

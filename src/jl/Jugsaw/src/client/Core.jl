@@ -42,18 +42,4 @@ function Base.show(io::IO, app::App)
     #print(io, app.type_table)
 end
 # for printing docstring
-Base.Docs.Binding(app::App, sym::Symbol) = getproperty(app, sym)[1].second
-
-# print_app(demos::App) = print_app(stdout, demos)
-# function print_app(io::IO, app::App)
-#     name, method_sigs, method_demos, type_table = app.name, app.method_demos, app.type_table
-#     println(io, "AppSpecification: $name")
-#     demodict = Dict(zip(method_demos.fields...))
-#     for fname in method_sigs.fields[2]
-#         call, res = demodict[fname].fields
-#         fname, args, kwargs = call.fields
-#         kwstr = join(["$(repr(k))=$(repr(v))" for (k, v) in kwargs.fields], ", ")
-#         argstr = join(["$(repr(v))" for v in args.fields], ", ")
-#         println(io, "  - $(fname.typename)($argstr; $kwstr) == $(repr(res))")
-#     end
-# end
+Base.Docs.Binding(app::App, sym::Symbol) = getproperty(app, sym)[1]

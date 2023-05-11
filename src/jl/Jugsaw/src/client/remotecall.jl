@@ -46,7 +46,10 @@ function test_demo(remote::AbstractHandler, app::App, fname::Symbol, actor_id::S
 end
 function call(remote::AbstractHandler, app::App, fname::Symbol, which::Int, actor_id::String, args...; kwargs...)
     demo = getproperty(app, fname)[which]
-    req = render_jsoncall(demo.fcall.fname, args, (; kwargs...)) # Serialize
+    req = JugsawIR.adt2ir(JugsawADT.Object("JugsawIR.Call",
+            [demo.fcall.fname,
+            adt_norecur(args),
+            adt_norecur((; kwargs...))]))
     if remote isa LocalHandler
         path = string(remote.uri)
         mkpath(path)
@@ -56,20 +59,28 @@ function call(remote::AbstractHandler, app::App, fname::Symbol, which::Int, acto
         return () -> ir2julia(read(joinpath(path, "result.json"), String), demo.result)
     else
         act_url = joinpath(remote.uri, "actors", "$(app[:name]).$fname", actor_id, "method")
-        #fetch_url = joinpath(act_url, "fetch")
-        res = HTTP.post(act_url, ["content-type" => "application/json"], req) # Deserialize
-        #res = HTTP.post(fetch_url, ["content-type" => "application/json"], r.body)
+        local res
+        try
+            res = HTTP.post(act_url, ["content-type" => "application/json"], req) # Deserialize
+        catch e
+            if e isa HTTP.Exceptions.StatusError && e.status == 400
+                res = JSON3.read(String(e.response.body))
+                Base.println(stdout, res.error)
+            end
+            Base.rethrow(e)
+        end
         retstr = String(res.body)
         uri = URI(joinpath(string(remote.uri), "actors", "$(app[:name]).$fname", actor_id, "method", "fetch"))
         object_id = JSON3.read(retstr).object_id
         return LazyReturn(uri, object_id, demo.result)
     end
 end
-
-function render_jsoncall(fname, args, kwargs)
-    str, tt = julia2ir(JugsawIR.Call(fname, args, kwargs))
-    return str
+function adt_norecur(x::T) where T
+    return JugsawADT.Object(type2str(T), 
+        Any[isdefined(x, fn) ? getfield(x, fn) : undef for fn in fieldnames(T)]
+    )
 end
+
 # TODO: dispatch to the correct type!
 function match_demo(app::App, fname::Symbol, args, kwargs)
     demos = getproperty(app, fname)

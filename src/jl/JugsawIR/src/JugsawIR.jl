@@ -18,7 +18,6 @@ export ftest, JugsawDemo
 
 include("Core.jl")
 include("extendedtypes.jl")
-#include("serialize.jl")
 include("adt.jl")
 include("ir.jl")
 

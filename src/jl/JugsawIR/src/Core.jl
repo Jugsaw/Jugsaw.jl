@@ -77,12 +77,7 @@ feval(f::Call, args...; kwargs...) = f.fname(args...; kwargs...)
 # evaluate nested function call
 fevalself(x) = x
 fevalself(f::Call) = feval(f, map(fevalself, f.args)...; update_kwargs(f.kwargs, map(fevalself, f.kwargs))...)
-update_kwargs(::NamedTuple{K, V}, vals) where {K, V} = length(K) == 0 ? (;) : NamedTuple{K}(vals...)
-
-# return a string as the function signature
-# function function_signature(f::Call)
-#     return JugsawIR.type2str(typeof(f))
-# end
+update_kwargs(::NamedTuple{K, V}, vals) where {K, V} = length(K) == 0 ? (;) : NamedTuple{K}((vals...,))
 
 function Base.show(io::IO, f::Call)
     kwargs = join(["$k=$(repr(v))" for (k, v) in pairs(f.kwargs)], ", ")

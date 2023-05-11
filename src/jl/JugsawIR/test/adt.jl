@@ -34,9 +34,9 @@ obj_demos = [
     (1:3, 2:6),
     (1:0.01:2, 1:0.03:4.0),
     (e2, e3),
-    #(Union{}, Union{}),
-    #(Union{Integer, Float64}, Union{Integer, Float64}),
-    #(Array{Float64}, Array{Float64}),
+    (Union{}, Union{}),
+    (Union{Integer, Float64}, Union{Integer, Float64}),
+    (Array{Float64}, Array{Float64}),
     (Array{Int,2},Array{Int,2}),
     ((1, '2'), (3, '4')),
     ([1, 2, 3], [0]),
@@ -66,7 +66,7 @@ obj_demos = [
         println(adt)
 
         # get type
-        if !(typeof(obj) <: JugsawIR.DirectlyRepresentableTypes || obj === undef || obj isa Union{DataType, Array, Dict, Enum})
+        if !(typeof(obj) <: JugsawIR.DirectlyRepresentableTypes || obj === undef || obj isa Union{DataType, Array, Dict, Enum, UnionAll})
             sT = JugsawIR.type2str(typeof(obj))
             @test adt.typename == sT
         end

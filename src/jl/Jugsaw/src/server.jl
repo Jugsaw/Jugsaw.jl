@@ -74,7 +74,7 @@ one is created based on the registered `ActorFactor` of `actor_type`. Note that
 the actor may be configured to recover from its lastest state snapshot.
 """
 function activate(r::AppRuntime, actor_type::JugsawADT, actor_id::String)
-    demo = match_demo(actor_type, r.app)
+    demo = match_demo_or_throw(actor_type, r.app)
     get!(r.actors, actor_type.fields[1] => actor_id) do
         Actor(r.state_store, demo)
     end
@@ -88,7 +88,7 @@ function act!(r::AppRuntime, http::HTTP.Request)
     # top level must be a function call
     # add jobs recursively to the queue
     try
-        thisdemo = match_demo(adt, r.app).fcall
+        thisdemo = match_demo_or_throw(adt, r.app).fcall
         resp = addjob!(r, adt, thisdemo, actor_id)
         return HTTP.Response(200, ["Content-Type" => "application/json"], JSON3.write(resp))
     catch e
@@ -96,39 +96,27 @@ function act!(r::AppRuntime, http::HTTP.Request)
     end
 end
 
-function match_demo(adt::JugsawADT, app::AppSpecification)
+function match_demo_or_throw(adt::JugsawADT, app::AppSpecification)
     if adt.typename != "JugsawIR.Call"
         throw(BadSyntax(adt))
     end
-    fname = adt.fields[1]
-    # handle function request error
-    if !haskey(app.method_demos, fname)
-        #return _error_response(NoDemoException(fname, collect(keys(app.method_demos))))
+    fname, args, kwargs = adt.fields
+    res = match_demo(fname, args, kwargs, app)
+    if res === nothing
         throw(NoDemoException(fname, collect(keys(app.method_demos))))
     end
-    # TODO: implement!
-    return first(app.method_demos[fname])
+    return res
 end
 
 function addjob!(r::AppRuntime, adt::JugsawADT, thisdemo::Call, actor_id)
     # find a demo
-    #demo = match_demo(adt, r.app)
     fname, args, kwargs = adt.fields
-    # nextdemo = demos[func_sig].fcall
-    # fname, _args, _kwargs = JugsawIR._getfields(tree)
-    # args = JugsawIR._getfields(_args)
-    # kwargs = typeof(nextdemo.kwargs)(JugsawIR._getfields(_kwargs))
     # IF tree is a function call, return an `object_id` for return value.
     #     recurse over args and kwargs to get `Call` parsed.
     req = Call(thisdemo.fname,
         ntuple(i->renderobj!(r, args.fields[i], thisdemo.args[i], actor_id), length(args.fields)),
         typeof(thisdemo.kwargs)(ntuple(i->renderobj!(r, kwargs.fields[i], thisdemo.kwargs[i], actor_id), length(kwargs.fields)))
     )
-    # if !haskey(demos, func_sig)
-    #     throw(NoDemoException(func_sig, collect(keys(demos))))
-    #     #error("function not available: $(func_sig), the list of functions are $(collect(keys(demos)))")
-    # end
-
     # add task to the queue
     @info "task added to the queue: $req"
     resp = ObjectRef()
@@ -143,8 +131,8 @@ end
 
 # if adt is a function call, launch a job and return an object getter, else, return an object.
 function renderobj!(r::AppRuntime, adt, thisdemo, actor_id)
-    if adt isa JugsawADT && adt.typename == "JugsawIR.Call"
-        fdemo = match_demo(adt, r.app)
+    if adt isa JugsawADT && hasproperty(adt, :typename) && adt.typename == "JugsawIR.Call"
+        fdemo = match_demo_or_throw(adt, r.app)
         resp = addjob!(r, adt, fdemo.fcall, actor_id)
         # Return an object getter, which is a `Call` instance that fetches objects from the state_store.
         return object_getter(r.state_store, resp.object_id)
@@ -152,18 +140,6 @@ function renderobj!(r::AppRuntime, adt, thisdemo, actor_id)
         return JugsawIR.adt2julia(adt, thisdemo)
     end
 end
-
-# # returns the function signature
-# function _match_jugsawfunctioncall(adt::JugsawADT)
-#     @assert tree.data == "object"
-#     tree.children[1].children[1] isa JugsawIR.Lerche.Token && return nothing
-#     func_sig = JugsawIR._gettype(tree)
-#     ex = Meta.parse(func_sig)
-#     return @match ex begin
-#         :(JugsawIR.Call{$(_...)}) => func_sig
-#         _ => nothing
-#     end
-# end
 
 # an object getter to load return values of a function call from the state store
 function object_getter(state_store::StateStore, object_id::String)

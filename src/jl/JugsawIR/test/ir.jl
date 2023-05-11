@@ -53,9 +53,9 @@ end
         (1:3, 2:6),
         (1:0.01:2, 1:0.03:4.0),
         (e2, e3),
-        #(Union{}, Union{}),
-        #(Union{Integer, Float64}, Union{Integer, Float64}),
-        #(Array{Float64}, Array{Float64}),
+        (Union{}, Union{}),
+        (Union{Integer, Float64}, Union{Integer, Float64}),
+        (Array{Float64}, Array{Float64}),
         (Array{Int,2},Array{Int,2}),
         ((1, '2'), (3, '4')),
         ([1, 2, 3], [0]),
@@ -94,6 +94,8 @@ end
             @test adt.typename == "JugsawIR.JEnum"
         elseif obj isa DataType
             @test adt.typename == "JugsawIR.JDataType"
+        elseif obj isa UnionAll
+            @test adt == JugsawIR.type2str(obj)
         else
             @test adt.typename == sT
         end
