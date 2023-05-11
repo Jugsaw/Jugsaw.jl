@@ -74,7 +74,7 @@ function julia2adt!(@nospecialize(_x::T), tt::TypeTable) where T
         end
     end
 end
-function safe_f2str(f::Function)
+function safe_f2str(f)
     sf = string(f)
     '.' ∈ sf && throw("function must be imported to the `Main` module before it can be exposed!")
     return sf

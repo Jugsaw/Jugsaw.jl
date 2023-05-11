@@ -15,7 +15,7 @@ using HTTP, JugsawIR.JSON3
     @test newtypes isa Jugsaw.JugsawIR.TypeTable
 
     # parse function call
-    fcall, _ = julia2ir(first(app.method_demos).second[1].fcall)
+    fcall, _ = julia2ir(first(app.method_demos["sin"]).fcall)
     
     r = AppRuntime(app)
     req = HTTP.Request("POST", "/actors/testapp.sin/0/method/", ["Content-Type" => "application/json"], fcall; context=Dict(:params=>Dict("actor_id"=>"0")))
@@ -28,15 +28,15 @@ using HTTP, JugsawIR.JSON3
     @test length(r.state_store.store) == 1
 
     # nested function call
-    cos_call = """{"fields":[{"fields":[],"type":"Base.cos"},
-    {"fields":[8.0],"type":"Core.Tuple{Core.Float64}"},
-    {"fields":[],"type":"Core.NamedTuple{(), Core.Tuple{}}"}],
-    "type":"JugsawIR.Call{Base.cos, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}"}"""
+    cos_call = """{"fields":["cos",
+        {"fields":[8.0],"type":"Core.Tuple{Core.Float64}"},
+        {"fields":[],"type":"Core.NamedTuple{(), Core.Tuple{}}"}],
+        "type":"JugsawIR.Call"}"""
 
-    fcall3 = """{"fields":[{"fields":[],"type":"Base.sin"},
-    {"fields":[$cos_call],"type":"Core.Tuple{Core.Float64}"},
-    {"fields":[],"type":"Core.NamedTuple{(), Core.Tuple{}}"}],
-    "type":"JugsawIR.Call{Base.sin, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}"}"""
+    fcall3 = """{"fields":["sin",
+        {"fields":[$cos_call],"type":"Core.Tuple{Core.Float64}"},
+        {"fields":[],"type":"Core.NamedTuple{(), Core.Tuple{}}"}],
+        "type":"JugsawIR.Call"}"""
     req = HTTP.Request("POST", "/actors/testapp.sinx/0/method/", ["Content-Type" => "application/json"], fcall3; context=Dict(:params=>Dict("actor_id"=>"0")))
     ret = Jugsaw.act!(r, req)
     @test ret.status == 200
@@ -50,7 +50,7 @@ using HTTP, JugsawIR.JSON3
     state_store[key] = Jugsaw.Future()
 
     # 2. create a demo message call
-    demo = first(app.method_demos)[2]
+    demo = first(first(app.method_demos)[2])
     fcall = Call(demo.fcall.fname, (0.6,), (;))
     msg = Jugsaw.Message(fcall, Jugsaw.ObjectRef(key))
 
@@ -68,9 +68,9 @@ using HTTP, JugsawIR.JSON3
     struct A end
     @register app A()
     @test Jugsaw.nfunctions(app) == 2
-    demo = first(app.method_demos)[2]
+    demo = first(first(app.method_demos)[2])
     @test feval(demo.fcall) == A()
-    demo = app.method_demos[app.method_sigs[1]]
+    demo = app.method_demos[app.method_names[1]][1]
     @test fevalself(demo.fcall) == (1, 2, 3)
 end
 

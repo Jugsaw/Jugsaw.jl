@@ -13,8 +13,8 @@ end
 @testset "parse" begin
     app = Client.load_demos_from_dir(joinpath(dirname(@__DIR__), "testapp"))
     println(app)
-    @test app.cos[].second isa Client.Demo
-    print(app.cos[].second.meta["docstring"])
-    @test app.cos[].second.meta["docstring"] isa String
+    @test app.cos[] isa Client.Demo
+    print(app.cos[].meta["docstring"])
+    @test app.cos[].meta["docstring"] isa String
     #Client.print_app(app)
 end

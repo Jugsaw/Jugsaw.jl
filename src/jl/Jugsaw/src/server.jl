@@ -145,7 +145,7 @@ end
 function renderobj!(r::AppRuntime, adt, thisdemo, actor_id)
     if adt isa JugsawADT && adt.typename == "JugsawIR.Call"
         fdemo = match_demo(adt, r.app)
-        resp = addjob!(r, adt, fdemo, actor_id)
+        resp = addjob!(r, adt, fdemo.fcall, actor_id)
         # Return an object getter, which is a `Call` instance that fetches objects from the state_store.
         return object_getter(r.state_store, resp.object_id)
     else

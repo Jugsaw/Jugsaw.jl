@@ -1,26 +1,3 @@
-struct JugsawObj
-    typename::String
-    fields::Vector
-    fieldnames::Vector
-end
-Base.:(==)(a::JugsawObj, b::JugsawObj) = a.typename == b.typename && a.fields == b.fields
-Base.isapprox(a::JugsawObj, b::JugsawObj; kwargs...) = a.typename == b.typename && isapprox(a.fields, b.fields; kwargs...)
-Base.show(io::IO, ::MIME"plain/text", obj::JugsawObj) = Base.show(io, obj)
-function Base.show(io::IO, obj::JugsawObj)
-    typename, fields, fieldnames = obj.typename, obj.fields, obj.fieldnames
-    print(io, "$typename(")
-    for (k, (fn, fv)) in enumerate(zip(fieldnames, fields))
-        print(io, "$fn = $(repr(fv))")
-        if k!=length(fields)
-            print(io, ", ")
-        end
-    end
-    print(io, ")")
-end
-# function JugsawIR.todict!(x::JugsawObj, tt::TypeTable)
-#     JugsawIR.def!(tt::TypeTable, x.typename, x.fieldnames, (JugsawIR.todict!.(x.fields, Ref(tt))...,))
-# end
-
 function load_app(str::String)
     adt = JugsawIR.ir2adt(str)
     appadt, typesadt = adt.storage
@@ -37,9 +14,9 @@ function _load_app(obj::JugsawADT, tt::TypeTable)
         demos[fname] = Demo[]
         for demo in method_demos[_fname].storage
             (_fcall, result, meta) = demo.fields
-            fname, args, kwargs = _fcall.fields
-            jf = Call(fname, args, (; zip(Symbol.(get_fieldnames(kwargs, tt)), kwargs.fields)...))
-            demo = Demo(jf, result, meta)
+            _fname, args, kwargs = _fcall.fields
+            jf = Call(fname, (args.fields...,), (; zip(Symbol.(JugsawIR.get_fieldnames(kwargs, tt)), kwargs.fields)...))
+            demo = Demo(jf, result, Dict(zip(meta.fields[1].storage, meta.fields[2].storage)))
             push!(demos[fname], demo)
         end
     end

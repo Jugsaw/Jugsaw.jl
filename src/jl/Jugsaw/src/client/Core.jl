@@ -28,7 +28,7 @@ function Base.show(io::IO, app::App)
         println(io, "  - $name")
         k = 0
         if length(demos) == 1
-            println(io, "    $(demos[].second)")
+            println(io, "    $(demos[].result)")
             k += 1
         else
             for demo in demos

@@ -38,15 +38,15 @@ function load_demos_from_dir(dirname::String)
 end
 
 function test_demo(remote::AbstractHandler, app::App, fname::Symbol, actor_id::String)
-    for (i, (sig, demo)) in enumerate(getproperty(app, fname))
+    for (i, demo) in enumerate(getproperty(app, fname))
         got = call(remote, app, fname, i, actor_id, demo.fcall.args...; demo.fcall.kwargs...)()
         got == demo.result || got ≈ demo.result || return false
     end
     return true
 end
 function call(remote::AbstractHandler, app::App, fname::Symbol, which::Int, actor_id::String, args...; kwargs...)
-    fsig, demo = getproperty(app, fname)[which]
-    req = render_jsoncall(fsig, demo.fcall.fname, args, (; kwargs...)) # Serialize
+    demo = getproperty(app, fname)[which]
+    req = render_jsoncall(demo.fcall.fname, args, (; kwargs...)) # Serialize
     if remote isa LocalHandler
         path = string(remote.uri)
         mkpath(path)
@@ -66,8 +66,8 @@ function call(remote::AbstractHandler, app::App, fname::Symbol, which::Int, acto
     end
 end
 
-function render_jsoncall(fsig, fname, args, kwargs)
-    str, obj = julia2ir(JugsawObj(fsig, [fname, args, kwargs], ["fname", "args", "kwargs"]))
+function render_jsoncall(fname, args, kwargs)
+    str, tt = julia2ir(JugsawIR.Call(fname, args, kwargs))
     return str
 end
 # TODO: dispatch to the correct type!
