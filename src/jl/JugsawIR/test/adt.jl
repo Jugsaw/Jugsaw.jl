@@ -45,7 +45,7 @@ obj_demos = [
     (Dict(2=>3), Dict(5=>2, 4=>3)),
     (Dict(:s=>3), Dict(:x=>5, :z=>6)),
     (GraphT(4), GraphT(6)),
-    (JugsawIR.Call(isapprox, Any[2.0, 2.001], ["atol"], Any[1e-2]), JugsawIR.Call(isapprox, Any[2.00001, 2.0000], String["atol"], [1e-3])),
+    (JugsawIR.Call(isapprox, (2.0, 2.001), (;atol =1e-2)), JugsawIR.Call(isapprox, (2.00001, 2.0000), (; atol=1e-3))),
     ((; complex=1+2im,
             Tensor= randn(3,3),
             Graph = GraphT(6, [2 4 1; 3 1 6]),

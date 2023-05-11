@@ -18,7 +18,7 @@ end
 function (r::LazyReturn)()
     fet = JSON3.write((; r.object_id))
     res = String(HTTP.post(r.uri, ["Content-Type" => "application/json"], fet).body)
-    return parse4(res, r.demo_result)
+    return ir2julia(res, r.demo_result)
 end
 
 #Base.getproperty(a::App, name::Symbol) = ActorTypeRef(a, string(name))
@@ -53,7 +53,7 @@ function call(remote::AbstractHandler, app::App, fname::Symbol, which::Int, acto
         open(joinpath(path, "fcall.json"), "w") do f
             write(f, req)
         end
-        return () -> parse4(read(joinpath(path, "result.json"), String), demo.result)
+        return () -> ir2julia(read(joinpath(path, "result.json"), String), demo.result)
     else
         act_url = joinpath(remote.uri, "actors", "$(app[:name]).$fname", actor_id, "method")
         #fetch_url = joinpath(act_url, "fetch")
@@ -67,7 +67,7 @@ function call(remote::AbstractHandler, app::App, fname::Symbol, which::Int, acto
 end
 
 function render_jsoncall(fsig, fname, args, kwargs)
-    str, obj = json4(JugsawObj(fsig, [fname, args, kwargs], ["fname", "args", "kwargs"]))
+    str, obj = julia2ir(JugsawObj(fsig, [fname, args, kwargs], ["fname", "args", "kwargs"]))
     return str
 end
 # TODO: dispatch to the correct type!
@@ -104,7 +104,7 @@ end
 # can we access the object without knowing the appname and function name?
 function fetch(remote::RemoteHandler, object_id::String, app::App, fname::Symbol, actor_id::String)
     fet = JSON3.write((; object_id))
-    return parse4(HTTP.post(joinpath(string(remote.uri), "actors", "$(app.name).$fname", actor_id, "method", "fetch"), ["Content-Type" => "application/json"], fet), demo.result)
+    return ir2julia(HTTP.post(joinpath(string(remote.uri), "actors", "$(app.name).$fname", actor_id, "method", "fetch"), ["Content-Type" => "application/json"], fet), demo.result)
 end
 
 healthz(remote::RemoteHandler) = JSON3.read(HTTP.get(joinpath(string(remote.uri), "healthz")).body)

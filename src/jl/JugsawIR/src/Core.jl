@@ -62,22 +62,22 @@ key_type(::AbstractDict{T}) where {T} = T
 ################### Types ####################
 struct Call
     fname
-    args::Vector
-    kwargnames::Vector{String}
-    kwargvalues::Vector
+    args::Tuple
+    kwargs::NamedTuple
 end
-Base.:(==)(a::Call, b::Call) = a.fname == b.fname && a.args == b.args && a.kwargnames == b.kwargnames && a.kwargvalues == b.kwargvalues
+Base.:(==)(a::Call, b::Call) = a.fname == b.fname && a.args == b.args && a.kwargs == b.kwargs
 
 function same_signature(a::Call, b::Call)
     return a.fname == b.fname && 
         all([typeof(t1) == typeof(t2) for (t1, t2) in zip(a.args, b.args)]) && 
-        all([typeof(t1) == typeof(t2) for (t1, t2) in zip(a.kwargvalues, b.kwargvalues)])
+        all([typeof(t1) == typeof(t2) for (t1, t2) in zip(a.kwargs, b.kwargs)])
 end
 
 feval(f::Call, args...; kwargs...) = f.fname(args...; kwargs...)
 # evaluate nested function call
 fevalself(x) = x
-fevalself(f::Call) = feval(f, map(fevalself, f.args)...; zip(Symbol.(f.kwargnames), map(fevalself, f.kwargvalues))...)
+fevalself(f::Call) = feval(f, map(fevalself, f.args)...; update_kwargs(f.kwargs, map(fevalself, f.kwargs))...)
+update_kwargs(::NamedTuple{K, V}, vals) where {K, V} = length(K) == 0 ? (;) : NamedTuple{K}(vals...)
 
 # return a string as the function signature
 # function function_signature(f::Call)
@@ -85,7 +85,7 @@ fevalself(f::Call) = feval(f, map(fevalself, f.args)...; zip(Symbol.(f.kwargname
 # end
 
 function Base.show(io::IO, f::Call)
-    kwargs = join(["$k=$(repr(v))" for (k, v) in zip(f.kwargnames, f.kwargvalues)], ", ")
+    kwargs = join(["$k=$(repr(v))" for (k, v) in pairs(f.kwargs)], ", ")
     args = join([repr(v) for v in f.args], ", ")
     print(io, "$(f.fname)($args; $kwargs)")
 end

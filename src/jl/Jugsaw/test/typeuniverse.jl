@@ -13,8 +13,9 @@ using Test
         File("七里香.mp3", rand(UInt8, 100)),
         RGBImage(rand(3, 100, 100))
         ]
-        js, tp = json4(x)
-        obj = parse4(js, x)
+        @info x
+        js, tp = julia2ir(x)
+        obj = ir2julia(js, x)
         @test x == obj
     end
 end

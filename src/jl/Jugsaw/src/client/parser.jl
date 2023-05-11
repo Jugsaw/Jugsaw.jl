@@ -17,13 +17,13 @@ function Base.show(io::IO, obj::JugsawObj)
     end
     print(io, ")")
 end
-function JugsawIR.todict!(x::JugsawObj, tt::TypeTable)
-    JugsawIR.def!(tt::TypeTable, x.typename, x.fieldnames, (JugsawIR.todict!.(x.fields, Ref(tt))...,))
-end
+# function JugsawIR.todict!(x::JugsawObj, tt::TypeTable)
+#     JugsawIR.def!(tt::TypeTable, x.typename, x.fieldnames, (JugsawIR.todict!.(x.fields, Ref(tt))...,))
+# end
 
 function load_app(str::String)
-    tdemos, ttypes = JugsawIR.Lerche.parse(JugsawIR.jp, str).children[].children
-    types = JugsawIR.fromtree(ttypes, JugsawIR.demoof(TypeTable))
+    adt = JugsawIR.ir2adt(sdemos)
+    appadt, typesadt = adt.storage
     return _load_app(tdemos, types)
 end
 function _load_app(t::Tree, types::TypeTable)
@@ -33,7 +33,7 @@ function _load_app(t::Tree, types::TypeTable)
     for sig in method_sigs
         (_fcall, result, meta) = method_demos[sig].fields
         fcall, args, kwargs = _fcall.fields
-        jf = JugsawFunctionCall(fcall.typename, args, (; zip(Symbol.(kwargs.fieldnames), kwargs.fields)...))
+        jf = Call(fcall.typename, args, (; zip(Symbol.(kwargs.fieldnames), kwargs.fields)...))
         demo = Demo(jf, result, meta)
         # document the demo
         fname = purename(Meta.parse(fcall.typename))

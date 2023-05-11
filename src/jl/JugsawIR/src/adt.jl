@@ -41,12 +41,16 @@ function Base.show(io::IO, t::TypeTable)
     println(io, "TypeTable")
     for (k, typename) in enumerate(t.names)
         println(io, "  - $typename")
+        if !haskey(t.defs, typename)
+            println(io, "    - not exist")
+            continue
+        end
         type = t.defs[typename]
         fns, fts = fieldnames(type), type.types
         for (l, (fn, ft)) in enumerate(zip(fns, fts))
             print(io, "    - $fn::$ft")
             if !(k == length(t.names) && l == length(fns))
-                println()
+                println(io)
             end
         end
     end
@@ -78,7 +82,7 @@ function julia2adt!(@nospecialize(_x::T), tt::TypeTable) where T
         ::UndefInitializer => nothing
         ::DirectlyRepresentableTypes => x
         ::Vector => JugsawADT.Vector(julia2adt!.(x, Ref(tt)))
-        ::Function => string(x)
+        ::Function => f2str(x)
         ###################### Generic Compsite Types ######################
         _ => begin
             JugsawADT.Object(type2str(Tx), 
@@ -87,6 +91,8 @@ function julia2adt!(@nospecialize(_x::T), tt::TypeTable) where T
         end
     end
 end
+f2str(f::Function) = "$(typeof(f).name.module).$(Symbol(f))"
+f2str(::Type{T}) where T = type2str(T)
 
 ###################### ADT to julia
 function adt2julia(t, demo::T) where T
@@ -95,7 +101,7 @@ function adt2julia(t, demo::T) where T
         ::Nothing || ::Missing || ::UndefInitializer || ::Type || ::Function => demo
         ::Char => T(t[1])
         ::DirectlyRepresentableTypes => T(t)
-        ::Vector => T(adt2julia.(t.storage, demoofarray(demo)))
+        ::Vector => T(adt2julia.(t.storage, Ref(demoofarray(demo))))
         ###################### Generic Compsite Types ######################
         _ => begin
             construct_object(t, demo)

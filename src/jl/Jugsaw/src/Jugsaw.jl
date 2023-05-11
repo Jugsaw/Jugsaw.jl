@@ -2,7 +2,7 @@ module Jugsaw
 
 using JugsawIR
 using JugsawIR.JSON3
-using JugsawIR: @match, Tree
+using JugsawIR: @match, Tree, Call
 using UUIDs
 using UUIDs: uuid4
 using HTTP

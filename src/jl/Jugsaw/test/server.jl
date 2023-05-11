@@ -15,7 +15,7 @@ using HTTP, JugsawIR.JSON3
     @test newtypes isa Jugsaw.JugsawIR.TypeTable
 
     # parse function call
-    fcall, _ = json4(first(app.method_demos)[2].fcall)
+    fcall, _ = julia2ir(first(app.method_demos).second[1].fcall)
     
     r = AppRuntime(app)
     req = HTTP.Request("POST", "/actors/testapp.sin/0/method/", ["Content-Type" => "application/json"], fcall; context=Dict(:params=>Dict("actor_id"=>"0")))
@@ -31,12 +31,12 @@ using HTTP, JugsawIR.JSON3
     cos_call = """{"fields":[{"fields":[],"type":"Base.cos"},
     {"fields":[8.0],"type":"Core.Tuple{Core.Float64}"},
     {"fields":[],"type":"Core.NamedTuple{(), Core.Tuple{}}"}],
-    "type":"JugsawIR.JugsawFunctionCall{Base.cos, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}"}"""
+    "type":"JugsawIR.Call{Base.cos, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}"}"""
 
     fcall3 = """{"fields":[{"fields":[],"type":"Base.sin"},
     {"fields":[$cos_call],"type":"Core.Tuple{Core.Float64}"},
     {"fields":[],"type":"Core.NamedTuple{(), Core.Tuple{}}"}],
-    "type":"JugsawIR.JugsawFunctionCall{Base.sin, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}"}"""
+    "type":"JugsawIR.Call{Base.sin, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}"}"""
     req = HTTP.Request("POST", "/actors/testapp.sinx/0/method/", ["Content-Type" => "application/json"], fcall3; context=Dict(:params=>Dict("actor_id"=>"0")))
     ret = Jugsaw.act!(r, req)
     @test ret.status == 200
@@ -51,7 +51,7 @@ using HTTP, JugsawIR.JSON3
 
     # 2. create a demo message call
     demo = first(app.method_demos)[2]
-    fcall = JugsawFunctionCall(demo.fcall.fname, (0.6,), (;))
+    fcall = Call(demo.fcall.fname, (0.6,), (;))
     msg = Jugsaw.Message(fcall, Jugsaw.ObjectRef(key))
 
     # 3. compute and fetch the result
@@ -87,12 +87,12 @@ end
     # HTTP.register!(r, "DELETE", "/actors/{actor_type_name}/{actor_id}", req -> deactivate!(runtime, req))
     @test JSON3.read(r(HTTP.Request("GET", "/healthz"))).status == "OK"
     @test JSON3.read(r(HTTP.Request("GET", "/dapr/config"))).entities == []
-    demo = app.method_demos["JugsawIR.JugsawFunctionCall{Base.sin, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}"]
-    req, types = json4(JugsawFunctionCall(demo.fcall.fname, (8.0,), (;)))
+    demo = app.method_demos["Base.sin"][1]
+    req, types = julia2ir(Call(demo.fcall.fname, (8.0,), (;)))
     id = JSON3.read(r(HTTP.Request("POST", "/actors/testapp.sin/0/method/", ["Content-Type" => "application/json"], req)).body).object_id
     @test id isa String
     fet = JSON3.write((; object_id=id))
-    @test parse4(r(HTTP.Request("POST", "/actors/testapp.sin/0/method/fetch", ["Content-Type" => "application/json"], fet)), demo.result) ≈ sin(8.0)
+    @test ir2julia(r(HTTP.Request("POST", "/actors/testapp.sin/0/method/fetch", ["Content-Type" => "application/json"], fet)), demo.result) ≈ sin(8.0)
     loaded_app = Jugsaw.Client.load_app(r(HTTP.Request("GET", "/apps/testapp/demos")))
     @test loaded_app isa Jugsaw.Client.App
     @test_broken r(HTTP.Request("DELETE", "/actors/testapp.sin/0"))

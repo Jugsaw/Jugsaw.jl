@@ -17,7 +17,7 @@ end
     @register app buggy(0.5)
 
     # parse function call
-    fcall, _ = JugsawIR.json4(first(app.method_demos)[2].fcall)
+    fcall, _ = JugsawIR.julia2ir(first(app.method_demos)[2].fcall)
     
     r = AppRuntime(app)
     req = HTTP.Request("POST", "/actors/testapp.buggy/0/method/", ["Content-Type" => "application/json"], fcall; context=Dict(:params=>Dict("actor_id"=>"0")))
@@ -27,7 +27,7 @@ end
     @test length(r.state_store.store) == 1
 
     # call functions not exist
-    fcall2 = "{\"fields\":[{\"fields\":[],\"type\":\"Base.sinx\"},{\"fields\":[0.8775825618903728],\"type\":\"Core.Tuple{Core.Float64}\"},{\"fields\":[],\"type\":\"Core.NamedTuple{(), Core.Tuple{}}\"}],\"type\":\"JugsawIR.JugsawFunctionCall{Base.sinx, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}\"}"
+    fcall2 = "{\"fields\":[{\"fields\":[],\"type\":\"Base.sinx\"},{\"fields\":[0.8775825618903728],\"type\":\"Core.Tuple{Core.Float64}\"},{\"fields\":[],\"type\":\"Core.NamedTuple{(), Core.Tuple{}}\"}],\"type\":\"JugsawIR.Call{Base.sinx, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}\"}"
     req = HTTP.Request("POST", "/actors/testapp.sinx/0/method/", ["Content-Type" => "application/json"], fcall2; context=Dict(:params=>Dict("actor_id"=>"0")))
     res = Jugsaw.act!(r, req)
     @test res.status == 400
@@ -35,7 +35,7 @@ end
     @show JSON3.read(res.body).error
 
     # trigger the bug
-    fcall3 = """{"fields":[{"fields":[],"type":"Main.buggy"},{"fields":[-0.5],"type":"Core.Tuple{Core.Float64}"},{"fields":[],"type":"Core.NamedTuple{(), Core.Tuple{}}"}],"type":"JugsawIR.JugsawFunctionCall{Main.buggy, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}"}"""
+    fcall3 = """{"fields":[{"fields":[],"type":"Main.buggy"},{"fields":[-0.5],"type":"Core.Tuple{Core.Float64}"},{"fields":[],"type":"Core.NamedTuple{(), Core.Tuple{}}"}],"type":"JugsawIR.Call{Main.buggy, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}"}"""
     req = HTTP.Request("POST", "/actors/testapp.buggy/0/method/", ["Content-Type" => "application/json"], fcall3; context=Dict(:params=>Dict("actor_id"=>"0")))
     res = Jugsaw.act!(r, req)
     @test res.status == 200

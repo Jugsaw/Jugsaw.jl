@@ -99,3 +99,5 @@ function julia2ir(obj)
     adt2ir(obj), adt2ir(tt)
 end
 
+######################## ir2adt
+const ir2adt = tree2adt ∘ ir2tree

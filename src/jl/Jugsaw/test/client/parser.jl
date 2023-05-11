@@ -12,7 +12,7 @@ end
 
 @testset "parse" begin
     for x in [3, true, false, nothing, "##"]
-        obj, type = JugsawIR.json4(x)
+        obj, type = JugsawIR.julia2ir(x)
         #res = JugsawIR.Lerche.parse(Client.jpt, obj)
         res = Client.load_obj(JugsawIR.Lerche.parse(JugsawIR.jp, obj), JugsawIR.TypeTable())
         @test res == x

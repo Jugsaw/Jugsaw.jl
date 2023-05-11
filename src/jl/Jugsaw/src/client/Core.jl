@@ -1,5 +1,5 @@
 struct Demo
-    fcall::JugsawFunctionCall
+    fcall::Call
     result
     meta::Dict{String}
 end

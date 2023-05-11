@@ -11,7 +11,7 @@ Content-Type: application/json
 Accept: application/json
 
 {
-    "__type__" : "Jugsaw.JugsawFunctionCall{Main.#greet, Core.Tuple{Core.String}, Core.NamedTuple{(), Core.Tuple{}}}",
+    "__type__" : "JugsawIR.Call{Main.#greet, Core.Tuple{Core.String}, Core.NamedTuple{(), Core.Tuple{}}}",
     "fname" : "#greet",
     "args" : {"data":["Jugsaw"]},
     "kwargs" : {}
@@ -33,7 +33,7 @@ Content-Type: application/json
 Accept: application/json
 
 {
-    "__type__" : "Jugsaw.JugsawFunctionCall{Core.DataType, Core.Tuple{Core.Int64}, Core.NamedTuple{(), Core.Tuple{}}}",
+    "__type__" : "JugsawIR.Call{Core.DataType, Core.Tuple{Core.Int64}, Core.NamedTuple{(), Core.Tuple{}}}",
     "fname" : "Main.Counter",
     "args" : {"data":[2]},
     "kwargs" : {}
