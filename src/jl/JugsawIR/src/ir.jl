@@ -25,8 +25,8 @@ function tree2adt(t)
             "null" => nothing
             "list" => JugsawADT.Vector(tree2adt.(t.children))
             "genericobj1" => error("type name not specified!")
-            "genericobj2" => buildobj(Meta.parse(tree2adt(t.children[1])), tree2adt.(t.children[2].children))
-            "genericobj3" => buildobj(Meta.parse(tree2adt(t.children[2])), tree2adt.(t.children[1].children))
+            "genericobj2" => buildobj(tree2adt(t.children[1]), tree2adt.(t.children[2].children))
+            "genericobj3" => buildobj(tree2adt(t.children[2]), tree2adt.(t.children[1].children))
         end
         ::Token => begin
             try
@@ -42,13 +42,16 @@ function tree2adt(t)
         end
     end
 end
-function buildobj(type, fields::Vector)
-    @match type begin
-        :(Jugsaw.TypeAsFunction{$type}) => buildobj(type, fields)
-        :($type{$(args...)}) => buildobj(type, fields)
-        _ => JugsawADT.Object(string(type), fields)
-    end
-end
+buildobj(type::String, fields::Vector) = JugsawADT.Object(type, fields)
+# buildobj(type::String, fields::Vector) = buildobj(Meta.parse(type), typename, fields)
+# function buildobj(typeexpr, typename::String, fields::Vector)
+#     @match typeexpr begin
+#         # protect type as function
+#         :(JugsawIR.TypeAsFunction{$ftype}) => buildobj(ftype, string(@show ftype) fields)
+#         :($type{$(args...)}) => buildobj(type, typename, fields)
+#         _ => JugsawADT.Object(typename, fields)
+#     end
+# end
 
 ############## construct an object from the Lerche.Tree and JugsawADT demo.
 # note JugsawADT demo parsing does not following the rule for the generic types.
@@ -81,7 +84,7 @@ function _adt2ir(x)
             _makedict(type, Any[_adt2ir(v) for v in fields])
         end
         JugsawADT.Vector(storage) => _adt2ir.(storage)
-        ::DirectlyRepresentableTypes => x
+        ::DirectlyRepresentableTypes || ::UndefInitializer => x
         _ => error("type can not be casted to IR, got: $x of type $(typeof(x))")
     end
 end

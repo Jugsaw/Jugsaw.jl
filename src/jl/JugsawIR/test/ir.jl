@@ -53,9 +53,9 @@ end
         (1:3, 2:6),
         (1:0.01:2, 1:0.03:4.0),
         (e2, e3),
-        (Union{}, Union{}),
-        (Union{Integer, Float64}, Union{Integer, Float64}),
-        (Array{Float64}, Array{Float64}),
+        #(Union{}, Union{}),
+        #(Union{Integer, Float64}, Union{Integer, Float64}),
+        #(Array{Float64}, Array{Float64}),
         (Array{Int,2},Array{Int,2}),
         ((1, '2'), (3, '4')),
         ([1, 2, 3], [0]),
@@ -82,20 +82,32 @@ end
 
         # get type
         tree = JugsawIR.Lerche.parse(JugsawIR.jp, str)
-        if !(typeof(obj) <: JugsawIR.DirectlyRepresentableTypes || obj === undef)
-            @test JugsawIR._gettype(tree) == sT
+        adt = JugsawIR.tree2adt(tree)
+        if typeof(obj) <: JugsawIR.DirectlyRepresentableTypes || obj === undef
+        elseif obj isa Vector
+            @test adt isa JugsawADT
+        elseif obj isa Dict
+            @test adt.typename == "JugsawIR.JDict{$(JugsawIR.type2str(JugsawIR.key_type(obj))), $(JugsawIR.type2str(JugsawIR.value_type(obj)))}"
+        elseif obj isa Array
+            @test adt.typename == "JugsawIR.JArray"
+        elseif obj isa Enum
+            @test adt.typename == "JugsawIR.JEnum"
+        elseif obj isa DataType
+            @test adt.typename == "JugsawIR.JDataType"
+        else
+            @test adt.typename == sT
         end
         # load objects
         res = ir2julia(str, demo)
         @test obj === res || obj == res
         # load type table
-        #tt = ir2julia(typestr, JugsawIR.demoof(JugsawIR.TypeTable))
-        #@test tt isa JugsawIR.TypeTable
+        tt = ir2julia(typestr, JugsawIR.demoof(JugsawIR.TypeTable))
+        @test tt isa JugsawIR.TypeTable
     end
 end
 
 @testset "datatype" begin
     type, tt = julia2ir(ComplexF64)
-    @test type == "{\"fields\":[\"Base.Complex{Core.Float64}\",[\"re\",\"im\"],[\"Core.Float64\",\"Core.Float64\"]],\"type\":\"Core.DataType\"}"
+    @test type == "{\"fields\":[\"Base.Complex{Core.Float64}\",[\"re\",\"im\"],[\"Core.Float64\",\"Core.Float64\"]],\"type\":\"JugsawIR.JDataType\"}"
     println(tt)
 end

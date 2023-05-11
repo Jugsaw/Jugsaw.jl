@@ -31,11 +31,6 @@ function Base.empty!(app::AppSpecification)
     return app
 end
 
-struct TypeAsFunction{T} end
-protect_type(::Type{T}) where T = TypeAsFunction{T}()
-protect_type(x) = x
-(::TypeAsFunction{T})(args...; kwargs...) where T = T(args...; kwargs...)
-
 function register!(app::AppSpecification, _f, args, kwargs)
     f = protect_type(_f)
     jf = JugsawFunctionCall(f, args, kwargs)
@@ -51,7 +46,7 @@ end
 module_and_symbol(f::DataType) = f.name.module, f.name.name
 module_and_symbol(f::Function) = typeof(f).name.module, Symbol(f)
 module_and_symbol(f::UnionAll) = module_and_symbol(f.body)
-module_and_symbol(::TypeAsFunction{T}) where T = module_and_symbol(T)
+module_and_symbol(::JugsawIR.TypeAsFunction{T}) where T = module_and_symbol(T)
 
 macro register(app, ex)
     reg_statements = []

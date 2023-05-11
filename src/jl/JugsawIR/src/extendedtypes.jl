@@ -65,3 +65,10 @@ end
 function construct_object(t::JugsawADT, demo::Tuple)
     ([adt2julia(v, d) for (v, d) in zip(t.fields, demo)]...,)
 end
+
+# ##### TypeAsFunction
+# # Protect type function with a wrapper, to prevent it being rendered as `DataType`.
+# struct TypeAsFunction{T} end
+# protect_type(::Type{T}) where T = TypeAsFunction{T}()
+# protect_type(x) = x
+# (::TypeAsFunction{T})(args...; kwargs...) where T = T(args...; kwargs...)
