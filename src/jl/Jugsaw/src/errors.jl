@@ -6,11 +6,11 @@ function Base.showerror(io::IO, e::NoDemoException, trace)
     print(io, "method does not exist, got: $(e.func_sig), available functions are:\n  - $(join(e.available, "\n  - "))")
 end
 struct BadSyntax <: Exception
-    tree::Tree
+    adt::JugsawADT
 end
 function Base.showerror(io::IO, e::BadSyntax, trace)
     buffer = IOBuffer()
-    print_tree(buffer, e.tree)
+    print(buffer, e.adt)
     s = String(take!(buffer))
     print(io, "Syntax error, got: $s")
 end

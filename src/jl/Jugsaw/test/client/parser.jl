@@ -11,17 +11,10 @@ using Markdown
 end
 
 @testset "parse" begin
-    for x in [3, true, false, nothing, "##"]
-        obj, type = JugsawIR.json4(x)
-        #res = JugsawIR.Lerche.parse(Client.jpt, obj)
-        res = Client.load_obj(JugsawIR.Lerche.parse(JugsawIR.jp, obj), JugsawIR.TypeTable())
-        @test res == x
-    end
-
     app = Client.load_demos_from_dir(joinpath(dirname(@__DIR__), "testapp"))
     println(app)
-    @test app.cos[].second isa Client.Demo
-    print(app.cos[].second.meta["docstring"])
-    @test app.cos[].second.meta["docstring"] isa String
+    @test app.cos[] isa Client.Demo
+    print(app.cos[].meta["docstring"])
+    @test app.cos[].meta["docstring"] isa String
     #Client.print_app(app)
 end

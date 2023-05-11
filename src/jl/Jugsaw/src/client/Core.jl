@@ -1,5 +1,5 @@
 struct Demo
-    fcall::JugsawFunctionCall
+    fcall::Call
     result
     meta::Dict{String}
 end
@@ -12,7 +12,7 @@ Base.Docs.doc(d::Demo) = Markdown.parse(get(d.meta, "docstring", ""))
 # the application instance, potential issues: function names __name, __endpoint and __method_demos, __type_table may cause conflict.
 struct App
     name::Symbol
-    method_demos::OrderedDict{Symbol, Vector{Pair{String, Demo}}}
+    method_demos::OrderedDict{Symbol, Vector{Demo}}
     type_table::TypeTable
 end
 function Base.getproperty(app::App, fname::Symbol)
@@ -28,11 +28,11 @@ function Base.show(io::IO, app::App)
         println(io, "  - $name")
         k = 0
         if length(demos) == 1
-            println(io, "    $(demos[].second)")
+            println(io, "    $(demos[].result)")
             k += 1
         else
             for demo in demos
-                println(io, "    $('a' + k): $(demo.second)")
+                println(io, "    $('a' + k): $(demo)")
                 k += 1
             end
         end
@@ -42,18 +42,4 @@ function Base.show(io::IO, app::App)
     #print(io, app.type_table)
 end
 # for printing docstring
-Base.Docs.Binding(app::App, sym::Symbol) = getproperty(app, sym)[1].second
-
-# print_app(demos::App) = print_app(stdout, demos)
-# function print_app(io::IO, app::App)
-#     name, method_sigs, method_demos, type_table = app.name, app.method_demos, app.type_table
-#     println(io, "AppSpecification: $name")
-#     demodict = Dict(zip(method_demos.fields...))
-#     for fname in method_sigs.fields[2]
-#         call, res = demodict[fname].fields
-#         fname, args, kwargs = call.fields
-#         kwstr = join(["$(repr(k))=$(repr(v))" for (k, v) in kwargs.fields], ", ")
-#         argstr = join(["$(repr(v))" for v in args.fields], ", ")
-#         println(io, "  - $(fname.typename)($argstr; $kwstr) == $(repr(res))")
-#     end
-# end
+Base.Docs.Binding(app::App, sym::Symbol) = getproperty(app, sym)[1]

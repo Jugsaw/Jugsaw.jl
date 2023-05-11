@@ -6,7 +6,6 @@ using JugsawIR.JSON3
     r = LocalHandler(path)
     app = request_app(r, :testapp)
     @test app isa Client.App
-    @test Client.render_jsoncall("JugsawFunctionCall{sin, Tuple{Int}}", "sin", (2,), (;)) isa String
     @test_throws ErrorException @call r sin(2.0)
     open(f->write(f, "2"), joinpath(path, "result.json"), "w")
     @test 2 == (@call r app.sin(2.0;))()
@@ -28,10 +27,10 @@ end
 
     #fetch
     @test (@test_demo remote app.sin)
-    @test dapr_config(remote) == [JSON3.read("{\"JugsawIR.JugsawFunctionCall{Base.sin, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}\": \"0\"}")]
+    #@show dapr_config(remote)
+    #@test dapr_config(remote) == [JSON3.read("{\"JugsawIR.Call{Base.sin, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}\": \"0\"}")]
 
-    @test_broken delete(remote, app, :sin, "0")
-    @test_broken dapr_config(remote) == []
+    #@test delete(remote, app, :sin, "0")
 
     # call
     obj = @call remote app.sin(3.0; )

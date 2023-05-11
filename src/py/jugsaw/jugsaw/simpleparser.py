@@ -174,5 +174,5 @@ if __name__ == "__main__":
     print(res)
     assert res == JugsawObject(JugsawType("Jugsaw", "TP", None), [], [])
 
-    res = jtp.parse("Jugsaw.JugsawFunctionCall{Main.#solve, Core.Tuple{Main.IndependentSetConfig, GenericTensorNetworks.CountingMax{2}}, Core.NamedTuple{(:usecuda, :seed), Core.Tuple{Core.Bool, Core.Int64}}}")
+    res = jtp.parse("JugsawIR.Call{Main.#solve, Core.Tuple{Main.IndependentSetConfig, GenericTensorNetworks.CountingMax{2}}, Core.NamedTuple{(:usecuda, :seed), Core.Tuple{Core.Bool, Core.Int64}}}")
     print(res)

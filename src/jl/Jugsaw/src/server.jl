@@ -38,9 +38,9 @@ function put_message(a::Actor, msg::Message)
 end
 
 # do the computation
-function do!(state_store::StateStore, democall::JugsawFunctionCall, msg::Message)
+function do!(state_store::StateStore, democall::Call, msg::Message)
     try
-        res = fevalself(JugsawFunctionCall(democall.fname, msg.request.args, msg.request.kwargs))
+        res = fevalself(Call(democall.fname, msg.request.args, msg.request.kwargs))
         @info "store result: $res"
         # TODO: custom serializer
         state_store[msg.response.object_id] = res
@@ -73,13 +73,10 @@ Try to activate an actor. If the actor of `actor_id` does not exist yet, a new
 one is created based on the registered `ActorFactor` of `actor_type`. Note that
 the actor may be configured to recover from its lastest state snapshot.
 """
-function activate(r::AppRuntime, actor_type::String, actor_id::String)
-    if haskey(r.app.method_demos, actor_type)
-        get!(r.actors, actor_type => actor_id) do
-            Actor(r.state_store, r.app.method_demos[actor_type])
-        end
-    else
-        error("actor type does not exist: $actor_type, we have $(keys(r.app.method_demos))")
+function activate(r::AppRuntime, actor_type::JugsawADT, actor_id::String)
+    demo = match_demo_or_throw(actor_type, r.app)
+    get!(r.actors, actor_type.fields[1] => actor_id) do
+        Actor(r.state_store, demo)
     end
 end
 
@@ -87,78 +84,60 @@ function act!(r::AppRuntime, http::HTTP.Request)
     params = HTTP.getparams(http)
     # NOTE: actor_id is harmful to nested call!
     actor_id = string(params["actor_id"])
-    tree = JugsawIR.Lerche.parse(JugsawIR.jp, String(http.body))
-    # top level function call
-    # add a job to the queue
-    func_sig = JugsawIR._gettype(tree)
-    # handle function request error
-    if !haskey(r.app.method_demos, func_sig)
-        return _error_response(NoDemoException(func_sig, collect(keys(r.app.method_demos))))
-    end
-
+    adt = JugsawIR.ir2adt(String(http.body)) #JugsawIR.tree2adt(JugsawIR.Lerche.parse(JugsawIR.jp, String(http.body)))
+    # top level must be a function call
     # add jobs recursively to the queue
-    thisdemo = r.app.method_demos[func_sig].fcall
     try
-        resp = addjob!(r, tree, thisdemo, r.app.method_demos, actor_id, 0)
+        thisdemo = match_demo_or_throw(adt, r.app).fcall
+        resp = addjob!(r, adt, thisdemo, actor_id)
         return HTTP.Response(200, ["Content-Type" => "application/json"], JSON3.write(resp))
     catch e
         return _error_response(e)
     end
 end
 
-function addjob!(r::AppRuntime, tree::Tree, thisdemo, demos::Dict{String}, actor_id, level)
-    func_sig = _match_jugsawfunctioncall(tree)
-    # IF tree is a normal object, return the value directly.
-    if func_sig === nothing
-        if level == 0
-            throw(BadSyntax(tree))
-        end
-        return JugsawIR.fromtree(tree, thisdemo)
-    elseif !haskey(demos, func_sig)
-        throw(NoDemoException(func_sig, collect(keys(demos))))
+function match_demo_or_throw(adt::JugsawADT, app::AppSpecification)
+    if adt.typename != "JugsawIR.Call"
+        throw(BadSyntax(adt))
     end
+    fname, args, kwargs = adt.fields
+    res = match_demo(fname, args, kwargs, app)
+    if res === nothing
+        throw(NoDemoException(fname, collect(keys(app.method_demos))))
+    end
+    return res
+end
 
-    nextdemo = demos[func_sig].fcall
-    fname, _args, _kwargs = JugsawIR._getfields(tree)
-    args = JugsawIR._getfields(_args)
-    kwargs = typeof(nextdemo.kwargs)(JugsawIR._getfields(_kwargs))
+function addjob!(r::AppRuntime, adt::JugsawADT, thisdemo::Call, actor_id)
+    # find a demo
+    fname, args, kwargs = adt.fields
     # IF tree is a function call, return an `object_id` for return value.
-    #     recurse over args and kwargs to get `JugsawFunctionCall` parsed.
-    req = JugsawFunctionCall(nextdemo.fname,
-        ntuple(i->addjob!(r, args[i], nextdemo.args[i], demos, actor_id, level+1), length(args)),
-        typeof(kwargs)(ntuple(i->addjob!(r, kwargs[i], nextdemo.kwargs[i], demos, actor_id, level+1), length(kwargs)))
+    #     recurse over args and kwargs to get `Call` parsed.
+    req = Call(thisdemo.fname,
+        ntuple(i->renderobj!(r, args.fields[i], thisdemo.args[i], actor_id), length(args.fields)),
+        typeof(thisdemo.kwargs)(ntuple(i->renderobj!(r, kwargs.fields[i], thisdemo.kwargs[i], actor_id), length(kwargs.fields)))
     )
-    if !haskey(demos, func_sig)
-        throw(NoDemoException(func_sig, collect(keys(demos))))
-        #error("function not available: $(func_sig), the list of functions are $(collect(keys(demos)))")
-    end
-
     # add task to the queue
     @info "task added to the queue: $req"
     resp = ObjectRef()
     r.state_store[resp.object_id] = Future()
     # TODO: load actor state from state store
-    a = activate(r, func_sig, actor_id)
+    a = activate(r, adt, actor_id)
     put_message(a, Message(req, resp))
 
-    if level == 0
-        # IF this is the top level call, return a `ObjectRef` instance.
-        return resp
-    else
-        # OTHERWISE, return an object getter, which is a `JugsawFunctionCall` instance that fetches objects from the state_store.
-        return object_getter(r.state_store, resp.object_id)
-    end
+    # Return a `ObjectRef` instance.
+    return resp
 end
 
-# returns the function signature
-function _match_jugsawfunctioncall(tree::Tree)
-    @assert tree.data == "object"
-    tree.children[1].children[1] isa JugsawIR.Lerche.Token && return nothing
-    func_sig = JugsawIR._gettype(tree)
-    ex = Meta.parse(func_sig)
-    return @match ex begin
-        :(JugsawIR.JugsawFunctionCall{$(_...)}) => func_sig
-        _ => nothing
+# if adt is a function call, launch a job and return an object getter, else, return an object.
+function renderobj!(r::AppRuntime, adt, thisdemo, actor_id)
+    if adt isa JugsawADT && hasproperty(adt, :typename) && adt.typename == "JugsawIR.Call"
+        fdemo = match_demo_or_throw(adt, r.app)
+        resp = addjob!(r, adt, fdemo.fcall, actor_id)
+        # Return an object getter, which is a `Call` instance that fetches objects from the state_store.
+        return object_getter(r.state_store, resp.object_id)
+    else
+        return JugsawIR.adt2julia(adt, thisdemo)
     end
 end
 
@@ -170,7 +149,7 @@ function object_getter(state_store::StateStore, object_id::String)
         res isa CachedError && Base.rethrow(res.exception)
         return res
     end
-    JugsawFunctionCall(getter, (state_store, object_id), (;))
+    Call(getter, (state_store, object_id), (;))
 end
 
 """
@@ -201,7 +180,7 @@ function fetch(r::AppRuntime, req::HTTP.Request)
     if res isa CachedError
         return _error_response(res.exception)
     end
-    return json4(res)[1]
+    return julia2ir(res)[1]
 end
 
 #####
@@ -211,7 +190,7 @@ end
 # save demos to the disk
 function save_demos(dir::String, methods::AppSpecification)
     mkpath(dir)
-    demos, types = JugsawIR.json4(methods)
+    demos, types = JugsawIR.julia2ir(methods)
     fdemos = joinpath(dir, "demos.json")
     @info "dumping demos to: $fdemos"
     open(fdemos, "w") do f
@@ -225,10 +204,9 @@ function load_demos_from_dir(dir::String, demos)
     return load_demos(sdemos, demos)
 end
 function load_demos(sdemos::String, demos)
-    ds, ts = JugsawIR.Lerche.parse(JugsawIR.jp, sdemos).children[].children
-    newdemos = JugsawIR.fromtree(ds, demos)
-    newtypes = JugsawIR.fromtree(ts, JugsawIR.demoof(JugsawIR.TypeTable))
-    return newdemos, newtypes
+    adt = JugsawIR.ir2adt(sdemos)
+    appadt, typesadt = adt.storage
+    return JugsawIR.adt2julia(appadt, demos), JugsawIR.adt2julia(typesadt, JugsawIR.demoof(JugsawIR.TypeTable))
 end
 
 # FIXME: set host to default in k8s
@@ -237,7 +215,7 @@ function get_router(runtime::AppRuntime)
     r = HTTP.Router()
     HTTP.register!(r, "GET", "/healthz", _ -> JSON3.write((; status="OK")))
     HTTP.register!(r, "GET", "/dapr/config", _ -> JSON3.write((; entities=collect(keys(runtime.actors)))))
-    HTTP.register!(r, "GET", "/apps/{appname}/demos", _ -> ((demos, types) = JugsawIR.json4(runtime.app); "[$demos, $types]"))
+    HTTP.register!(r, "GET", "/apps/{appname}/demos", _ -> ((demos, types) = JugsawIR.julia2ir(runtime.app); "[$demos, $types]"))
     HTTP.register!(r, "POST", "/actors/{actor_type_name}/{actor_id}/method/", req -> act!(runtime, req))
     HTTP.register!(r, "POST", "/actors/{actor_type_name}/{actor_id}/method/fetch", req -> fetch(runtime, req))
     HTTP.register!(r, "DELETE", "/actors/{actor_type_name}/{actor_id}", req -> JSON3.write(deactivate!(runtime, req)))

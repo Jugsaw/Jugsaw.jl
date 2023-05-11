@@ -18,7 +18,7 @@ end
 function (r::LazyReturn)()
     fet = JSON3.write((; r.object_id))
     res = String(HTTP.post(r.uri, ["Content-Type" => "application/json"], fet).body)
-    return parse4(res, r.demo_result)
+    return ir2julia(res, r.demo_result)
 end
 
 #Base.getproperty(a::App, name::Symbol) = ActorTypeRef(a, string(name))
@@ -38,38 +38,49 @@ function load_demos_from_dir(dirname::String)
 end
 
 function test_demo(remote::AbstractHandler, app::App, fname::Symbol, actor_id::String)
-    for (i, (sig, demo)) in enumerate(getproperty(app, fname))
+    for (i, demo) in enumerate(getproperty(app, fname))
         got = call(remote, app, fname, i, actor_id, demo.fcall.args...; demo.fcall.kwargs...)()
         got == demo.result || got ≈ demo.result || return false
     end
     return true
 end
 function call(remote::AbstractHandler, app::App, fname::Symbol, which::Int, actor_id::String, args...; kwargs...)
-    fsig, demo = getproperty(app, fname)[which]
-    req = render_jsoncall(fsig, demo.fcall.fname, args, (; kwargs...)) # Serialize
+    demo = getproperty(app, fname)[which]
+    req = JugsawIR.adt2ir(JugsawADT.Object("JugsawIR.Call",
+            [demo.fcall.fname,
+            adt_norecur(args),
+            adt_norecur((; kwargs...))]))
     if remote isa LocalHandler
         path = string(remote.uri)
         mkpath(path)
         open(joinpath(path, "fcall.json"), "w") do f
             write(f, req)
         end
-        return () -> parse4(read(joinpath(path, "result.json"), String), demo.result)
+        return () -> ir2julia(read(joinpath(path, "result.json"), String), demo.result)
     else
         act_url = joinpath(remote.uri, "actors", "$(app[:name]).$fname", actor_id, "method")
-        #fetch_url = joinpath(act_url, "fetch")
-        res = HTTP.post(act_url, ["content-type" => "application/json"], req) # Deserialize
-        #res = HTTP.post(fetch_url, ["content-type" => "application/json"], r.body)
+        local res
+        try
+            res = HTTP.post(act_url, ["content-type" => "application/json"], req) # Deserialize
+        catch e
+            if e isa HTTP.Exceptions.StatusError && e.status == 400
+                res = JSON3.read(String(e.response.body))
+                Base.println(stdout, res.error)
+            end
+            Base.rethrow(e)
+        end
         retstr = String(res.body)
         uri = URI(joinpath(string(remote.uri), "actors", "$(app[:name]).$fname", actor_id, "method", "fetch"))
         object_id = JSON3.read(retstr).object_id
         return LazyReturn(uri, object_id, demo.result)
     end
 end
-
-function render_jsoncall(fsig, fname, args, kwargs)
-    str, obj = json4(JugsawObj(fsig, [fname, args, kwargs], ["fname", "args", "kwargs"]))
-    return str
+function adt_norecur(x::T) where T
+    return JugsawADT.Object(type2str(T), 
+        Any[isdefined(x, fn) ? getfield(x, fn) : undef for fn in fieldnames(T)]
+    )
 end
+
 # TODO: dispatch to the correct type!
 function match_demo(app::App, fname::Symbol, args, kwargs)
     demos = getproperty(app, fname)
@@ -104,7 +115,7 @@ end
 # can we access the object without knowing the appname and function name?
 function fetch(remote::RemoteHandler, object_id::String, app::App, fname::Symbol, actor_id::String)
     fet = JSON3.write((; object_id))
-    return parse4(HTTP.post(joinpath(string(remote.uri), "actors", "$(app.name).$fname", actor_id, "method", "fetch"), ["Content-Type" => "application/json"], fet), demo.result)
+    return ir2julia(HTTP.post(joinpath(string(remote.uri), "actors", "$(app.name).$fname", actor_id, "method", "fetch"), ["Content-Type" => "application/json"], fet), demo.result)
 end
 
 healthz(remote::RemoteHandler) = JSON3.read(HTTP.get(joinpath(string(remote.uri), "healthz")).body)

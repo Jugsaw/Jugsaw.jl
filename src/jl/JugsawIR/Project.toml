@@ -6,6 +6,7 @@ version = "1.0.0-DEV"
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
 Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
+Expronicon = "6b7a57c9-7cc1-4fdf-b7f5-e857abae3636"
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 Lerche = "d42ef402-04e6-4356-9f73-091573ea58dc"
 MLStyle = "d8e11817-5142-5d16-987a-aa16d5891078"

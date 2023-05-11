@@ -1,57 +1,74 @@
 # the application specification
 struct AppSpecification
     name::Symbol
-    # `method_demo` is a mapping between function signatures and demos,
+    # `method_demos` is a maps function names to demos,
     # where a demo is a pair of jugsaw function call and result.
-    method_sigs::Vector{String}
-    method_demos::Dict{String, JugsawDemo}
+    method_names::Vector{String}
+    method_demos::Dict{String, Vector{JugsawDemo}}
 end
 AppSpecification(name) = AppSpecification(name, String[], Dict{String,JugsawDemo}())
 function nfunctions(app::AppSpecification)
-    @assert length(app.method_sigs) == length(app.method_demos)
-    return length(app.method_sigs)
+    @assert length(app.method_names) == length(app.method_demos)
+    return length(app.method_names)
 end
-Base.:(==)(app::AppSpecification, app2::AppSpecification) = app.name == app2.name && app.method_demos == app.method_demos && app.method_sigs == app.method_sigs
+Base.:(==)(app::AppSpecification, app2::AppSpecification) = app.name == app2.name && app.method_demos == app.method_demos && app.method_names == app.method_names
 function Base.show(io::IO, app::AppSpecification)
     println(io, "AppSpecification: $(app.name)")
     println(io, "Method table = [")
-    for (k, (sig, demo)) in enumerate(app.method_demos)
-        print(io, "  ")
-        println(io, sig)
-        print(io, "  - ")
-        print(io, demo)
-        k !== length(app.method_demos) && println(io)
+    for (k, (fname, demos)) in enumerate(app.method_demos)
+        print(io, "- ")
+        println(io, fname)
+        for (l, demo) in enumerate(demos)
+            print(io, "  - ")
+            println(io, demo)
+            (k !== length(app.method_demos) || l !== length(demos)) && println(io)
+        end
     end
     print(io, "]")
 end
 Base.show(io::IO, ::MIME"text/plain", f::AppSpecification) = Base.show(io, f)
 function Base.empty!(app::AppSpecification)
-    empty!(app.method_sigs)
+    empty!(app.method_names)
     empty!(app.method_demos)
     return app
 end
 
-struct TypeAsFunction{T} end
-protect_type(::Type{T}) where T = TypeAsFunction{T}()
-protect_type(x) = x
-(::TypeAsFunction{T})(args...; kwargs...) where T = T(args...; kwargs...)
-
-function register!(app::AppSpecification, _f, args, kwargs)
-    f = protect_type(_f)
-    jf = JugsawFunctionCall(f, args, kwargs)
-    sig = function_signature(jf)
+function register!(app::AppSpecification, f, args::Tuple, kwargs::NamedTuple)
+    #f = protect_type(_f)
+    jf = Call(f, args, kwargs)
+    fname = safe_f2str(f)
     result = f(args...; kwargs...)
-    if !haskey(app.method_demos, sig)
-        push!(app.method_sigs, sig)
+    # if the function is not yet registered, add a new method
+    if !haskey(app.method_demos, fname)
+        push!(app.method_names, fname)
+        app.method_demos[fname] = JugsawDemo[]
+    end
+    # function signature not yet registered
+    if match_demo(fname, args, kwargs, app) === nothing
+        # create a new demo
         doc = string(Base.Docs.doc(Base.Docs.Binding(module_and_symbol(f)...)))
-        app.method_demos[sig] = JugsawDemo(jf, result, Dict{String,Any}("docstring"=>doc))
+        push!(app.method_demos[fname], JugsawDemo(jf, result, Dict{String,Any}("docstring"=>doc)))
     end
     return result
+end
+function match_demo(fname::String, args, kwargs, app::AppSpecification)
+    # handle function request error
+    if !haskey(app.method_demos, fname) || isempty(app.method_demos[fname])
+        #return _error_response(NoDemoException(fname, collect(keys(app.method_demos))))
+        return nothing
+    end
+    # TODO: implement!
+    return first(app.method_demos[fname])
 end
 module_and_symbol(f::DataType) = f.name.module, f.name.name
 module_and_symbol(f::Function) = typeof(f).name.module, Symbol(f)
 module_and_symbol(f::UnionAll) = module_and_symbol(f.body)
-module_and_symbol(::TypeAsFunction{T}) where T = module_and_symbol(T)
+module_and_symbol(::Type{T}) where T = module_and_symbol(T)
+function safe_f2str(f)
+    sf = string(f)
+    '.' ∈ sf && throw("function must be imported to the `Main` module before it can be exposed!")
+    return sf
+end
 
 macro register(app, ex)
     reg_statements = []

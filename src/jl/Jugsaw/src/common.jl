@@ -5,6 +5,6 @@ Base.@kwdef struct ObjectRef
 end
 
 struct Message
-    request::JugsawFunctionCall
+    request::Call
     response::ObjectRef
 end
