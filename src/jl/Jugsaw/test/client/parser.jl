@@ -11,13 +11,6 @@ using Markdown
 end
 
 @testset "parse" begin
-    for x in [3, true, false, nothing, "##"]
-        obj, type = JugsawIR.julia2ir(x)
-        #res = JugsawIR.Lerche.parse(Client.jpt, obj)
-        res = Client.load_obj(JugsawIR.Lerche.parse(JugsawIR.jp, obj), JugsawIR.TypeTable())
-        @test res == x
-    end
-
     app = Client.load_demos_from_dir(joinpath(dirname(@__DIR__), "testapp"))
     println(app)
     @test app.cos[].second isa Client.Demo

@@ -9,15 +9,17 @@ using Lerche
 using AbstractTrees
 using AbstractTrees: print_tree
 using Expronicon
+using Expronicon
+using Expronicon.ADT: @adt
 
 export julia2ir, ir2julia, print_tree, print_clean_tree, TypeTable, JugsawADT
 export Call, function_signature, feval, fevalself
 export ftest, JugsawDemo
 
 include("Core.jl")
+include("extendedtypes.jl")
 #include("serialize.jl")
 include("adt.jl")
 include("ir.jl")
-include("extendedtypes.jl")
 
 end

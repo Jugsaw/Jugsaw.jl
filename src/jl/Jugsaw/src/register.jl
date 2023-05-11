@@ -43,7 +43,7 @@ end
 function register!(app::AppSpecification, f, args::Tuple, kwargs::NamedTuple)
     #f = protect_type(_f)
     jf = Call(f, args, kwargs)
-    fname = JugsawIR.f2str(f)
+    fname = JugsawIR.safe_f2str(f)
     result = f(args...; kwargs...)
     # if the function is not yet registered, add a new method
     if !haskey(app.method_demos, fname)

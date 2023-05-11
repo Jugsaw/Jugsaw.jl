@@ -58,7 +58,7 @@ struct JDataType
 end
 function native2jugsaw(x::DataType)
     isabstracttype(x) && return JDataType(type2str(x), String[], String[])
-    JDataType(type2str(x), String[String(fi) for fi in fieldnames(x)], String[type2str(x) for x in x.types])
+    JDataType(type2str(x), String[string(fi) for fi in fieldnames(x)], String[type2str(x) for x in x.types])
 end
 
 ##### Tuple

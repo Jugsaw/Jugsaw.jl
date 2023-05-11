@@ -82,4 +82,17 @@ obj_demos = [
         println(tt)
     end
 end
+
+@testset "get fieldnames" begin
+    obj = (; complex=1+2im,
+            Tensor= randn(3,3),
+            Graph = GraphT(6, [2 4 1; 3 1 6]),
+            )
+    adt, typeadt = julia2adt(obj)
+    tt = adt2julia(typeadt, JugsawIR.demoof(TypeTable))
+    @test tt isa TypeTable
+    @show tt
+    @test JugsawIR.get_fieldnames(adt, tt) == ["complex", "Tensor", "Graph"]
+end
+
 end

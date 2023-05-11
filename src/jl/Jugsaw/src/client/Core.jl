@@ -12,7 +12,7 @@ Base.Docs.doc(d::Demo) = Markdown.parse(get(d.meta, "docstring", ""))
 # the application instance, potential issues: function names __name, __endpoint and __method_demos, __type_table may cause conflict.
 struct App
     name::Symbol
-    method_demos::OrderedDict{Symbol, Vector{Pair{String, Demo}}}
+    method_demos::OrderedDict{Symbol, Vector{Demo}}
     type_table::TypeTable
 end
 function Base.getproperty(app::App, fname::Symbol)
@@ -32,7 +32,7 @@ function Base.show(io::IO, app::App)
             k += 1
         else
             for demo in demos
-                println(io, "    $('a' + k): $(demo.second)")
+                println(io, "    $('a' + k): $(demo)")
                 k += 1
             end
         end

@@ -87,7 +87,7 @@ end
     # HTTP.register!(r, "DELETE", "/actors/{actor_type_name}/{actor_id}", req -> deactivate!(runtime, req))
     @test JSON3.read(r(HTTP.Request("GET", "/healthz"))).status == "OK"
     @test JSON3.read(r(HTTP.Request("GET", "/dapr/config"))).entities == []
-    demo = app.method_demos["Base.sin"][1]
+    demo = app.method_demos["sin"][1]
     req, types = julia2ir(Call(demo.fcall.fname, (8.0,), (;)))
     id = JSON3.read(r(HTTP.Request("POST", "/actors/testapp.sin/0/method/", ["Content-Type" => "application/json"], req)).body).object_id
     @test id isa String

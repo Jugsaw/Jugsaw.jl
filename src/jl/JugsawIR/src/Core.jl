@@ -116,3 +116,15 @@ function demoof(::Type{T}) where T
     return Core.eval(@__MODULE__, Expr(:new, T, Any[:($vals[$i]) for i=1:length(vals)]...))
 end
 
+############ ADT
+@adt JugsawADT begin
+    struct Object
+        typename::String
+        fields::Vector
+    end
+    struct Vector
+        storage::Vector
+    end
+end
+Base.:(==)(a::JugsawADT, b::JugsawADT) = all(fn->getfield(a, fn) == getfield(b, fn), fieldnames(JugsawADT))
+Base.show(io::IO, ::MIME"text/plain", a::JugsawADT) = Base.show(io, a)

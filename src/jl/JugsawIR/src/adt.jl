@@ -1,38 +1,18 @@
 # JugsawIR code -> Lerche.Tree -> JugsawADT <-> Julia
 #       ↑                            ↓
 #       <-----------------------------
-using Expronicon
-using Expronicon.ADT: @adt
-export tree2adt
 
-@adt JugsawADT begin
-    struct Object
-        typename::String
-        fields::Vector
-    end
-    struct Vector
-        storage::Vector
-    end
-end
-Base.:(==)(a::JugsawADT, b::JugsawADT) = all(fn->getfield(a, fn) == getfield(b, fn), fieldnames(JugsawADT))
-Base.show(io::IO, ::MIME"text/plain", a::JugsawADT) = Base.show(io, a)
-# function Base.show(io::IO, a::JugsawADT)
-#     @match a begin
-#         JugsawADT.Object(typename, fields) => print(io, "$typename($(join(fields, ", ")))")
-#         JugsawADT.Vector(storage) => print(io, storage)
-#     end
-# end
-
+############ TypeTable
 struct TypeTable
     names::Vector{String}
-    defs::Dict{String, DataType}
+    defs::Dict{String, JDataType}
 end
 TypeTable() = TypeTable(String[], Dict{String, Tuple{Vector{String}, Vector{String}}}())
 function pushtype!(tt::TypeTable, type::Type{T}) where T
-    sT = type2str(T)
-    if !haskey(tt.defs, sT)
-        push!(tt.names, sT)
-        tt.defs[sT] = T
+    JT = native2jugsaw(T)
+    if !haskey(tt.defs, JT.name)
+        push!(tt.names, JT.name)
+        tt.defs[JT.name] = JT
     end
     return tt
 end
@@ -46,7 +26,7 @@ function Base.show(io::IO, t::TypeTable)
             continue
         end
         type = t.defs[typename]
-        fns, fts = fieldnames(type), type.types
+        fns, fts = type.fieldnames, type.fieldtypes
         for (l, (fn, ft)) in enumerate(zip(fns, fts))
             print(io, "    - $fn::$ft")
             if !(k == length(t.names) && l == length(fns))
@@ -54,6 +34,9 @@ function Base.show(io::IO, t::TypeTable)
             end
         end
     end
+end
+function get_fieldnames(obj::JugsawADT, tt::TypeTable)
+    return tt.defs[obj.typename].fieldnames
 end
 function Base.merge!(t1::TypeTable, t2::TypeTable)
     for name in t2.names
@@ -76,13 +59,13 @@ end
 function julia2adt!(@nospecialize(_x::T), tt::TypeTable) where T
     x = native2jugsaw(_x)
     Tx = typeof(x)
-    (x isa UndefInitializer || x isa DirectlyRepresentableTypes) && pushtype!(tt, Tx)
+    (x isa UndefInitializer || x isa DirectlyRepresentableTypes) || pushtype!(tt, Tx)
     @match x begin
         ###################### Basic Types ######################
         ::UndefInitializer => nothing
         ::DirectlyRepresentableTypes => x
         ::Vector => JugsawADT.Vector(julia2adt!.(x, Ref(tt)))
-        ::Function => f2str(x)
+        ::Function => safe_f2str(x)
         ###################### Generic Compsite Types ######################
         _ => begin
             JugsawADT.Object(type2str(Tx), 
@@ -91,8 +74,11 @@ function julia2adt!(@nospecialize(_x::T), tt::TypeTable) where T
         end
     end
 end
-f2str(f::Function) = "$(typeof(f).name.module).$(Symbol(f))"
-f2str(::Type{T}) where T = type2str(T)
+function safe_f2str(f::Function)
+    sf = string(f)
+    '.' ∈ sf && throw("function must be imported to the `Main` module before it can be exposed!")
+    return sf
+end
 
 ###################### ADT to julia
 function adt2julia(t, demo::T) where T
