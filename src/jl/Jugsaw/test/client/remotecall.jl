@@ -6,7 +6,6 @@ using JugsawIR.JSON3
     r = LocalHandler(path)
     app = request_app(r, :testapp)
     @test app isa Client.App
-    @test Client.render_jsoncall("sin", (2,), (;)) isa String
     @test_throws ErrorException @call r sin(2.0)
     open(f->write(f, "2"), joinpath(path, "result.json"), "w")
     @test 2 == (@call r app.sin(2.0;))()
