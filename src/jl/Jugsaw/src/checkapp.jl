@@ -18,7 +18,7 @@ function checkapp(dir::String)
         try
             @assert Client.healthz(remote).status == "OK"
             app = Client.request_app(remote, Symbol(basename(dir)))
-            return test_demo(app)
+            return Client.test_demo(app)
         catch e
             Base.showerror(stdout, e)
             sleep(3)
