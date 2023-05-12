@@ -88,37 +88,6 @@ function adt_norecur(typename::String, x::T) where T
     return JugsawADT.Object(typename, fields)
 end
 
-# # TODO: dispatch to the correct type!
-# function match_demo(app::App, fname::Symbol, args, kwargs)
-#     demos = getproperty(app, fname)
-#     if length(demos) > 1
-#         error("matching functions with the same name is not yet defined!")
-#     else
-#         return 1
-#     end
-# end
-
-# macro call(remote, ex::Expr)
-#     @match ex begin
-#         :($app.$fname($(args...); $(kwargs...))) => begin
-#             esc(:($call($remote, $app, $(QuoteNode(fname)), $match_demo($app, $(QuoteNode(fname)), $args, $kwargs), $(args...); $(kwargs...))))
-#         end
-#         :($app.$fname.$n($(args...); $(kwargs...))) => begin
-#             @assert length(String(n)) == 1
-#             esc(:($call($remote, $app, $(QuoteNode(fname)), $(String(n)[1]-'a'+1), $(args...); $(kwargs...))))
-#         end
-#         _ => :($error("grammar error, should be `@call remote app.fname(args...; kwargs...)` got function call: $($(QuoteNode(ex)))"))
-#     end
-# end
-# macro test_demo(remote, ex::Expr)
-#     @match ex begin
-#         :($app.$fname) => begin
-#             esc(:($test_demo($remote, $app, $(QuoteNode(fname)))))
-#         end
-#         _ => :($error("grammar error, should be `@call remote app.fname(args...; kwargs...)` got function call: $($(QuoteNode(ex)))"))
-#     end
-# end
-
 # can we access the object without knowing the appname and function name?
 function fetch(uri::URI, object_id::String, demo_result)
     fet = JSON3.write((; object_id))

@@ -20,7 +20,7 @@ end
     remote = RemoteHandler()  # on the default port
     @test healthz(remote).status == "OK"
     @test dapr_config(remote) == []
-    #delete
+
     app = request_app(remote, :testapp)
     @test app isa Client.App
 
@@ -28,12 +28,13 @@ end
     @test test_demo(app.sin)
     @test dapr_config(remote) == ["sin"]
 
-    @test delete(remote, app, :sin)
-
     # call
     obj = call(app.sin[1], 3.0)
     @test obj isa Client.LazyReturn
     @test obj() ≈ sin(3.0)
+
+    #delete
+    @test delete(remote, app, :sin)
 
     # turn down service
     schedule(t, InterruptException(), error=true)
