@@ -22,7 +22,6 @@ function _load_app(obj::JugsawADT, tt::TypeTable)
     end
     app = App(Symbol(name), demos, tt)
     # Warning: this is hacky!!!!
-    @eval Base.fieldnames(::Type{App}) = $((keys(app[:method_demos])...,))
     return app
 end
 
