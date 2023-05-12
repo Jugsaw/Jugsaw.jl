@@ -27,8 +27,7 @@ end
 
     #fetch
     @test (@test_demo remote app.sin)
-    #@show dapr_config(remote)
-    #@test dapr_config(remote) == [JSON3.read("{\"JugsawIR.Call{Base.sin, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}\": \"0\"}")]
+    @test dapr_config(remote) == ["sin"]
 
     #@test delete(remote, app, :sin, "0")
 

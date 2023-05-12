@@ -18,7 +18,7 @@ using HTTP, JugsawIR.JSON3
     fcall, _ = julia2ir(first(app.method_demos["sin"]).fcall)
     
     r = AppRuntime(app)
-    req = HTTP.Request("POST", "/actors/testapp.sin/0/method/", ["Content-Type" => "application/json"], fcall; context=Dict(:params=>Dict("actor_id"=>"0")))
+    req = HTTP.Request("POST", "/actors/testapp.sin/0/method/", ["Content-Type" => "application/json"], fcall)
     ret = Jugsaw.act!(r, req)
     @test JSON3.read(String(ret.body)).object_id isa String
     #@test req == first(app.method_demos)[2].fcall
@@ -37,7 +37,7 @@ using HTTP, JugsawIR.JSON3
         {"fields":[$cos_call],"type":"Core.Tuple{Core.Float64}"},
         {"fields":[],"type":"Core.NamedTuple{(), Core.Tuple{}}"}],
         "type":"JugsawIR.Call"}"""
-    req = HTTP.Request("POST", "/actors/testapp.sinx/0/method/", ["Content-Type" => "application/json"], fcall3; context=Dict(:params=>Dict("actor_id"=>"0")))
+    req = HTTP.Request("POST", "/actors/testapp.sinx/0/method/", ["Content-Type" => "application/json"], fcall3)
     ret = Jugsaw.act!(r, req)
     @test ret.status == 200
     object_id = JSON3.read(String(ret.body)).object_id
@@ -80,19 +80,14 @@ end
     ar = AppRuntime(app)
     r = Jugsaw.get_router(ar)
     # services
-    # HTTP.register!(r, "GET", "/healthz", _ -> JSON3.write((; status="OK")))
-    # HTTP.register!(r, "GET", "/dapr/config", _ -> JSON3.write((; entities=collect(keys(runtime.actors)))))
-    # HTTP.register!(r, "POST", "/actors/{actor_type_name}/{actor_id}/method/", req -> act!(runtime, req))
-    # HTTP.register!(r, "POST", "/actors/{actor_type_name}/{actor_id}/method/fetch", req -> fetch(runtime, req))
-    # HTTP.register!(r, "DELETE", "/actors/{actor_type_name}/{actor_id}", req -> deactivate!(runtime, req))
     @test JSON3.read(r(HTTP.Request("GET", "/healthz"))).status == "OK"
     @test JSON3.read(r(HTTP.Request("GET", "/dapr/config"))).entities == []
     demo = app.method_demos["sin"][1]
     req, types = julia2ir(Call(demo.fcall.fname, (8.0,), (;)))
-    id = JSON3.read(r(HTTP.Request("POST", "/actors/testapp.sin/0/method/", ["Content-Type" => "application/json"], req)).body).object_id
+    id = JSON3.read(r(HTTP.Request("POST", "/actors/testapp.sin/method/", ["Content-Type" => "application/json"], req)).body).object_id
     @test id isa String
     fet = JSON3.write((; object_id=id))
-    @test ir2julia(r(HTTP.Request("POST", "/actors/testapp.sin/0/method/fetch", ["Content-Type" => "application/json"], fet)), demo.result) ≈ sin(8.0)
+    @test ir2julia(r(HTTP.Request("POST", "/actors/testapp.sin/method/fetch", ["Content-Type" => "application/json"], fet)), demo.result) ≈ sin(8.0)
     loaded_app = Jugsaw.Client.load_app(r(HTTP.Request("GET", "/apps/testapp/demos")))
     @test loaded_app isa Jugsaw.Client.App
     @test_broken r(HTTP.Request("DELETE", "/actors/testapp.sin/0"))
