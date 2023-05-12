@@ -43,9 +43,9 @@ class Job(BaseModel):
     created_at: float = Field(default_factory=time)
     created_by: str
 
-    application: str
-    function: str
-    version: str
+    app: str
+    func: str
+    ver: str
     data: bytes
 
 
@@ -57,42 +57,11 @@ class JobStatusEnum(str, Enum):
     canceled = "canceled"
 
 
-class JobEventBase(BaseModel):
+class JobEvent(BaseModel):
     job_id: str
     status: str
-    time: float = Field(default_factory=time)
-
-
-class JobStartingEvent(JobEventBase):
-    status: Literal[JobStatusEnum.starting] = JobStatusEnum.starting
-
-
-class JobProcessingEvent(JobEventBase):
-    status: Literal[JobStatusEnum.processing] = JobStatusEnum.processing
-
-
-class JobSucceededEvent(JobEventBase):
-    status: Literal[JobStatusEnum.succeeded] = JobStatusEnum.succeeded
-
-
-class JobFailedEvent(JobEventBase):
-    status: Literal[JobStatusEnum.failed] = JobStatusEnum.failed
-
-
-class JobCanceledEvent(JobEventBase):
-    status: Literal[JobStatusEnum.canceled] = JobStatusEnum.canceled
-
-
-JobEvent = Annotated[
-    Union[
-        JobStartingEvent,
-        JobProcessingEvent,
-        JobSucceededEvent,
-        JobFailedEvent,
-        JobCanceledEvent,
-    ],
-    Field(discriminator="status"),
-]
+    timestamp: float = Field(default_factory=time)
+    description: str = ""
 
 
 class JobStatus(BaseModel):
@@ -182,9 +151,9 @@ async def submit_job(
     config = get_config()
     job = Job(
         created_by=user,
-        application=app,
-        function=func,
-        version=ver,
+        app=app,
+        func=func,
+        ver=ver,
         data=await request.body(),
     )
     with DaprClient() as client:
