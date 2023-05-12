@@ -60,7 +60,7 @@ The nested `Call` is then executed by the `JugsawIR.fevalself` with the followin
 Try to activate an actor. If the actor of `actor_id` does not exist yet, a new one is created based on the registered `ActorFactor` of `actor_type`. Note that the actor may be configured to recover from its lastest state snapshot.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/7157da75af9bf02cd3c83155e122e1fea6d46b9d/src/jl/Jugsaw/src/server.jl#L71-L75' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/4a5d62347fb3c1555d84f3ee58a3c13c65df8b40/src/jl/Jugsaw/src/server.jl#L71-L75' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.deactivate!-Tuple{AppRuntime, HTTP.Messages.Request}' href='#Jugsaw.deactivate!-Tuple{AppRuntime, HTTP.Messages.Request}'>#</a>
 **`Jugsaw.deactivate!`** &mdash; *Method*.
@@ -70,7 +70,7 @@ Try to activate an actor. If the actor of `actor_id` does not exist yet, a new o
 Remove idle actors. Actors may be configure to persistent its current state.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/7157da75af9bf02cd3c83155e122e1fea6d46b9d/src/jl/Jugsaw/src/server.jl#L155-L157' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/4a5d62347fb3c1555d84f3ee58a3c13c65df8b40/src/jl/Jugsaw/src/server.jl#L155-L157' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.fetch-Tuple{AppRuntime, HTTP.Messages.Request}' href='#Jugsaw.fetch-Tuple{AppRuntime, HTTP.Messages.Request}'>#</a>
 **`Jugsaw.fetch`** &mdash; *Method*.
@@ -80,7 +80,7 @@ Remove idle actors. Actors may be configure to persistent its current state.
 This is just a workaround. In the future, users should fetch results from StateStore directly.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/7157da75af9bf02cd3c83155e122e1fea6d46b9d/src/jl/Jugsaw/src/server.jl#L171-L173' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/4a5d62347fb3c1555d84f3ee58a3c13c65df8b40/src/jl/Jugsaw/src/server.jl#L171-L173' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.Actor' href='#Jugsaw.Actor'>#</a>
 **`Jugsaw.Actor`** &mdash; *Type*.
@@ -90,5 +90,5 @@ This is just a workaround. In the future, users should fetch results from StateS
 Describe current status of an actor.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/7157da75af9bf02cd3c83155e122e1fea6d46b9d/src/jl/Jugsaw/src/server.jl#L12-L14' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/4a5d62347fb3c1555d84f3ee58a3c13c65df8b40/src/jl/Jugsaw/src/server.jl#L12-L14' class='documenter-source'>source</a><br>
 
