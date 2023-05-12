@@ -22,7 +22,7 @@ function checkapp(dir::String)
             app = Client.request_app(remote, Symbol(basename(dir)))
             for (fname, demo) in app[:method_demos]
                 total += 1
-                if Client.test_demo(remote, app, fname, "0")
+                if Client.test_demo(remote, app, fname)
                     nsuccess += 1
                 end
             end
