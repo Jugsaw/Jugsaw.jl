@@ -52,15 +52,15 @@ The nested `Call` is then executed by the `JugsawIR.fevalself` with the followin
 
 ## APIs
 
-<a id='Jugsaw.activate-Tuple{AppRuntime, JugsawADT, String}' href='#Jugsaw.activate-Tuple{AppRuntime, JugsawADT, String}'>#</a>
+<a id='Jugsaw.activate-Tuple{AppRuntime, JugsawADT}' href='#Jugsaw.activate-Tuple{AppRuntime, JugsawADT}'>#</a>
 **`Jugsaw.activate`** &mdash; *Method*.
 
 
 
-Try to activate an actor. If the actor of `actor_id` does not exist yet, a new one is created based on the registered `ActorFactor` of `actor_type`. Note that the actor may be configured to recover from its lastest state snapshot.
+Try to activate an actor. If the requested actor does not exist yet, a new one is created based on the registered `ActorFactor` of `actor_type`. Note that the actor may be configured to recover from its lastest state snapshot.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/4a5d62347fb3c1555d84f3ee58a3c13c65df8b40/src/jl/Jugsaw/src/server.jl#L71-L75' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/39b3531c01dbc2c3b2da9bcf2d954d21493a4e8f/src/jl/Jugsaw/src/server.jl#L71-L75' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.deactivate!-Tuple{AppRuntime, HTTP.Messages.Request}' href='#Jugsaw.deactivate!-Tuple{AppRuntime, HTTP.Messages.Request}'>#</a>
 **`Jugsaw.deactivate!`** &mdash; *Method*.
@@ -70,7 +70,7 @@ Try to activate an actor. If the actor of `actor_id` does not exist yet, a new o
 Remove idle actors. Actors may be configure to persistent its current state.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/4a5d62347fb3c1555d84f3ee58a3c13c65df8b40/src/jl/Jugsaw/src/server.jl#L155-L157' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/39b3531c01dbc2c3b2da9bcf2d954d21493a4e8f/src/jl/Jugsaw/src/server.jl#L153-L155' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.fetch-Tuple{AppRuntime, HTTP.Messages.Request}' href='#Jugsaw.fetch-Tuple{AppRuntime, HTTP.Messages.Request}'>#</a>
 **`Jugsaw.fetch`** &mdash; *Method*.
@@ -80,7 +80,7 @@ Remove idle actors. Actors may be configure to persistent its current state.
 This is just a workaround. In the future, users should fetch results from StateStore directly.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/4a5d62347fb3c1555d84f3ee58a3c13c65df8b40/src/jl/Jugsaw/src/server.jl#L171-L173' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/39b3531c01dbc2c3b2da9bcf2d954d21493a4e8f/src/jl/Jugsaw/src/server.jl#L168-L170' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.Actor' href='#Jugsaw.Actor'>#</a>
 **`Jugsaw.Actor`** &mdash; *Type*.
@@ -90,5 +90,5 @@ This is just a workaround. In the future, users should fetch results from StateS
 Describe current status of an actor.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/4a5d62347fb3c1555d84f3ee58a3c13c65df8b40/src/jl/Jugsaw/src/server.jl#L12-L14' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/39b3531c01dbc2c3b2da9bcf2d954d21493a4e8f/src/jl/Jugsaw/src/server.jl#L12-L14' class='documenter-source'>source</a><br>
 
