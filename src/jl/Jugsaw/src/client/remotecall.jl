@@ -46,10 +46,12 @@ function test_demo(remote::AbstractHandler, app::App, fname::Symbol)
 end
 function call(remote::AbstractHandler, app::App, fname::Symbol, which::Int, args...; kwargs...)
     demo = getproperty(app, fname)[which]
+    args_adt = adt_norecur(demo.meta["args_type"], args)
+    kwargs_adt = adt_norecur(demo.meta["kwargs_type"], (; kwargs...))
+    @assert length(args_adt.fields) == length(demo.fcall.args)
+    @assert length(kwargs_adt.fields) == length(demo.fcall.kwargs)
     req = JugsawIR.adt2ir(JugsawADT.Object("JugsawIR.Call",
-            [demo.fcall.fname,
-            adt_norecur(args),
-            adt_norecur((; kwargs...))]))
+            [demo.fcall.fname, args_adt, kwargs_adt]))
     if remote isa LocalHandler
         path = string(remote.uri)
         mkpath(path)
@@ -75,10 +77,9 @@ function call(remote::AbstractHandler, app::App, fname::Symbol, which::Int, args
         return LazyReturn(uri, object_id, demo.result)
     end
 end
-function adt_norecur(x::T) where T
-    return JugsawADT.Object(type2str(T), 
-        Any[isdefined(x, fn) ? getfield(x, fn) : undef for fn in fieldnames(T)]
-    )
+function adt_norecur(typename::String, x::T) where T
+    fields = Any[isdefined(x, fn) ? getfield(x, fn) : undef for fn in fieldnames(T)]
+    return JugsawADT.Object(typename, fields)
 end
 
 # TODO: dispatch to the correct type!

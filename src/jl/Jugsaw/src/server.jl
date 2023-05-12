@@ -82,7 +82,8 @@ end
 
 function act!(r::AppRuntime, http::HTTP.Request)
     # params = HTTP.getparams(http)   # we can obtain request params like this
-    adt = JugsawIR.ir2adt(String(http.body)) #JugsawIR.tree2adt(JugsawIR.Lerche.parse(JugsawIR.jp, String(http.body)))
+    adt = JugsawIR.ir2adt(String(http.body))
+    @info "got adt: $adt"
     # top level must be a function call
     # add jobs recursively to the queue
     try
@@ -90,6 +91,7 @@ function act!(r::AppRuntime, http::HTTP.Request)
         resp = addjob!(r, adt, thisdemo)
         return HTTP.Response(200, ["Content-Type" => "application/json"], JSON3.write(resp))
     catch e
+        @info e
         return _error_response(e)
     end
 end
@@ -99,11 +101,23 @@ function match_demo_or_throw(adt::JugsawADT, app::AppSpecification)
         throw(BadSyntax(adt))
     end
     fname, args, kwargs = adt.fields
-    res = match_demo(fname, args, kwargs, app)
+    res = _match_demo(fname, args.typename, kwargs.typename, app)
     if res === nothing
-        throw(NoDemoException(fname, collect(keys(app.method_demos))))
+        throw(NoDemoException(adt, app))
     end
     return res
+end
+function _match_demo(fname, args_type, kwargs_type, app::AppSpecification)
+    if !haskey(app.method_demos, fname) || isempty(app.method_demos[fname])
+        return nothing
+    end
+    for demo in app.method_demos[fname]
+        _, dargs, dkwargs = demo.fcall.fname, demo.meta["args_type"], demo.meta["kwargs_type"]
+        if dargs == args_type && dkwargs == kwargs_type
+            return demo
+        end
+    end
+    return nothing
 end
 
 function addjob!(r::AppRuntime, adt::JugsawADT, thisdemo::Call)

@@ -20,6 +20,7 @@ function Base.getproperty(app::App, fname::Symbol)
     return res
 end
 Base.getindex(a::App, f::Symbol) = getfield(a, f)
+Base.propertynames(app::App) = (keys(app[:method_demos])...,)
 Base.show(io::IO, ::MIME"text/plain", d::App) = Base.show(io, d)
 function Base.show(io::IO, app::App)
     println(io, "App: $(app[:name])")
