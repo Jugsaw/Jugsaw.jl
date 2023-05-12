@@ -1,9 +1,9 @@
 struct NoDemoException <: Exception
-    func_sig::String
-    available::Vector{String}
+    func_sig
+    methods
 end
 function Base.showerror(io::IO, e::NoDemoException, trace)
-    print(io, "method does not exist, got: $(e.func_sig), available functions are:\n  - $(join(e.available, "\n  - "))")
+    print(io, "method does not exist, got: $(e.func_sig), available functions are: $(e.methods)")
 end
 struct BadSyntax <: Exception
     adt::JugsawADT

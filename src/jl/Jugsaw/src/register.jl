@@ -20,7 +20,7 @@ function Base.show(io::IO, app::AppSpecification)
         println(io, fname)
         for (l, demo) in enumerate(demos)
             print(io, "  - ")
-            println(io, demo)
+            print(io, demo)
             (k !== length(app.method_demos) || l !== length(demos)) && println(io)
         end
     end
@@ -31,6 +31,20 @@ function Base.empty!(app::AppSpecification)
     empty!(app.method_names)
     empty!(app.method_demos)
     return app
+end
+
+function selftest(app::AppSpecification)
+    detail = Dict{String, Vector{Bool}}()
+    res = true
+    for func in app.method_names
+        detail[func] = Bool[selftest(demo) for demo in app.method_demos[func]]
+        res = res & all(detail[func])
+    end
+    return res, detail
+end
+function selftest(demo::JugsawDemo)
+    res = fevalself(demo.fcall)
+    return res === demo.result || res == demo.result || res ≈ demo.result
 end
 
 function register!(app::AppSpecification, f, args::Tuple, kwargs::NamedTuple)
@@ -47,18 +61,26 @@ function register!(app::AppSpecification, f, args::Tuple, kwargs::NamedTuple)
     if match_demo(fname, args, kwargs, app) === nothing
         # create a new demo
         doc = string(Base.Docs.doc(Base.Docs.Binding(module_and_symbol(f)...)))
-        push!(app.method_demos[fname], JugsawDemo(jf, result, Dict{String,Any}("docstring"=>doc)))
+        push!(app.method_demos[fname], JugsawDemo(jf, result,
+            Dict{String,Any}("docstring"=>doc,
+            "args_type"=>JugsawIR.type2str(typeof(args)),
+            "kwargs_type"=>JugsawIR.type2str(typeof(kwargs)),
+            )))
     end
     return result
 end
 function match_demo(fname::String, args, kwargs, app::AppSpecification)
     # handle function request error
     if !haskey(app.method_demos, fname) || isempty(app.method_demos[fname])
-        #return _error_response(NoDemoException(fname, collect(keys(app.method_demos))))
         return nothing
     end
-    # TODO: implement!
-    return first(app.method_demos[fname])
+    for demo in app.method_demos[fname]
+        _, dargs, dkwargs = demo.fcall.fname, demo.fcall.args, demo.fcall.kwargs
+        if typeof(dargs) == typeof(args) && typeof(dkwargs) == typeof(kwargs)
+            return demo
+        end
+    end
+    return nothing
 end
 module_and_symbol(f::DataType) = f.name.module, f.name.name
 module_and_symbol(f::Function) = typeof(f).name.module, Symbol(f)

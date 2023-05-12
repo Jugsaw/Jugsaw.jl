@@ -3,7 +3,7 @@ using JugsawIR.JSON3
 
 @testset "error" begin
     e = NoDemoException("sin", ["cos"])
-    @test Jugsaw._error_msg(e) == "method does not exist, got: sin, available functions are:\n  - cos"
+    @test Jugsaw._error_msg(e) == "method does not exist, got: sin, available functions are: [\"cos\"]"
     @test Jugsaw._error_response(e).status == 400
 end
 
