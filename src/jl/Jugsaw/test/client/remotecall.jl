@@ -6,9 +6,8 @@ using JugsawIR.JSON3
     r = LocalHandler(path)
     app = request_app(r, :testapp)
     @test app isa Client.App
-    @test_throws ErrorException @call r sin(2.0)
     open(f->write(f, "2"), joinpath(path, "result.json"), "w")
-    @test 2 == (@call r app.sin(2.0;))()
+    @test 2 == app.sin(2.0)
 end
 
 @testset "server-client" begin
@@ -26,13 +25,13 @@ end
     @test app isa Client.App
 
     #fetch
-    @test (@test_demo remote app.sin)
+    @test test_demo(app.sin)
     @test dapr_config(remote) == ["sin"]
 
-    #@test delete(remote, app, :sin, "0")
+    @test delete(remote, app, :sin)
 
     # call
-    obj = @call remote app.sin(3.0; )
+    obj = call(app.sin[1], 3.0)
     @test obj isa Client.LazyReturn
     @test obj() ≈ sin(3.0)
 
