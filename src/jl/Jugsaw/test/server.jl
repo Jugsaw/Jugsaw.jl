@@ -1,6 +1,6 @@
 using Test
 using Jugsaw, JugsawIR
-using HTTP, JugsawIR.JSON3
+using HTTP, JugsawIR.JSON3, URIs
 
 @testset "parse fcall" begin
     app = AppSpecification(:testapp)
@@ -88,7 +88,8 @@ end
     @test id isa String
     fet = JSON3.write((; object_id=id))
     @test ir2julia(r(HTTP.Request("POST", "/actors/testapp.sin/method/fetch", ["Content-Type" => "application/json"], fet)), demo.result) ≈ sin(8.0)
-    loaded_app = Jugsaw.Client.load_app(r(HTTP.Request("GET", "/apps/testapp/demos")))
+    uri = URI("http://jugsaw.co")
+    loaded_app = Jugsaw.Client.load_app(r(HTTP.Request("GET", "/apps/testapp/demos")), uri)
     @test loaded_app isa Jugsaw.Client.App
     @test_broken r(HTTP.Request("DELETE", "/actors/testapp.sin/0"))
 end

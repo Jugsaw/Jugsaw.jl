@@ -170,6 +170,7 @@ Remove idle actors. Actors may be configure to persistent its current state.
 function deactivate!(r::AppRuntime, req::HTTP.Request)
     ps = HTTP.getparams(req)
     atype = string(ps["actor_type_name"])
+    @show atype, r.actors
     actor = get(r.actors, atype, nothing)
     if !isnothing(actor)
         close(actor)
