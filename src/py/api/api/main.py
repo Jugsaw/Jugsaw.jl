@@ -1,82 +1,12 @@
-from enum import Enum
-from functools import cache
-from typing import Literal, Union
 from typing_extensions import Annotated
-from fastapi import Depends, FastAPI, Request, HTTPException, status
-from fastapi.security import HTTPBearer, APIKeyHeader, HTTPAuthorizationCredentials
+from fastapi import Depends, FastAPI, HTTPException, Request
 from dapr.clients import DaprClient
-from pydantic import BaseModel, BaseSettings, Field
-from uuid import uuid4
-from time import time
+
+from .auth import JugsawApiKey, get_user_from_api_key, get_user_from_token
+from .job import Job, JobStatus, JobStatusEnum
+from .config import get_config
 
 app = FastAPI()
-
-BEARER = HTTPBearer()
-
-
-def get_user_from_token(
-    token: Annotated[HTTPAuthorizationCredentials, Depends(BEARER)]
-):
-    return "abc"
-
-
-API_KEY_HEADER = APIKeyHeader(name="JUGSAW-API-KEY")
-
-
-def get_user_from_api_key(
-    token: Annotated[HTTPAuthorizationCredentials, Depends(API_KEY_HEADER)]
-):
-    return "xx"
-
-
-class Config(BaseSettings):
-    job_channel: str = "job"
-
-
-@cache
-def get_config() -> Config:
-    return Config()
-
-
-class Job(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid4()))
-    created_at: float = Field(default_factory=time)
-    created_by: str
-
-    app: str
-    func: str
-    ver: str
-    data: bytes
-
-
-class JobStatusEnum(str, Enum):
-    starting = "starting"
-    processing = "processing"
-    succeeded = "succeeded"
-    failed = "failed"
-    canceled = "canceled"
-
-
-class JobEvent(BaseModel):
-    job_id: str
-    status: str
-    timestamp: float = Field(default_factory=time)
-    description: str = ""
-
-
-class JobStatus(BaseModel):
-    id: str
-    events: list[JobEvent] = []
-
-
-class JugsawApiKey(BaseModel):
-    key: str
-
-
-class Application(BaseModel):
-    name: str
-    version: str
-
 
 #####
 
@@ -167,7 +97,24 @@ async def submit_job(
 async def get_job_status(
     user: Annotated[str, Depends(get_user_from_api_key)], job_id: str
 ) -> JobStatus:
-    ...
+    config = get_config()
+    with DaprClient() as client:
+        res = client.get_state(config.job_status_store, job_id)
+        if res.data:
+            job_status = JobStatus.parse_raw(res.data)
+            return job_status
+        else:
+            raise HTTPException(status_code=404, detail=f"Job[{job_id}] not found")
+
+
+@app.get("/v1/job/{job_id}/result", tags=["api"])
+async def get_job_result(
+    user: Annotated[str, Depends(get_user_from_api_key)], job_id: str
+):
+    config = get_config()
+    with DaprClient() as client:
+        res = client.get_state(config.job_result_store, job_id)
+        return res.json()
 
 
 @app.delete("/v1/job/{job_id}", tags=["api"])
