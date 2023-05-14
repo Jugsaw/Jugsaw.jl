@@ -1,5 +1,7 @@
 import lark
 from collections import OrderedDict
+import numpy as np
+import enum
 
 ####################### Object
 # the JSON grammar in EBNF format
@@ -56,15 +58,6 @@ class TypeTable(object):
     def __init__(self, defs:OrderedDict={}):
         self.defs = defs
 
-# convert a Jugsaw tree to a dict
-def todict(obj):
-    if isinstance(obj, JugsawObject):
-        return {"type" : str(obj.typename), "fields" : todict(obj.values)}
-    elif isinstance(obj, list):
-        return [todict(x) for x in obj]
-    else:
-        return obj
-
 # constants
 # parse an object
 jp = lark.Lark.open("jugsawir.lark", rel_to=__file__, start='object', parser='lalr', transformer=JugsawTransformer())
@@ -115,6 +108,27 @@ def load_typetable(ast:JugsawObject):
         d[type] = JDataType(name, fieldnames, fieldtypes)
     return TypeTable(d)
 
+# convert a Jugsaw tree to a dict
+def py2dict(obj):
+    if (obj is None) or any([isinstance(obj, tp) for tp in (int, str, float, bool, np.number)]):
+        return obj
+    elif isinstance(obj, dict):
+        return {"fields" : [py2dict([k for k in obj.keys()]), py2dict([v for v in obj.values()])]}
+    elif isinstance(obj, list):
+        return [py2dict(x) for x in obj]
+    elif isinstance(obj, enum.Enum):
+        return {"fields":[type(obj).__name__, obj.name, [str(x.name) for x in type(obj)]]}
+    elif isinstance(obj, np.ndarray):
+        if np.ndim(obj) == 1:
+            return [py2dict(x) for x in obj]
+        else:
+            vec = np.reshape(obj, -1, order="F")
+            return {"fields": [list(obj.shape), py2dict(vec)]}
+    elif isinstance(obj, complex):
+        return {"fields": [obj.real, obj.imag]}
+    else:
+        return {"fields": [getattr(obj, x) for x in obj.__dict__.keys()]}
+
 if __name__ == "__main__":
     import pdb
     res = jp.parse("""
@@ -130,3 +144,17 @@ if __name__ == "__main__":
     with open("../../../jl/Jugsaw/test/testapp/demos.json", "r") as f:
         s = f.read()
     print(load_app(s))
+
+    assert py2dict(3.0) == 3.0
+    assert py2dict("3.0") == "3.0"
+    assert py2dict({"x":3}) == {"fields": [["x"], [3]]}
+    assert py2dict(2+5j) == {"fields": [2, 5]}
+    assert py2dict(np.array([[1, 2, 3], [4, 5, 6]])) == {"fields": [[2, 3], [1, 4, 2, 5, 3, 6]]}
+    class Color(enum.Enum):
+        RED = 1
+        GREEN = 2
+        BLUE = 3
+    assert py2dict([1, Color.RED]) == [1, {"fields":["Color", "RED", ["RED", "GREEN", "BLUE"]]}]
+    
+    obj = JugsawObject("Jugsaw.TP", [])
+    assert py2dict(obj) == {"fields" : ["Jugsaw.TP", []]}
