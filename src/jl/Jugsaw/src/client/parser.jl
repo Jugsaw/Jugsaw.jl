@@ -24,13 +24,3 @@ function _load_app(obj::JugsawADT, tt::TypeTable, uri::URI)
     app = App(Symbol(name), demos, tt, uri)
     return app
 end
-
-function purename(ex)
-    @match ex begin
-        ::Symbol => ex
-        :(Jugsaw.TypeAsFunction{$type}) => purename(type)
-        :($type{$(args...)}) => purename(type)
-        :($a.$b) => purename(b)
-        _ => error(string(ex))
-    end
-end

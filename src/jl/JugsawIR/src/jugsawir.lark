@@ -9,8 +9,8 @@ object: genericobj1
         | null
 
 genericobj1 : "{" "\"fields\"" ":" list "}"
-genericobj2 : "{" "\"type\"" ":" ESCAPED_STRING "," "\"fields\"" ":" list "}"
-genericobj3 : "{" "\"fields\"" ":" list "," "\"type\"" ":" ESCAPED_STRING "}"
+genericobj2 : "{" "\"type\"" ":" string "," "\"fields\"" ":" list "}"
+genericobj3 : "{" "\"fields\"" ":" list "," "\"type\"" ":" string "}"
 
 list : "[" [object ("," object)*] "]"
 string : ESCAPED_STRING
