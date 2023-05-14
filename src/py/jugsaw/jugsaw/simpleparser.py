@@ -4,33 +4,18 @@ from collections import OrderedDict
 ####################### Object
 # the JSON grammar in EBNF format
 # dict is not allowed
-class JugsawVector(object):
-    def __init__(self, storage:list):
-        self.storage = storage
-
-    def __str__(self):
-        storage = ", ".join([f"{val}" for val in self.storage])
-        return f"[{storage}]"
-
-    def __eq__(self, target):
-        # NOTE: we do not need to check fields as long as their types are the same
-        return isinstance(target, JugsawVector) and all([x==y for x, y in zip(target.storage, self.storage)])
-
-    __repr__ = __str__
-
 class JugsawObject(object):
-    def __init__(self, type:str, fields:JugsawVector):
-        assert isinstance(fields, JugsawVector)
-        self.type = type
+    def __init__(self, typename:str, fields:list):
+        self.typename = typename
         self.fields = fields
 
     def __str__(self):
-        fields = ", ".join([f"{val}" for val in self.fields.storage])
-        return f"{self.type}({fields})"
+        fields = ", ".join([f"{val}" for val in self.fields])
+        return f"{self.typename}({fields})"
 
     def __eq__(self, target):
         # NOTE: we do not need to check fields as long as their types are the same
-        return isinstance(target, JugsawObject) and target.type == self.type and all([x==y for x, y in zip(target.fields.storage, self.fields.storage)])
+        return isinstance(target, JugsawObject) and target.typename == self.typename and all([x==y for x, y in zip(target.fields, self.fields)])
 
     __repr__ = __str__
 
@@ -49,7 +34,7 @@ class JugsawTransformer(lark.Transformer):
         return str(items[0])
     # primitive types
     def list(self, items):
-        return JugsawVector([] if items[0] == None else list(items))
+        return [] if items[0] == None else list(items)
     def string(self, items):
         return items[0][1:-1]
     def number(self, items):
@@ -74,9 +59,9 @@ class TypeTable(object):
 # convert a Jugsaw tree to a dict
 def todict(obj):
     if isinstance(obj, JugsawObject):
-        return {"type" : str(obj.type), "values" : todict(obj.values), "fields" : todict(obj.fields)}
-    elif isinstance(obj, JugsawVector):
-        return [todict(x) for x in obj.storage]
+        return {"type" : str(obj.typename), "fields" : todict(obj.values)}
+    elif isinstance(obj, list):
+        return [todict(x) for x in obj]
     else:
         return obj
 
@@ -87,39 +72,48 @@ jp = lark.Lark.open("jugsawir.lark", rel_to=__file__, start='object', parser='la
 def ir2adt(ir:str):
     return jp.parse(ir)
 
-def request_app(s:str, uri):
-    adt = ir2adt(s)
-    appadt, typesadt = adt.storage
+############################ adt to py
+class Call(object):
+    def __init__(self, fname, args, kwargs):
+        self.fname = fname
+        self.args = args
+        self.kwargs = kwargs
+
+class Demo(object):
+    def __init__(self, fcall, result, meta):
+        self.fcall = fcall
+        self.result = result
+        self.meta = meta
+
+def load_app(s:str):
+    obj, typesadt = ir2adt(s)
     tt = load_typetable(typesadt)
-    return load_app(appadt, tt, uri)
+    ############ load app
+    name, method_names, _method_demos = obj.fields
+    ks, vs = _method_demos.fields
+    method_demos = dict(zip(ks, vs))
+    demos = OrderedDict()
+    for fname in method_names:
+        demos[fname] = []
+        for demo in method_demos[fname]:
+            (_fcall, result, meta) = demo.fields
+            _fname, args, kwargs = _fcall.fields
+            jf = Call(fname, args.fields, dict(zip(tt.defs[kwargs.typename].fieldnames, kwargs.fields)))
+            demo = Demo(jf, result, dict(zip(meta.fields[0], meta.fields[1])))
+            demos[fname].append(demo)
+    return name, demos, tt
 
 def load_typetable(ast:JugsawObject):
     #for obj in ast
-    types, typedefs = ast.fields.storage
-    ks, vs = typedefs.fields.storage
-    defs = dict(zip(ks.storage, vs.storage))
+    types, typedefs = ast.fields
+    ks, vs = typedefs.fields
+    defs = dict(zip(ks, vs))
     d = {}
-    for type in types.storage:
+    for type in types:
         elem = defs[type]
-        name, fieldnames, fieldtypes = elem.fields.storage
-        d[type] = JDataType(name, fieldnames.storage, fieldtypes.storage)
+        name, fieldnames, fieldtypes = elem.fields
+        d[type] = JDataType(name, fieldnames, fieldtypes)
     return TypeTable(d)
-
-def load_app(obj, tt:TypeTable, uri):
-    name, method_names, _method_demos = obj.fields
-    ks, vs = _method_demos.fields
-    method_demos = dict(zip(ks.storage, vs.storage))
-    demos = OrderedDict()
-    for fname in method_names.storage:
-        demos[fname] = []
-        for demo in method_demos[_fname].storage:
-            (_fcall, result, meta) = demo.fields
-            _fname, args, kwargs = _fcall.fields
-            jf = Call(fname, args.fields, dict(zip(get_fieldnames(kwargs, tt), kwargs.fields)))
-            demo = Demo(jf, result, dict(zip(meta.fields[1].storage, meta.fields[2].storage)))
-            demos[fname].append(demo)
-    app = App(name, demos, tt, uri)
-    return app
 
 if __name__ == "__main__":
     import pdb
@@ -127,12 +121,12 @@ if __name__ == "__main__":
             {"type" : "Jugsaw.People{Core.Int}", "fields" : [32]}
             """)
     print(res)
-    assert res == JugsawObject("Jugsaw.People{Core.Int}", JugsawVector([32]))
+    assert res == JugsawObject("Jugsaw.People{Core.Int}", [32])
     res = jp.parse("""
             {"type":"Jugsaw.TP", "fields":[]}
             """)
     print(res)
-    assert res == JugsawObject("Jugsaw.TP", JugsawVector([]))
+    assert res == JugsawObject("Jugsaw.TP", [])
     with open("../../../jl/Jugsaw/test/testapp/demos.json", "r") as f:
         s = f.read()
-    print(request_app(s, ""))
+    print(load_app(s))
