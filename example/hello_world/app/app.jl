@@ -53,8 +53,11 @@ JOB_MANAGER.tasks["greet"] = Channel() do ch
             save_state(JOB_RESULT_STORE, JOB_RESULT_KEY_FORMAT(job.id), JSON3.write(res))
             publish(JobStatus(id=job.id, status=JobStatusEnum.succeeded))
         catch ex
+            st_io = IOBuffer()
+            showerror(st_io, CapturedException(ex, catch_backtrace()))
+            println(String(take!(st_io)))
+
             publish(JobStatus(id=job.id, status=JobStatusEnum.failed, description=string(ex)))
-            # TODO: record stack trace
         end
     end
 end
@@ -69,7 +72,7 @@ function job_handler(req::HTTP.Request)
     HTTP.Response(200, "Job submitted!")
 end
 
-TIME_OUT = 1
+TIME_OUT = 15
 
 function submit_job(job::Job)
     if haskey(JOB_MANAGER.tasks, job.func)
@@ -100,4 +103,4 @@ HTTP.register!(
 
 #####
 
-# HTTP.serve(r, "0.0.0.0", 8088)
+HTTP.serve(r, "0.0.0.0", 8088)
