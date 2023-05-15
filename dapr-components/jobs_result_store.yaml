@@ -1,7 +1,7 @@
 apiVersion: dapr.io/v1alpha1
 kind: Component
 metadata:
-  name: jobresult
+  name: job-result-store
 spec:
   type: state.redis
   metadata:

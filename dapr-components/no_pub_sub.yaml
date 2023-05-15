@@ -1,0 +1,10 @@
+apiVersion: dapr.io/v2alpha1
+kind: Subscription
+metadata:
+  name: api-pub-sub
+spec:
+  topic: 
+  routes: 
+  pubsubname: 
+scopes:
+- api

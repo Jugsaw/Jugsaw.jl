@@ -2,6 +2,12 @@ from enum import Enum
 from uuid import uuid4
 from pydantic import BaseModel, Field
 from time import time
+from typing import Any
+
+
+class Payload(BaseModel):
+    args: list[Any]
+    kwargs: dict[str, Any]
 
 
 class Job(BaseModel):
@@ -12,7 +18,7 @@ class Job(BaseModel):
     app: str
     func: str
     ver: str
-    data: bytes
+    payload: Payload
 
 
 class JobStatusEnum(str, Enum):
@@ -32,5 +38,5 @@ class JobEvent(BaseModel):
 
 
 class JobStatus(BaseModel):
-    id: str
+    job: Job
     events: list[JobEvent] = []

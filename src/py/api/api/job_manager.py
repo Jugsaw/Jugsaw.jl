@@ -20,7 +20,7 @@ def subscribe():
 
 # Dapr subscription in /dapr/subscribe sets up this route
 @app.post("/jobs")
-async def handle_job_status(request: Request):
+async def update_job_status(request: Request):
     # TODO: support web hooks
     body = await request.body()
     event = from_http(dict(request.headers), body)
@@ -29,13 +29,18 @@ async def handle_job_status(request: Request):
     config = get_config()
 
     with DaprClient() as client:
-        resp = client.get_state(config.job_status_store, job_evt.id)
+        resp = client.get_state(
+            config.job_store, config.job_key_format.format(job_evt.id)
+        )
         if resp.data:
             job_state = JobStatus.parse_raw(resp.data)
             job_state.events.append(job_evt)
             etag = resp.etag
+            client.save_state(
+                config.job_store,
+                config.job_key_format.format(job_id=job_evt.id),
+                job_state.json(),
+                etag,
+            )
         else:
-            job_state = JobStatus(id=job_evt.id, events=[job_evt])
-            etag = None
-
-        client.save_state(config.job_status_store, job_state.id, job_state.json(), etag)
+            raise Exception(f"Job[{job_evt.id}] not found")

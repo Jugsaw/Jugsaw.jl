@@ -7,13 +7,18 @@ using StructTypes
 using Dates
 
 JOB_PUB_SUB = "jobs"
-JOB_STATUS_STORE = "jobstatus"
-JOB_RESULT_STORE = "jobresult"
+JOB_RESULT_STORE = "job-result-store"
+JOB_RESULT_KEY_FORMAT = k -> "JUGSAW-JOB-RESULT:$k"
 
 @enumx JobStatusEnum starting processing pending succeeded failed canceled
 
 Base.@kwdef struct JobManager
     tasks::Dict = Dict()
+end
+
+struct Payload
+    args::Any
+    kwargs::Any
 end
 
 struct Job
@@ -24,7 +29,7 @@ struct Job
     app::String
     func::String
     ver::String
-    data::Vector{UInt8}
+    payload::Payload
 end
 
 Base.@kwdef struct JobStatus
@@ -44,8 +49,8 @@ JOB_MANAGER = JobManager()
 JOB_MANAGER.tasks["greet"] = Channel() do ch
     for job in ch
         try
-            res = greet(JSON3.read(job.data))
-            save_state(JOB_RESULT_STORE, job.id, JSON3.write(res))
+            res = greet(job.payload.args...; job.payload.kwargs...)
+            save_state(JOB_RESULT_STORE, JOB_RESULT_KEY_FORMAT(job.id), JSON3.write(res))
             publish(JobStatus(id=job.id, status=JobStatusEnum.succeeded))
         catch ex
             publish(JobStatus(id=job.id, status=JobStatusEnum.failed, description=string(ex)))
@@ -57,8 +62,9 @@ end
 function job_handler(req::HTTP.Request)
     println(req.headers)
     println(req.body)
-    evt = from_http(req.headers, req.body)
+    evt = from_http(req.headers, JSON3.read(req.body))
     job = StructTypes.constructfrom(Job, evt[])
+    println(job)
     submit_job(job)
 end
 
@@ -82,12 +88,12 @@ publish(job_status::JobStatus) = publish_event(JOB_PUB_SUB, string(job_status.st
 r = HTTP.Router()
 
 HTTP.register!(r, "GET", "/healthz", _ -> JSON3.write((; status="OK")))
-HTTP.register!(r, "POST", "/events/jobs/starting", job_handler)
+HTTP.register!(r, "POST", "/events/jobs", job_handler)
 HTTP.register!(
     r,
     "GET",
     "/dapr/subscribe",
-    _ -> JSON3.write([(pubsubname="jobs", topic="starting", route="/events/jobs/starting")])
+    _ -> JSON3.write([(pubsubname="jobs", topic="jugsaw.helloworld.latest", route="/events/jobs")])
 )
 
 

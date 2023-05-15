@@ -3,12 +3,19 @@ from pydantic import BaseSettings
 
 
 class Config(BaseSettings):
+    # topics by `proj.app`
     job_channel: str = "jobs"
-    job_status_store: str = "jobstatus"
-    job_result_store: str = "jobresult"
-    api_key_store: str = "apikey"
 
-    github_jugsaw_client_id: str = "086ad58813c1d1e1354a"
+    # in-memory cache
+    job_store: str = "job-store"
+    job_key_format: str = "JUGSAW-JOB-STATUS:{job_id}"
+
+    # persistent storage (s3)
+    job_result_store: str = "job-result-store"
+    job_result_key_format: str = "JUGSAW-JOB-RESULT:{job_id}"
+
+    # RDB
+    secret_store: str = "secret-store"
 
 
 @cache
