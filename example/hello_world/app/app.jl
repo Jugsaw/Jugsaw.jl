@@ -41,7 +41,7 @@ end
 
 
 # TODO: use register instead
-greet(x::String="World") = "Hello, $x!"
+greet(x::String="World") = "Hello, $x"
 
 JOB_MANAGER = JobManager()
 
@@ -62,10 +62,11 @@ end
 function job_handler(req::HTTP.Request)
     println(req.headers)
     println(req.body)
-    evt = from_http(req.headers, JSON3.read(req.body))
+    evt = from_http(req.headers, req.body)
     job = StructTypes.constructfrom(Job, evt[])
     println(job)
     submit_job(job)
+    HTTP.Response(200, "Job submitted!")
 end
 
 TIME_OUT = 1
@@ -83,7 +84,7 @@ function submit_job(job::Job)
     end
 end
 
-publish(job_status::JobStatus) = publish_event(JOB_PUB_SUB, string(job_status.status), JSON3.write(job_status))
+publish(job_status::JobStatus) = publish_event(JOB_PUB_SUB, string(job_status.status), job_status; headers=Pair{SubString{String},SubString{String}}["Content-Type"=>"application/json"])
 
 r = HTTP.Router()
 
@@ -99,4 +100,4 @@ HTTP.register!(
 
 #####
 
-HTTP.serve(r, "0.0.0.0", 8088)
+# HTTP.serve(r, "0.0.0.0", 8088)

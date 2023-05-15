@@ -102,11 +102,17 @@ async def submit_job(
             config.job_key_format.format(job_id=job.id),
             job_status.json(),
         )
-        client.publish_event(config.job_channel, f"{proj}.{app}.{ver}", job.json())
+        client.publish_event(
+            config.job_channel,
+            f"{proj}.{app}.{ver}",
+            job.json(),
+            data_content_type="application/json",
+        )
         client.publish_event(
             config.job_channel,
             JobStatusEnum.starting,
             JobEvent(id=job.id, status=JobStatusEnum.starting).json(),
+            data_content_type="application/json",
         )
         return job.id
 

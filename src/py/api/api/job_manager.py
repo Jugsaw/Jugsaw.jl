@@ -30,7 +30,7 @@ async def update_job_status(request: Request):
 
     with DaprClient() as client:
         resp = client.get_state(
-            config.job_store, config.job_key_format.format(job_evt.id)
+            config.job_store, config.job_key_format.format(job_id=job_evt.id)
         )
         if resp.data:
             job_state = JobStatus.parse_raw(resp.data)
