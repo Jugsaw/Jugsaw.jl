@@ -13,6 +13,7 @@ export AppSpecification, AppRuntime
 export serve, @register
 export build
 export NoDemoException
+export generate_code
 
 include("typeuniverse.jl")
 include("errors.jl")

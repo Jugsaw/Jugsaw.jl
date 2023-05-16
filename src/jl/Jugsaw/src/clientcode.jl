@@ -7,10 +7,10 @@ function generate_code(::JuliaLang, endpoint::String, appname::Symbol, fcall::Ju
     if isempty(endpoint)
         error("The endpoint of this server is not set properly.")
     end
-    code = quote
-        using Jugsaw.Client
-        app = request_app(RemoteHandler($endpoint), $(QuoteNode(appname)))
-        app.$(fcall.fname)($(fcall.args...); $(fcall.kwargs...))
-    end
+    code = join(string.([
+        :(using Jugsaw.Client),
+        :(app = request_app(RemoteHandler($endpoint), $(QuoteNode(appname)))),
+        :(app.$(fcall.fname)($(fcall.args...); $([Expr(:kw, k, v) for (k, v) in pairs(fcall.kwargs)]...))),
+    ]), "\n")
     return string(code)
 end

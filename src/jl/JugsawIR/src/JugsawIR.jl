@@ -15,7 +15,6 @@ using Expronicon.ADT: @adt
 export julia2ir, ir2julia, print_tree, print_clean_tree, TypeTable, JugsawADT
 export Call, function_signature, feval, fevalself
 export ftest, JugsawDemo
-export generate_code
 
 include("Core.jl")
 include("extendedtypes.jl")
