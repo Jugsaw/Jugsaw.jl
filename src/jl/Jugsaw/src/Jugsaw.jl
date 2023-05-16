@@ -23,5 +23,6 @@ include("server.jl")
 include("client/Client.jl")
 include("template.jl")
 include("checkapp.jl")
+include("clientcode.jl")
 
 end # module

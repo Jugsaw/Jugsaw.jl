@@ -62,17 +62,11 @@ obj_demos = [
 @testset "julia2adt" begin
     for (obj, demo) in obj_demos
         @info typeof(obj)
-        adt, typeadt = julia2adt(obj)
-        println(adt)
-
-        # get type
+        @test test_twoway(obj, demo)
         if !(typeof(obj) <: JugsawIR.DirectlyRepresentableTypes || obj === undef || obj isa Union{DataType, Array, Dict, Enum, UnionAll})
             sT = JugsawIR.type2str(typeof(obj))
             @test adt.typename == sT
         end
-        # load objects
-        res = adt2julia(adt, demo)
-        @test obj === res || obj == res
     end
 
     @testset "datatype" begin
