@@ -6,10 +6,8 @@ using JugsawIR.JSON3
     r = LocalHandler(path)
     app = request_app(r, :testapp)
     @test app isa Client.App
-    @test Client.render_jsoncall("JugsawFunctionCall{sin, Tuple{Int}}", "sin", (2,), (;)) isa String
-    @test_throws ErrorException @call r sin(2.0)
     open(f->write(f, "2"), joinpath(path, "result.json"), "w")
-    @test 2 == (@call r app.sin(2.0;))()
+    @test 2 == app.sin(2.0)
 end
 
 @testset "server-client" begin
@@ -22,21 +20,21 @@ end
     remote = RemoteHandler()  # on the default port
     @test healthz(remote).status == "OK"
     @test dapr_config(remote) == []
-    #delete
+
     app = request_app(remote, :testapp)
     @test app isa Client.App
 
     #fetch
-    @test (@test_demo remote app.sin)
-    @test dapr_config(remote) == [JSON3.read("{\"JugsawIR.JugsawFunctionCall{Base.sin, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}\": \"0\"}")]
-
-    @test_broken delete(remote, app, :sin, "0")
-    @test_broken dapr_config(remote) == []
+    @test test_demo(app.sin)
+    @test dapr_config(remote) == ["sin"]
 
     # call
-    obj = @call remote app.sin(3.0; )
+    obj = call(app.sin[1], 3.0)
     @test obj isa Client.LazyReturn
     @test obj() ≈ sin(3.0)
+
+    #delete
+    @test delete(remote, app, :sin)
 
     # turn down service
     schedule(t, InterruptException(), error=true)

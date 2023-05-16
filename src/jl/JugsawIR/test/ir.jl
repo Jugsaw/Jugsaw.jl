@@ -1,4 +1,4 @@
-using JugsawIR: json4, parse4
+using JugsawIR: julia2ir, ir2julia
 using Test, JugsawIR
 
 @testset "demoof" begin
@@ -21,7 +21,7 @@ end
     @test JugsawIR.str2type(@__MODULE__, "Core.UInt8") == UInt8
 end
 
-@testset "json4" begin
+@testset "julia2ir" begin
     struct GraphT
         nv::Int
         edges::Matrix{Int}
@@ -76,27 +76,40 @@ end
              )
         ]
         @info typeof(obj)
-        str, typestr = json4(obj)
+        str, typestr = julia2ir(obj)
         sT = JugsawIR.type2str(typeof(obj))
         types = JugsawIR.Lerche.parse(JugsawIR.jp, typestr)
-        JugsawIR.print_clean_tree(types)
 
         # get type
         tree = JugsawIR.Lerche.parse(JugsawIR.jp, str)
-        if !(typeof(obj) <: JugsawIR.DirectlyRepresentableTypes || obj === undef)
-            @test JugsawIR._gettype(tree) == sT
+        adt = JugsawIR.tree2adt(tree)
+        if typeof(obj) <: JugsawIR.DirectlyRepresentableTypes || obj === undef
+        elseif obj isa Vector
+            @test adt isa JugsawADT
+        elseif obj isa Dict
+            @test adt.typename == "JugsawIR.JDict{$(JugsawIR.type2str(JugsawIR.key_type(obj))), $(JugsawIR.type2str(JugsawIR.value_type(obj)))}"
+        elseif obj isa Array
+            @test adt.typename == "JugsawIR.JArray"
+        elseif obj isa Enum
+            @test adt.typename == "JugsawIR.JEnum"
+        elseif obj isa DataType
+            @test adt.typename == "JugsawIR.JDataType"
+        elseif obj isa UnionAll
+            @test adt == JugsawIR.type2str(obj)
+        else
+            @test adt.typename == sT
         end
         # load objects
-        res = parse4(str, demo)
+        res = ir2julia(str, demo)
         @test obj === res || obj == res
         # load type table
-        tt = parse4(typestr, JugsawIR.demoof(JugsawIR.TypeTable))
+        tt = ir2julia(typestr, JugsawIR.demoof(JugsawIR.TypeTable))
         @test tt isa JugsawIR.TypeTable
     end
 end
 
 @testset "datatype" begin
-    type, tt = json4(ComplexF64)
-    @test type == "{\"fields\":[\"Base.Complex{Core.Float64}\",[\"re\",\"im\"],[\"Core.Float64\",\"Core.Float64\"]],\"type\":\"Core.DataType\"}"
+    type, tt = julia2ir(ComplexF64)
+    @test type == "{\"fields\":[\"Base.Complex{Core.Float64}\",[\"re\",\"im\"],[\"Core.Float64\",\"Core.Float64\"]],\"type\":\"JugsawIR.JDataType\"}"
     println(tt)
 end

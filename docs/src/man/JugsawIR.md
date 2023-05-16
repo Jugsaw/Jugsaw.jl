@@ -1,3 +1,9 @@
+```@meta
+DocTestSetup = quote
+    using JugsawIR
+end 
+```
+
 # Jugsaw IR
 
 [JugsawIR](@ref) is an intermediate representation (IR) for exposing and using cloud scientific applications.
@@ -12,7 +18,7 @@ The basic rule is representing a Jugsaw object as a JSON object with extra const
 
 ## Examples 1: Representing Data
 ```julia
-julia> json4(1.0+2im)[1] |> println
+julia> julia2ir(1.0+2im)[1] |> println
 {"fields":[1.0,2.0],"type":"Base.Complex{Core.Float64}"}
 ```
 Or equivalently, as
@@ -26,14 +32,14 @@ Or when calling a remote function, one can ommit the `"type"` specification, sin
 ```
 
 !!! note
-    The `json4` function returns a two element tuple, a representation of object, and a [`TypeTable`](@ref) to delare types.
+    The `julia2ir` function returns a two element tuple, a representation of object, and a [`TypeTable`](@ref) to delare types.
 
 ## Examples 2: Representing Data Type
 A type is a special Jugsaw object with three fields `name`, `fieldnames` and `fieldtypes`.
 For example, to represent a complex number type, we can create the following IR
 
 ```julia
-julia> json4(ComplexF64)[1] |> println
+julia> julia2ir(ComplexF64)[1] |> println
 {"fields":["Base.Complex{Core.Float64}",["re","im"],["Core.Float64","Core.Float64"]],"type":"Core.DataType"}
 ```
 
@@ -42,11 +48,11 @@ For convenience, JugsawIR returns a [`TypeTable`](@ref) instance to represent th
 ## Examples 3: Representing Funcation Call
 A function call is represented as a Jugsaw object with three fields `fname`, `args` and `kwargs`.
 ```julia
-julia> fc = JugsawFunctionCall(sin, (2.0,), (;))
+julia> fc = Call(sin, (2.0,), (;))
 sin(2.0; )
 
-julia> json4(fc)[1] |> println
-{"fields":[{"fields":[],"type":"Base.sin"},{"fields":[2.0],"type":"Core.Tuple{Core.Float64}"},{"fields":[],"type":"Core.NamedTuple{(), Core.Tuple{}}"}],"type":"JugsawIR.JugsawFunctionCall{Base.sin, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}"}
+julia> julia2ir(fc)[1] |> println
+{"fields":[{"fields":[],"type":"Base.sin"},{"fields":[2.0],"type":"Core.Tuple{Core.Float64}"},{"fields":[],"type":"Core.NamedTuple{(), Core.Tuple{}}"}],"type":"JugsawIR.Call{Base.sin, Core.Tuple{Core.Float64}, Core.NamedTuple{(), Core.Tuple{}}}"}
 ```
 
 It is not different with regular Jugsaw object, except that it can executed when it is used to represent a remote call request.
@@ -81,4 +87,11 @@ null : "null"
 %import common.SIGNED_NUMBER
 %import common.WS
 %ignore WS
+```
+
+## APIs
+
+```@autodocs
+Modules = [JugsawIR]
+Order = [:function, :macro, :type, :module]
 ```

@@ -10,7 +10,7 @@ POST http://{{host}}:8081/actors/greet/jinguo/method/
 Content-Type: application/json
 Accept: application/json
 
-["Jugsaw.JugsawFunctionCall{Main.#smallgraph, Core.Tuple{Core.Symbol}, Core.NamedTuple{(), Core.Tuple{}}}",[["Main.#smallgraph",[],[]],["Core.Tuple{Core.Symbol}",[["Core.Symbol",["petersen"],[]]],["1"]],["Core.NamedTuple{(), Core.Tuple{}}",[],[]]],["fname","args","kwargs"]]
+["JugsawIR.Call{Main.#smallgraph, Core.Tuple{Core.Symbol}, Core.NamedTuple{(), Core.Tuple{}}}",[["Main.#smallgraph",[],[]],["Core.Tuple{Core.Symbol}",[["Core.Symbol",["petersen"],[]]],["1"]],["Core.NamedTuple{(), Core.Tuple{}}",[],[]]],["fname","args","kwargs"]]
 
 ###
 @obj_res_ref = {{IndependentSetConfig.response.body.*}}
@@ -25,7 +25,7 @@ POST http://{{host}}:8081/actors/greet/jinguo/method/
 Content-Type: application/json
 Accept: application/json
 
-["Jugsaw.JugsawFunctionCall{Main.#solve, Core.Tuple{Main.IndependentSetConfig, GenericTensorNetworks.CountingMax{2}}, Core.NamedTuple{(:usecuda, :seed), Core.Tuple{Core.Bool, Core.Int64}}}",[["Main.#solve",[],[]],["Core.Tuple{Main.IndependentSetConfig, GenericTensorNetworks.CountingMax{2}}",[["Main.IndependentSetConfig",[["Jugsaw.Universe.Graph",[10,["Core.Array{Core.Int64, 2}",[[2,15],[1,2,1,5,1,6,2,3,2,7,3,4,3,8,4,5,4,9,5,10,6,8,6,9,7,9,7,10,8,10]],["size","storage"]]],["nv","edges"]],["Core.Array{Core.Int64, 1}",[[10],[1,1,1,1,1,1,1,1,1,1]],["size","storage"]],["Core.Array{Core.Int64, 1}",[[0],[]],["size","storage"]],["Base.Dict{Core.Int64, Core.Int64}",[[],[]],["keys","values"]]],["graph","weights","openvertices","fixedvertices"]],["GenericTensorNetworks.CountingMax{2}",[],[]]],["1","2"]],["Core.NamedTuple{(:usecuda, :seed), Core.Tuple{Core.Bool, Core.Int64}}",[false,2],["usecuda","seed"]]],["fname","args","kwargs"]]
+["JugsawIR.Call{Main.#solve, Core.Tuple{Main.IndependentSetConfig, GenericTensorNetworks.CountingMax{2}}, Core.NamedTuple{(:usecuda, :seed), Core.Tuple{Core.Bool, Core.Int64}}}",[["Main.#solve",[],[]],["Core.Tuple{Main.IndependentSetConfig, GenericTensorNetworks.CountingMax{2}}",[["Main.IndependentSetConfig",[["Jugsaw.Universe.Graph",[10,["Core.Array{Core.Int64, 2}",[[2,15],[1,2,1,5,1,6,2,3,2,7,3,4,3,8,4,5,4,9,5,10,6,8,6,9,7,9,7,10,8,10]],["size","storage"]]],["nv","edges"]],["Core.Array{Core.Int64, 1}",[[10],[1,1,1,1,1,1,1,1,1,1]],["size","storage"]],["Core.Array{Core.Int64, 1}",[[0],[]],["size","storage"]],["Base.Dict{Core.Int64, Core.Int64}",[[],[]],["keys","values"]]],["graph","weights","openvertices","fixedvertices"]],["GenericTensorNetworks.CountingMax{2}",[],[]]],["1","2"]],["Core.NamedTuple{(:usecuda, :seed), Core.Tuple{Core.Bool, Core.Int64}}",[false,2],["usecuda","seed"]]],["fname","args","kwargs"]]
 #####
 
 @greet_res_ref = {{countingmax2.response.body.*}}
