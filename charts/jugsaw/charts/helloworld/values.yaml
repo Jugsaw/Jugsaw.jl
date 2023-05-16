@@ -1,0 +1,9 @@
+replicaCount: 1
+
+image:
+  project: jugsaw
+  pullPolicy: Always
+  tag: latest
+
+service:
+  port: 8088
