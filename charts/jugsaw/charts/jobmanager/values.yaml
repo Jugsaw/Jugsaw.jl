@@ -1,0 +1,11 @@
+replicaCount: 1
+
+image:
+  project: jugsaw
+  name: api
+  pullPolicy: Always
+  tag: latest
+
+
+service:
+  port: 8000

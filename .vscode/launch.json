@@ -1,0 +1,77 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "julia",
+            "request": "launch",
+            "name": "Hello World",
+            "program": "${workspaceFolder}/example/hello_world/app/app.jl",
+            "cwd": "${workspaceFolder}",
+            "juliaEnv": "${workspaceFolder}/example/hello_world/app",
+            "preLaunchTask": "dapr-jugsaw-hello-world-debug",
+            "postDebugTask": "dapr-jugsaw-hello-world-down"
+        },
+        {
+            "name": "API",
+            "type": "python",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/src/py/api",
+            "python": "${workspaceFolder}/src/py/api/.venv/bin/python",
+            "module": "uvicorn",
+            "args": [
+                "api.main:app",
+                "--host=0.0.0.0",
+                "--port=7035"
+            ],
+            "env": {
+                "DAPR_HTTP_PORT": "3535",
+                "DAPR_GRPC_PORT": "5035",
+                "DEBUG": "TRUE"
+            },
+            "envFile": "${workspaceFolder}/.env",
+            "jinja": true,
+            "justMyCode": true,
+            // "console": "internalConsole",
+            "preLaunchTask": "dapr-api-debug",
+            "postDebugTask": "dapr-api-down"
+        },
+        {
+            "name": "Job Manager",
+            "type": "python",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/src/py/api",
+            "python": "${workspaceFolder}/src/py/api/.venv/bin/python",
+            "module": "uvicorn",
+            "args": [
+                "api.job_manager:app",
+                "--host=0.0.0.0",
+                "--port=7036"
+            ],
+            "env": {
+                "DAPR_HTTP_PORT": "3536",
+                "DAPR_GRPC_PORT": "5036",
+                "DEBUG": "TRUE"
+            },
+            "envFile": "${workspaceFolder}/.env",
+            "jinja": true,
+            "justMyCode": true,
+            // "console": "internalConsole",
+            "preLaunchTask": "dapr-job-manager-debug",
+            "postDebugTask": "dapr-job-manager-down"
+        },
+    ],
+    "compounds": [
+        {
+            "name": "jugsaw",
+            "configurations": [
+                "Hello World",
+                "API",
+                "Job Manager"
+            ],
+            "stopAll": true
+        }
+    ]
+}

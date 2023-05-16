@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{include "api.fullname" .}}
+  labels:
+    {{- include "api.labels" . | nindent 4}}
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/tags: Environment=dev,Team=test
+    external-dns.alpha.kubernetes.io/hostname: api.jugsaw.co
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-west-1:701218724223:certificate/7115a642-a0f1-4279-be3d-f22f700bf0f4
+spec:
+  ingressClassName: alb
+  rules:
+    - host: api.jugsaw.co
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{include "api.fullname" .}}
+                port:
+                  number: {{.Values.service.port}}

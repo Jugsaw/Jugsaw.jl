@@ -1,20 +1,24 @@
 @host = 127.0.0.1
-@port = 8081
+@port = 3500
 
 ###
 
 # Check agent is alive
 
 # @name greet
-POST http://{{host}}:8081/actors/greet/jinguo/method/
+POST http://{{host}}:{{port}}/v1.0/publish/jobs/starting
 Content-Type: application/json
 Accept: application/json
 
 {
-    "__type__" : "JugsawIR.Call{Main.#greet, Core.Tuple{Core.String}, Core.NamedTuple{(), Core.Tuple{}}}",
-    "fname" : "#greet",
-    "args" : {"data":["Jugsaw"]},
-    "kwargs" : {}
+    "id": "000",
+    "created_at": 1683877867.7322347,
+    "created_by": "VSCode",
+
+    "app": "helloworld",
+    "ver": "latest",
+    "func": "greet",
+    "data": "{\"name\": \"Jugsaw\"}"
 }
 
 #####

@@ -1,6 +1,10 @@
 [deps]
-Jugsaw = "506f6749-58fa-473a-ada6-eb0172fb6950"
-JugsawIR = "6340f1c1-b722-4800-8081-8412e0693b45"
+CloudEvents = "d3baf920-4533-4796-be79-acb40839d791"
+DaprClients = "f4b2537f-2a16-4095-98fc-a229818e8b13"
+EnumX = "4e289a0a-7415-4d19-859d-a7e5c4648b56"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+StructTypes = "856f2bd8-1eba-4b0a-8007-ebc267875bd4"
 
 [jugsaw]
 name = "helloworld"
