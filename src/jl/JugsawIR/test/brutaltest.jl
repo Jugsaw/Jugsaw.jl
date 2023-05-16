@@ -1,4 +1,5 @@
 using Test, JugsawIR
+using JugsawIR: test_twoway
 
 @testset "hard objects" begin
     brutal_obj_demos = [

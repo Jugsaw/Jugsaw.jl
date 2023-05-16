@@ -1,6 +1,7 @@
 module TestJugsawIR
 using JugsawIR: julia2adt, adt2julia
 using Test, JugsawIR
+using JugsawIR: test_twoway
 
 struct GraphT
     nv::Int
@@ -65,6 +66,7 @@ obj_demos = [
         @test test_twoway(obj, demo)
         if !(typeof(obj) <: JugsawIR.DirectlyRepresentableTypes || obj === undef || obj isa Union{DataType, Array, Dict, Enum, UnionAll})
             sT = JugsawIR.type2str(typeof(obj))
+            adt, = julia2adt(obj)
             @test adt.typename == sT
         end
     end
