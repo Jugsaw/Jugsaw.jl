@@ -1,7 +1,7 @@
 apiVersion: dapr.io/v1alpha1
 kind: Component
 metadata:
-  name: jugsaw-pub-sub
+  name: jobs
 spec:
   type: pubsub.redis
   version: v1
@@ -15,7 +15,5 @@ spec:
     value: dapr.7zpiha.ng.0001.usw1.cache.amazonaws.com:6379
   - name: redisPassword
     value: ""
-  - name: maxLenApprox
-    value: 1000
 auth:
   secretStore: kubernetes

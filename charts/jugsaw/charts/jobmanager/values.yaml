@@ -1,10 +1,11 @@
 replicaCount: 1
 
 image:
-  pullPolicy: Always
   project: jugsaw
+  name: api
+  pullPolicy: Always
   tag: latest
 
+
 service:
-  type: ClusterIP
   port: 8000

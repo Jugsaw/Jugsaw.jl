@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "api.fullname" . }}
+  name: {{ include "jobmanager.fullname" . }}
   labels:
-    {{- include "api.labels" . | nindent 4 }}
+    {{- include "jobmanager.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "api.selectorLabels" . | nindent 6 }}
+      {{- include "jobmanager.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "api.selectorLabels" . | nindent 8 }}
+        {{- include "jobmanager.selectorLabels" . | nindent 8 }}
       annotations:
         dapr.io/enabled: "true"
         dapr.io/app-id: "{{ .Chart.Name }}"
@@ -26,13 +26,12 @@ spec:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.global.registry }}/{{ .Values.image.project }}/{{ .Values.image.name | default .Chart.Name}}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["python"]
+          args: ["-m", "uvicorn", "api.job_manager:app", "--host", "0.0.0.0", "--port", "{{ .Values.service.port }}"]
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
               protocol: TCP
-          envFrom:
-            - secretRef:
-                name: api-secret
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
