@@ -17,6 +17,8 @@ class Config(BaseSettings):
     # RDB
     secret_store: str = "secret-store"
 
+    jwt_secret: str = "SET ME THROUGH ENVIRONMENT VARIABLE"
+
 
 @cache
 def get_config() -> Config:

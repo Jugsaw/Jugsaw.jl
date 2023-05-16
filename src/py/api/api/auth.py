@@ -1,5 +1,6 @@
-import aiohttp
+from time import time
 import secrets
+from jose import jwt, JWTError
 from pydantic import BaseModel, Field
 from time import time
 from fastapi.security import HTTPBearer, APIKeyHeader, HTTPAuthorizationCredentials
@@ -12,16 +13,25 @@ from .config import get_config
 BEARER = HTTPBearer()
 
 
-# https://docs.github.com/en/rest/users/users?apiVersion=2022-11-28#get-the-authenticated-user
-async def get_uid_from_github_token(
+async def get_uid_from_jwt_token(
     token: Annotated[HTTPAuthorizationCredentials, Depends(BEARER)]
 ) -> str:
-    async with aiohttp.ClientSession(
-        headers={"Authorization": f"Bearer {token.credentials}"}
-    ) as session:
-        async with session.get("https://api.github.com/user") as response:
-            resp = await response.json()
-            return str(resp["id"])
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    config = get_config()
+    try:
+        payload = jwt.decode(token.credentials, config.jwt_secret, algorithms=["HS256"])
+        uid = payload.get("id")
+        exp = payload.get("exp")
+        if uid is None or exp is None or exp < time():
+            raise credentials_exception
+        return uid
+    except JWTError:
+        raise credentials_exception
 
 
 #####

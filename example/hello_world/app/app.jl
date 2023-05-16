@@ -40,6 +40,8 @@ Base.@kwdef struct JobStatus
 end
 
 
+publish(job_status::JobStatus) = publish_event(JOB_PUB_SUB, string(job_status.status), job_status; headers=Pair{SubString{String},SubString{String}}["Content-Type"=>"application/json"])
+
 # TODO: use register instead
 greet(x::String="World") = "Hello, $x"
 
@@ -86,8 +88,6 @@ function submit_job(job::Job)
         publish(JobStatus(id=job.id, status=JobStatusEnum.failed, description="$(job.func) is not registered!"))
     end
 end
-
-publish(job_status::JobStatus) = publish_event(JOB_PUB_SUB, string(job_status.status), job_status; headers=Pair{SubString{String},SubString{String}}["Content-Type"=>"application/json"])
 
 r = HTTP.Router()
 

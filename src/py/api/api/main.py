@@ -9,7 +9,7 @@ from .auth import (
     JugsawApiKeys,
     get_api_keys_from_uid,
     get_uid_from_api_key,
-    get_uid_from_github_token,
+    get_uid_from_jwt_token,
     try_create_api_key,
     try_delete_api_key,
 )
@@ -165,7 +165,7 @@ async def cancel_job(job_id: str, uid: Annotated[str, Depends(get_uid_from_api_k
 
 @app.get("/v1/key/api", tags=["account"])
 async def get_api_key(
-    uid: Annotated[str, Depends(get_uid_from_github_token)]
+    uid: Annotated[str, Depends(get_uid_from_jwt_token)]
 ) -> JugsawApiKeys:
     keys, _ = get_api_keys_from_uid(uid)
     return keys
@@ -174,7 +174,7 @@ async def get_api_key(
 @app.patch("/v1/key/api/{key_name}", tags=["account"])
 @app.post("/v1/key/api/{key_name}", tags=["account"])
 async def create_api_key(
-    uid: Annotated[str, Depends(get_uid_from_github_token)],
+    uid: Annotated[str, Depends(get_uid_from_jwt_token)],
     key_name: str = "default",
 ) -> JugsawApiKey:
     return try_create_api_key(uid, key_name)
@@ -182,7 +182,7 @@ async def create_api_key(
 
 @app.delete("/v1/key/api/{key_name}", tags=["account"])
 async def delete_api_key(
-    uid: Annotated[str, Depends(get_uid_from_github_token)],
+    uid: Annotated[str, Depends(get_uid_from_jwt_token)],
     key_name: str = "default",
 ):
     return try_delete_api_key(uid, key_name)
@@ -193,14 +193,14 @@ async def delete_api_key(
 
 @app.get("/v1/jobs", tags=["account"])
 async def get_user_jobs(
-    uid: Annotated[str, Depends(get_uid_from_github_token)]
+    uid: Annotated[str, Depends(get_uid_from_jwt_token)]
 ) -> list[str]:
     ...
 
 
 @app.get("/v1/apps", tags=["account"])
 async def get_user_apps(
-    uid: Annotated[str, Depends(get_uid_from_github_token)]
+    uid: Annotated[str, Depends(get_uid_from_jwt_token)]
 ) -> list[str]:
     ...
 
@@ -214,7 +214,7 @@ async def ping_api(uid: Annotated[str, Depends(get_uid_from_api_key)]) -> str:
 
 
 @app.get("/v1/ping/key", tags=["ping"])
-async def ping_key(uid: Annotated[str, Depends(get_uid_from_github_token)]) -> str:
+async def ping_key(uid: Annotated[str, Depends(get_uid_from_jwt_token)]) -> str:
     return "pong"
 
 
