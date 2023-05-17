@@ -89,7 +89,7 @@ Base.show(io::IO, ::MIME"text/plain", f::Call) = Base.show(io, f)
 struct JugsawDemo
     fcall::Call
     result
-    meta::Dict{String}
+    meta::Dict{String, String}
 end
 Base.:(==)(d1::JugsawDemo, d2::JugsawDemo) = d1.fcall == d2.fcall && d1.result == d2.result && d1.meta == d2.meta
 
@@ -112,13 +112,13 @@ function demoof(::Type{T}) where T
 end
 function demoofelement(demo::Array{T}) where T
     if isabstracttype(T)
-        throw(TypeTooAbstract(typeof(demo)))
+        throw(TypeTooAbstract(demo))
     end
     return length(demo) > 0 ? first(demo) : demoof(eltype(demo))
 end
 function demoofelement(demo::Dict{K,V}) where {K, V}
     if isabstracttype(K) || isabstracttype(V)
-        throw(TypeTooAbstract(typeof(demo)))
+        throw(TypeTooAbstract(demo))
     end
     return length(demo) > 0 ? first(demo) : (demoof(K) => demoof(V))
 end
