@@ -11,7 +11,7 @@ function native2jugsaw(x::Dict)
 end
 function construct_object(t::JugsawADT, demo::Dict)
     ks, vs = t.fields
-    kd, vd = length(demo) > 0 ? (first(keys(demo)), first(values(demo))) : (demoof(key_type(demo)), demoof(value_type(demo)))
+    kd, vd = demoofelement(demo)
     typeof(demo)(zip([adt2julia(k, kd) for k in ks.storage],
         [adt2julia(v, vd) for v in vs.storage]))
 end
@@ -32,7 +32,7 @@ function native2jugsaw(x::Array)
 end
 function construct_object(t::JugsawADT, demo::Array{T}) where T
     size, storage = t.fields
-    d = demoofarray(demo)
+    d = demoofelement(demo)
     reshape(T[adt2julia(x, d) for x in storage.storage], Int[adt2julia(s, 0) for s in size.storage]...)
 end
 
