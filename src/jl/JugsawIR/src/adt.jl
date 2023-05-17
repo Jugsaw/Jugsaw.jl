@@ -83,7 +83,7 @@ function adt2julia(t, demo::T) where T
         ::Nothing || ::Missing || ::UndefInitializer || ::Type || ::Function => demo
         ::Char => T(t[1])
         ::DirectlyRepresentableTypes => T(t)
-        ::Vector => T(adt2julia.(t.storage, Ref(demoofarray(demo))))
+        ::Vector => T(adt2julia.(t.storage, Ref(demoofelement(demo))))
         ::JugsawADT => t
         ###################### Generic Compsite Types ######################
         _ => begin
@@ -91,7 +91,6 @@ function adt2julia(t, demo::T) where T
         end
     end
 end
-demoofarray(demo::Array) = length(demo) > 0 ? first(demo) : demoof(eltype(demo))
 
 function construct_object(t::JugsawADT, demo::T) where T
     flds = t.fields

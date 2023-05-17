@@ -110,6 +110,19 @@ function demoof(::Type{T}) where T
     vals = demoof.(T.types)
     return Core.eval(@__MODULE__, Expr(:new, T, Any[:($vals[$i]) for i=1:length(vals)]...))
 end
+function demoofelement(demo::Array{T}) where T
+    if isabstracttype(T)
+        throw(TypeTooAbstract(typeof(demo)))
+    end
+    return length(demo) > 0 ? first(demo) : demoof(eltype(demo))
+end
+function demoofelement(demo::Dict{K,V}) where {K, V}
+    if isabstracttype(K) || isabstracttype(V)
+        throw(TypeTooAbstract(typeof(demo)))
+    end
+    return length(demo) > 0 ? first(demo) : (demoof(K) => demoof(V))
+end
+
 
 ############ ADT
 @adt JugsawADT begin

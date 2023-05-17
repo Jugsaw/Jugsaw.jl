@@ -32,7 +32,7 @@ function julia2client(lang::AbstractLang, x, demo::T) where T
         ::Nothing || ::Missing || ::UndefInitializer || ::Type || ::Function => toexpr(lang, demo)
         ::Char => toexpr(lang, T(x[1]))
         ::JugsawIR.DirectlyRepresentableTypes => toexpr(lang, T(x))
-        ::Vector => Expr(:vect, [julia2client(lang, elem, JugsawIR.demoofarray(demo)) for elem in x.storage]...)
+        ::Vector => Expr(:vect, [julia2client(lang, elem, JugsawIR.demoofelement(demo)) for elem in x.storage]...)
         ::JugsawADT => error("what for?")
         ###################### Generic Compsite Types ######################
         _ => begin
