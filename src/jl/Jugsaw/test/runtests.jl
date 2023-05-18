@@ -24,6 +24,10 @@ end
     include("errors.jl")
 end
 
+@testset "clientcode" begin
+    include("clientcode.jl")
+end
+
 @testset "checkapp" begin
     include("checkapp.jl")
 end
