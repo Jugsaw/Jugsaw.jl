@@ -35,33 +35,11 @@
             "presentation": {
                 "reveal": "silent",
                 "close": true
-            }
+            },
         },
         {
             "appId": "api",
             "label": "dapr-api-down",
-            "type": "daprd-down",
-            "presentation": {
-                "reveal": "silent",
-                "close": true
-            }
-        },
-        {
-            "appId": "jobmanager",
-            "appPort": 7036,
-            "httpPort": 3536,
-            "grpcPort": 5036,
-            "componentsPath": "./dapr-components",
-            "label": "dapr-job-manager-debug",
-            "type": "dapr",
-            "presentation": {
-                "reveal": "silent",
-                "close": true
-            }
-        },
-        {
-            "appId": "jobmanager",
-            "label": "dapr-job-manager-down",
             "type": "daprd-down",
             "presentation": {
                 "reveal": "silent",

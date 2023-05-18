@@ -37,39 +37,14 @@
             // "console": "internalConsole",
             "preLaunchTask": "dapr-api-debug",
             "postDebugTask": "dapr-api-down"
-        },
-        {
-            "name": "Job Manager",
-            "type": "python",
-            "request": "launch",
-            "cwd": "${workspaceFolder}/src/py/api",
-            "python": "${workspaceFolder}/src/py/api/.venv/bin/python",
-            "module": "uvicorn",
-            "args": [
-                "api.job_manager:app",
-                "--host=0.0.0.0",
-                "--port=7036"
-            ],
-            "env": {
-                "DAPR_HTTP_PORT": "3536",
-                "DAPR_GRPC_PORT": "5036",
-                "DEBUG": "TRUE"
-            },
-            "envFile": "${workspaceFolder}/.env",
-            "jinja": true,
-            "justMyCode": true,
-            // "console": "internalConsole",
-            "preLaunchTask": "dapr-job-manager-debug",
-            "postDebugTask": "dapr-job-manager-down"
-        },
+        }
     ],
     "compounds": [
         {
             "name": "jugsaw",
             "configurations": [
                 "Hello World",
-                "API",
-                "Job Manager"
+                "API"
             ],
             "stopAll": true
         }

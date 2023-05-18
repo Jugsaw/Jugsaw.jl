@@ -1,16 +1,19 @@
-from time import time
+import json
+from enum import Enum
 import secrets
 from jose import jwt, JWTError
 from pydantic import BaseModel, Field
 from time import time
+from datetime import datetime, timezone
 from fastapi.security import HTTPBearer, APIKeyHeader, HTTPAuthorizationCredentials
 from fastapi import Depends, HTTPException, status
-from typing import Annotated, Optional
+from typing import Annotated
 from dapr.clients import DaprClient
+import aiohttp
 
 from .config import get_config
 
-BEARER = HTTPBearer()
+BEARER = HTTPBearer(scheme_name="Jugsaw JWT Token")
 
 
 async def get_uid_from_jwt_token(
@@ -37,20 +40,18 @@ async def get_uid_from_jwt_token(
 #####
 
 
-class JugsawApiKey(BaseModel):
+class ApiKey(BaseModel):
     name: str = "default"
     value: str = Field(default_factory=secrets.token_urlsafe)
-    created_at: float = Field(default_factory=time)
+    created_at: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
+    created_by: str = ""
 
 
-class JugsawApiKeys(BaseModel):
-    keys: dict[str, JugsawApiKey] = {}
-
-
-UID2API_KEY_FORMAT = "JUGSAW-UID-TO-API-KEY:{uid}"
-API_KEY2UID_FORMAT = "JUGSAW-API-KEY-TO-UID:{key}"
-
-API_KEY_HEADER = APIKeyHeader(name="JUGSAW-API-KEY")
+API_KEY_HEADER = APIKeyHeader(name="JUGSAW-API-KEY", scheme_name="Jugsaw API Key")
 
 
 def get_uid_from_api_key(
@@ -58,9 +59,10 @@ def get_uid_from_api_key(
 ) -> str:
     config = get_config()
     with DaprClient() as client:
-        resp = client.get_state(config.secret_store, API_KEY2UID_FORMAT.format(key=key))
+        resp = client.get_state(config.secret_store, key.credentials)
         if resp.data:
-            return resp.text()
+            k = ApiKey.parse_raw(resp.data)
+            return k.created_by
         else:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -68,77 +70,55 @@ def get_uid_from_api_key(
             )
 
 
-def get_api_keys_from_uid(uid: str) -> tuple[JugsawApiKeys, Optional[str]]:
+def get_keys_by_uid(uid: str) -> list[ApiKey]:
     config = get_config()
     with DaprClient() as client:
-        resp = client.get_state(config.secret_store, UID2API_KEY_FORMAT.format(uid=uid))
-        if resp.data:
-            api_key = JugsawApiKeys.parse_raw(resp.data)
-            return api_key, resp.etag
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found",
-            )
+        query = {"filter": {"EQ": {"created_by": uid}}}
+        resp = client.query_state(config.secret_store, json.dumps(query))
+        return [ApiKey.parse_raw(r.value) for r in resp.results]
 
 
-def try_delete_api_key(uid: str, key_name: str):
+def try_delete_key(uid: str, key_name: str):
     config = get_config()
     with DaprClient() as client:
-        existing_keys, etag = get_api_keys_from_uid(uid)
-        if key_name in existing_keys.keys:
-            del existing_keys.keys[key_name]
-            client.save_state(
-                config.secret_store,
-                UID2API_KEY_FORMAT.format(uid=uid),
-                existing_keys.json(),
-                etag,
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"API KEY [{key_name}] not found",
-            )
+        # 1. find keys
+        query = {
+            "filter": {"AND": [{"EQ": {"created_by": uid}}, {"EQ": {"name": key_name}}]}
+        }
+        resp = client.query_state(config.secret_store, json.dumps(query))
+        # 2. delete
+        for r in resp.results:
+            client.delete_state(config.secret_store, r.key)
 
 
-def try_create_api_key(uid: str, key_name: str) -> JugsawApiKey:
+def try_create_api_key(uid: str, key_name: str) -> ApiKey:
+    """
+    If the `key_name` already exists, it'll be revoked.
+    """
+    try_delete_key(uid, key_name)
+
     config = get_config()
     with DaprClient() as client:
-        try:
-            existing_keys, etag = get_api_keys_from_uid(uid)
-            if key_name in existing_keys.keys:
-                # 1. delete old apikey2uid mapping
-                client.delete_state(
-                    config.secret_store,
-                    API_KEY2UID_FORMAT.format(key=existing_keys.keys[key_name]),
-                )
+        key = ApiKey(
+            name=key_name,
+        )
+        client.save_state(config.secret_store, key.value, key.json())
+        return key
 
-            # 2. create a new api key
-            new_key = JugsawApiKey(name=key_name)
-            existing_keys.keys[key_name] = new_key
-            client.save_state(
-                config.secret_store,
-                UID2API_KEY_FORMAT.format(uid=uid),
-                existing_keys.json(),
-                etag,
-            )
 
-            # 3. associate newkey2uid mapping
-            client.save_state(
-                config.secret_store,
-                API_KEY2UID_FORMAT.format(key=new_key.value),
-                uid,
-            )
+#####
 
-            return new_key
-        except HTTPException:
-            key = JugsawApiKey(name=key_name)
-            keys = JugsawApiKeys(keys={key_name: key})
-            client.save_state(
-                config.secret_store, UID2API_KEY_FORMAT.format(uid=uid), keys.json()
-            )
-            client.save_state(
-                config.secret_store, API_KEY2UID_FORMAT.format(key=key.value), uid
-            )
 
-            return key
+# async def try_get_registry_key(user_name: str) -> str:
+#     config = get_config()
+#     auth = aiohttp.BasicAuth(
+#         config.registry_admin_username, config.registry_admin_password
+#     )
+#     async with aiohttp.ClientSession(config.registry_endpoint, auth=auth) as client:
+#         is_registered = await is_project_exists(client, user_name)
+
+
+# async def is_project_exists(user_name: str) -> bool:
+#     async with aiohttp.ClientSession("https://harbor.jugsaw.co", auth=auth) as client:
+#         async with client.head("/projects", params={"project_name": user_name}) as resp:
+#             return resp.status == 200

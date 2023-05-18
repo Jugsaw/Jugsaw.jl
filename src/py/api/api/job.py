@@ -31,12 +31,8 @@ class JobStatusEnum(str, Enum):
 
 
 class JobEvent(BaseModel):
-    id: str
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    job_id: str
     status: str
     timestamp: float = Field(default_factory=time)
     description: str = ""
-
-
-class JobStatus(BaseModel):
-    job: Job
-    events: list[JobEvent] = []

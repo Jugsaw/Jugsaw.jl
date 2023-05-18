@@ -2,13 +2,12 @@ from cloudevents.http import from_http
 from fastapi import FastAPI, Request
 from dapr.clients import DaprClient
 
-from .job import JobEvent, JobStatus, JobStatusEnum
+from .job import JobEvent, JobStatusEnum
 from .config import get_config
 
 app = FastAPI()
 
 
-# Register Dapr pub/sub subscriptions
 @app.get("/dapr/subscribe")
 def subscribe():
     config = get_config()
@@ -18,7 +17,6 @@ def subscribe():
     ]
 
 
-# Dapr subscription in /dapr/subscribe sets up this route
 @app.post("/jobs")
 async def update_job_status(request: Request):
     # TODO: support web hooks
@@ -27,20 +25,8 @@ async def update_job_status(request: Request):
     job_evt = JobEvent.parse_obj(event.data)
 
     config = get_config()
-
     with DaprClient() as client:
-        resp = client.get_state(
-            config.job_store, config.job_key_format.format(job_id=job_evt.id)
-        )
-        if resp.data:
-            job_state = JobStatus.parse_raw(resp.data)
-            job_state.events.append(job_evt)
-            etag = resp.etag
-            client.save_state(
-                config.job_store,
-                config.job_key_format.format(job_id=job_evt.id),
-                job_state.json(),
-                etag,
-            )
-        else:
-            raise Exception(f"Job[{job_evt.id}] not found")
+        client.save_state(config.job_event_store, job_evt.id, job_evt.json())
+
+
+# TODO: handle dead letters
