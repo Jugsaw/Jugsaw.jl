@@ -1,24 +1,14 @@
 from enum import Enum
 from uuid import uuid4
 from pydantic import BaseModel, Field
-from time import time
 from typing import Any
+
+from .utils import now_iso_z
 
 
 class Payload(BaseModel):
     args: list[Any]
     kwargs: dict[str, Any]
-
-
-class Job(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid4()))
-    created_at: float = Field(default_factory=time)
-    created_by: str
-
-    app: str
-    func: str
-    ver: str
-    payload: Payload
 
 
 class JobStatusEnum(str, Enum):
@@ -31,12 +21,20 @@ class JobStatusEnum(str, Enum):
 
 
 class JobEvent(BaseModel):
-    id: str
-    status: str
-    timestamp: float = Field(default_factory=time)
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    job_id: str
+    status: JobStatusEnum
+    created_at: str = Field(default_factory=now_iso_z)
     description: str = ""
 
 
-class JobStatus(BaseModel):
-    job: Job
-    events: list[JobEvent] = []
+class Job(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    created_at: str = Field(default_factory=now_iso_z)
+    updated_at: str = ""
+    created_by: str
+
+    app: str
+    func: str
+    ver: str
+    payload: Payload

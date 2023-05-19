@@ -2,7 +2,7 @@ from cloudevents.http import from_http
 from fastapi import FastAPI, Request
 from dapr.clients import DaprClient
 
-from .job import JobEvent, JobStatus, JobStatusEnum
+from .job import JobEvent, JobStatusEnum
 from .config import get_config
 
 app = FastAPI()
@@ -13,7 +13,7 @@ app = FastAPI()
 def subscribe():
     config = get_config()
     return [
-        {"pubsubname": config.job_channel, "topic": x, "route": "jobs"}
+        {"pubsubname": config.job_event_channel, "topic": x, "route": "jobs"}
         for x in JobStatusEnum.__members__.keys()
     ]
 
@@ -29,18 +29,4 @@ async def update_job_status(request: Request):
     config = get_config()
 
     with DaprClient() as client:
-        resp = client.get_state(
-            config.job_store, config.job_key_format.format(job_id=job_evt.id)
-        )
-        if resp.data:
-            job_state = JobStatus.parse_raw(resp.data)
-            job_state.events.append(job_evt)
-            etag = resp.etag
-            client.save_state(
-                config.job_store,
-                config.job_key_format.format(job_id=job_evt.id),
-                job_state.json(),
-                etag,
-            )
-        else:
-            raise Exception(f"Job[{job_evt.id}] not found")
+        client.save_state(config.job_event_store, job_evt.id, job_evt.json())

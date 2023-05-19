@@ -1,38 +1,37 @@
-from typing import Any
 from typing_extensions import Annotated
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, status
 from dapr.clients import DaprClient
-from pydantic import BaseModel, parse_raw_as
+import json
 
 from .auth import (
     JugsawApiKey,
-    JugsawApiKeys,
-    get_api_keys_from_uid,
-    get_uid_from_api_key,
+    User,
+    delete_api_key_by_uid_name,
+    get_api_keys_by_uid,
+    get_uid_by_api_key,
     get_uid_from_jwt_token,
+    get_user_from_jwt_token,
     try_create_api_key,
-    try_delete_api_key,
+    try_create_registry_key,
 )
-from .job import Job, JobEvent, JobStatus, JobStatusEnum, Payload
+from .job import Job, JobEvent, JobStatusEnum, Payload
 from .config import get_config
 
 
-app = FastAPI()
+app = FastAPI(title="Jugsaw API")
 
 #####
 
 
 @app.get("/v1/proj", tags=["api"])
-async def list_projects(
-    uid: Annotated[str, Depends(get_uid_from_api_key)]
-) -> list[str]:
+async def list_projects(uid: Annotated[str, Depends(get_uid_by_api_key)]) -> list[str]:
     # TODO: pagination
     ...
 
 
 @app.get("/v1/proj/{proj}", tags=["api"])
 async def describe_project(
-    proj: str, uid: Annotated[str, Depends(get_uid_from_api_key)]
+    proj: str, uid: Annotated[str, Depends(get_uid_by_api_key)]
 ) -> list[str]:
     # TODO: pagination
     ...
@@ -40,7 +39,7 @@ async def describe_project(
 
 @app.get("/v1/proj/{proj}/app/{app}", tags=["api"])
 async def list_applications(
-    proj: str, app: str, uid: Annotated[str, Depends(get_uid_from_api_key)]
+    proj: str, app: str, uid: Annotated[str, Depends(get_uid_by_api_key)]
 ) -> list[str]:
     # TODO: pagination
     ...
@@ -50,7 +49,7 @@ async def list_applications(
 async def describe_application(
     proj: str,
     app: str,
-    uid: Annotated[str, Depends(get_uid_from_api_key)],
+    uid: Annotated[str, Depends(get_uid_by_api_key)],
     ver: str,
 ) -> str:
     ...
@@ -58,7 +57,7 @@ async def describe_application(
 
 @app.get("/v1/proj/{proj}/app/{app}/ver/{ver}/func", tags=["api"])
 async def list_functions(
-    uid: Annotated[str, Depends(get_uid_from_api_key)],
+    uid: Annotated[str, Depends(get_uid_by_api_key)],
     proj: str,
     app: str,
     ver: str,
@@ -71,7 +70,7 @@ async def describe_function(
     proj: str,
     app: str,
     func: str,
-    uid: Annotated[str, Depends(get_uid_from_api_key)],
+    uid: Annotated[str, Depends(get_uid_by_api_key)],
     ver: str,
 ) -> str:
     ...
@@ -84,10 +83,10 @@ async def submit_job(
     ver: str,
     func: str,
     payload: Payload,
-    uid: Annotated[str, Depends(get_uid_from_api_key)],
+    uid: Annotated[str, Depends(get_uid_by_api_key)],
 ) -> str:
+    # TODO: resolve `ver` of `"latest"` to docker image hash
     config = get_config()
-
     with DaprClient() as client:
         job = Job(
             created_by=uid,
@@ -96,11 +95,10 @@ async def submit_job(
             ver=ver,
             payload=payload,
         )
-        job_status = JobStatus(job=job)
         client.save_state(
             config.job_store,
-            config.job_key_format.format(job_id=job.id),
-            job_status.json(),
+            job.id,
+            job.json(),
         )
         client.publish_event(
             config.job_channel,
@@ -109,9 +107,9 @@ async def submit_job(
             data_content_type="application/json",
         )
         client.publish_event(
-            config.job_channel,
+            config.job_event_channel,
             JobStatusEnum.starting,
-            JobEvent(id=job.id, status=JobStatusEnum.starting).json(),
+            JobEvent(job_id=job.id, status=JobStatusEnum.starting).json(),
             data_content_type="application/json",
         )
         return job.id
@@ -122,30 +120,29 @@ async def submit_job(
 
 @app.get("/v1/job/{job_id}", tags=["api"])
 async def describe_job(
-    uid: Annotated[str, Depends(get_uid_from_api_key)], job_id: str
-) -> JobStatus:
+    uid: Annotated[str, Depends(get_uid_by_api_key)], job_id: str
+) -> Job:
     config = get_config()
     with DaprClient() as client:
-        res = client.get_state(
-            config.job_store, config.job_key_format.format(job_id=job_id)
-        )
+        res = client.get_state(config.job_store, job_id)
         if res.data:
-            job_status = JobStatus.parse_raw(res.data)
-            # TODO: make sure the job is created by `uid`
-            return job_status
+            job = Job.parse_raw(res.data)
+            if job.created_by == uid:
+                return job
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=f"Job[{job_id}] is not created by {uid}",
+                )
         else:
             raise HTTPException(status_code=404, detail=f"Job[{job_id}] not found")
 
 
 @app.get("/v1/job/{job_id}/result", tags=["api"])
-async def get_job_result(
-    uid: Annotated[str, Depends(get_uid_from_api_key)], job_id: str
-):
+async def get_job_result(uid: Annotated[str, Depends(get_uid_by_api_key)], job_id: str):
     config = get_config()
     with DaprClient() as client:
-        res = client.get_state(
-            config.job_result_store, config.job_result_key_format.format(job_id=job_id)
-        )
+        res = client.get_state(config.job_result_store, job_id)
         if res.data:
             # TODO: make sure the result is create by `uid`
             return res.json()  # ??? plain text or json?
@@ -155,27 +152,35 @@ async def get_job_result(
             )
 
 
+@app.get("/v1/job/{job_id}/events", tags=["api"])
+async def get_job_events(uid: Annotated[str, Depends(get_uid_by_api_key)], job_id: str):
+    config = get_config()
+    with DaprClient() as client:
+        query = {"filter": {"EQ": {"job_id": job_id}}, "sort": [{"key": "created_at"}]}
+        resp = client.query_state(config.job_event_store, query=json.dumps(query))
+        return [JobEvent.parse_raw(r.value) for r in resp.results]
+
+
 @app.delete("/v1/job/{job_id}", tags=["api"])
-async def cancel_job(job_id: str, uid: Annotated[str, Depends(get_uid_from_api_key)]):
+async def cancel_job(job_id: str, uid: Annotated[str, Depends(get_uid_by_api_key)]):
     ...
 
 
 #####
 
 
-@app.get("/v1/key/api", tags=["account"])
-async def get_api_key(
+@app.get("/v1/key", tags=["account"])
+async def get_secret_keys(
     uid: Annotated[str, Depends(get_uid_from_jwt_token)]
-) -> JugsawApiKeys:
-    keys, _ = get_api_keys_from_uid(uid)
-    return keys
+) -> list[JugsawApiKey]:
+    return get_api_keys_by_uid(uid)
 
 
 @app.patch("/v1/key/api/{key_name}", tags=["account"])
 @app.post("/v1/key/api/{key_name}", tags=["account"])
 async def create_api_key(
     uid: Annotated[str, Depends(get_uid_from_jwt_token)],
-    key_name: str = "default",
+    key_name: str,
 ) -> JugsawApiKey:
     return try_create_api_key(uid, key_name)
 
@@ -183,9 +188,18 @@ async def create_api_key(
 @app.delete("/v1/key/api/{key_name}", tags=["account"])
 async def delete_api_key(
     uid: Annotated[str, Depends(get_uid_from_jwt_token)],
-    key_name: str = "default",
+    key_name: str,
 ):
-    return try_delete_api_key(uid, key_name)
+    delete_api_key_by_uid_name(uid, key_name)
+
+
+@app.patch("/v1/key/reg/{key_name}", tags=["account"])
+@app.post("/v1/key/reg/{key_name}", tags=["account"])
+async def create_registry_key(
+    user: Annotated[User, Depends(get_user_from_jwt_token)],
+    key_name: str,
+) -> JugsawApiKey:
+    return try_create_registry_key(user, key_name)
 
 
 #####
@@ -209,7 +223,7 @@ async def get_user_apps(
 
 
 @app.get("/v1/ping/api", tags=["ping"])
-async def ping_api(uid: Annotated[str, Depends(get_uid_from_api_key)]) -> str:
+async def ping_api(uid: Annotated[str, Depends(get_uid_by_api_key)]) -> str:
     return "pong"
 
 
