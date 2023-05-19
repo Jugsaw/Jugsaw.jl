@@ -5,6 +5,11 @@
 
 # Check agent is alive
 
+# @name proj
+GET http://{{host}}:{{port}}/api/v1/proj
+
+#####
+
 # @name greet
 POST http://{{host}}:{{port}}/v1.0/publish/jobs/starting
 Content-Type: application/json

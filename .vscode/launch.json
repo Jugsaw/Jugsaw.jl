@@ -19,7 +19,7 @@
             "type": "python",
             "request": "launch",
             "cwd": "${workspaceFolder}/src/py/api",
-            "python": "${workspaceFolder}/src/py/api/.venv/bin/python",
+            // "python": "${workspaceFolder}/src/py/api/.venv/bin/python",
             "module": "uvicorn",
             "args": [
                 "api.main:app",
@@ -43,7 +43,7 @@
             "type": "python",
             "request": "launch",
             "cwd": "${workspaceFolder}/src/py/api",
-            "python": "${workspaceFolder}/src/py/api/.venv/bin/python",
+            // "python": "${workspaceFolder}/src/py/api/.venv/bin/python",
             "module": "uvicorn",
             "args": [
                 "api.job_manager:app",
