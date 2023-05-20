@@ -26,6 +26,9 @@ spec:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.global.registry }}/{{ .Values.image.project }}/{{ .Values.image.name | default .Chart.Name}}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: JUGSAW_APP_VERSION
+              value: sha256:b59c6eef9225cb6859626f74f26d2d8bcf4b694b824740c235dbfa2438d8e91b
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}

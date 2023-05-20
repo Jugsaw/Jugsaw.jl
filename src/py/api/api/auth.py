@@ -1,7 +1,8 @@
+import json
 from time import time
-import secrets
+import aiohttp
 from jose import jwt, JWTError
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from time import time
 from fastapi.security import HTTPBearer, APIKeyHeader, HTTPAuthorizationCredentials
 from fastapi import Depends, HTTPException, status
@@ -9,13 +10,26 @@ from typing import Annotated, Optional
 from dapr.clients import DaprClient
 
 from .config import get_config
+from .harbor import create_project, create_robot
 
 BEARER = HTTPBearer()
 
 
-async def get_uid_from_jwt_token(
+class UserBasic(BaseModel):
+    id: str
+    login: str
+
+
+class User(BaseModel):
+    basic: UserBasic
+
+    creation_time: str
+    secret: str
+
+
+def get_user_by_jwt_token(
     token: Annotated[HTTPAuthorizationCredentials, Depends(BEARER)]
-) -> str:
+) -> UserBasic:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -26,119 +40,69 @@ async def get_uid_from_jwt_token(
     try:
         payload = jwt.decode(token.credentials, config.jwt_secret, algorithms=["HS256"])
         uid = payload.get("id")
+        login = payload.get("login")
         exp = payload.get("exp")
-        if uid is None or exp is None or exp < time():
+        if uid is None or login is None or exp is None or exp < time():
             raise credentials_exception
-        return uid
+        return UserBasic(id=uid, login=login)
     except JWTError:
         raise credentials_exception
 
 
-#####
+def get_uid_by_jwt_token(user: UserBasic = Depends(get_user_by_jwt_token)) -> str:
+    return user.id
 
 
-class JugsawApiKey(BaseModel):
-    name: str = "default"
-    value: str = Field(default_factory=secrets.token_urlsafe)
-    created_at: float = Field(default_factory=time)
-
-
-class JugsawApiKeys(BaseModel):
-    keys: dict[str, JugsawApiKey] = {}
-
-
-UID2API_KEY_FORMAT = "JUGSAW-UID-TO-API-KEY:{uid}"
-API_KEY2UID_FORMAT = "JUGSAW-API-KEY-TO-UID:{key}"
-
-API_KEY_HEADER = APIKeyHeader(name="JUGSAW-API-KEY")
-
-
-def get_uid_from_api_key(
-    key: Annotated[HTTPAuthorizationCredentials, Depends(API_KEY_HEADER)]
-) -> str:
+def get_user(uid: str) -> Optional[User]:
     config = get_config()
     with DaprClient() as client:
-        resp = client.get_state(config.secret_store, API_KEY2UID_FORMAT.format(key=key))
+        resp = client.get_state(config.user_store, uid)
         if resp.data:
-            return resp.text()
+            return User.parse_raw(resp.data)
+
+
+async def try_get_secret(client: aiohttp.ClientSession, u: UserBasic) -> str:
+    """
+    A new one will be created if no secret found.
+    """
+    if user := get_user(u.id):
+        return user.secret
+    else:
+        await create_project(client, u.login)
+        robot_resp = await create_robot(client, u.login)
+        user = User(
+            basic=u, creation_time=robot_resp.creation_time, secret=robot_resp.secret
+        )
+        with DaprClient() as dapr_client:
+            config = get_config()
+            dapr_client.save_state(
+                config.user_store,
+                u.id,
+                user.json(),
+                state_metadata={"contentType": "application/json"},
+            )
+        return user.secret
+
+
+#####
+
+API_KEY_HEADER = APIKeyHeader(name="JUGSAW-API-KEY", scheme_name="Jugsaw API Key")
+
+
+def get_user_by_api_key(secret: Annotated[str, Depends(API_KEY_HEADER)]) -> UserBasic:
+    with DaprClient() as client:
+        config = get_config()
+        query = {"filter": {"EQ": {"secret": secret}}}
+        resp = client.query_state(config.user_store, json.dumps(query))
+        if len(resp.results) == 1:
+            user = User.parse_raw(resp.results[0].value)
+            return user.basic
         else:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid JUGSAW-API-KEY",
+                detail="Invalid JUGSAW-API-KEY!",
             )
 
 
-def get_api_keys_from_uid(uid: str) -> tuple[JugsawApiKeys, Optional[str]]:
-    config = get_config()
-    with DaprClient() as client:
-        resp = client.get_state(config.secret_store, UID2API_KEY_FORMAT.format(uid=uid))
-        if resp.data:
-            api_key = JugsawApiKeys.parse_raw(resp.data)
-            return api_key, resp.etag
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found",
-            )
-
-
-def try_delete_api_key(uid: str, key_name: str):
-    config = get_config()
-    with DaprClient() as client:
-        existing_keys, etag = get_api_keys_from_uid(uid)
-        if key_name in existing_keys.keys:
-            del existing_keys.keys[key_name]
-            client.save_state(
-                config.secret_store,
-                UID2API_KEY_FORMAT.format(uid=uid),
-                existing_keys.json(),
-                etag,
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"API KEY [{key_name}] not found",
-            )
-
-
-def try_create_api_key(uid: str, key_name: str) -> JugsawApiKey:
-    config = get_config()
-    with DaprClient() as client:
-        try:
-            existing_keys, etag = get_api_keys_from_uid(uid)
-            if key_name in existing_keys.keys:
-                # 1. delete old apikey2uid mapping
-                client.delete_state(
-                    config.secret_store,
-                    API_KEY2UID_FORMAT.format(key=existing_keys.keys[key_name]),
-                )
-
-            # 2. create a new api key
-            new_key = JugsawApiKey(name=key_name)
-            existing_keys.keys[key_name] = new_key
-            client.save_state(
-                config.secret_store,
-                UID2API_KEY_FORMAT.format(uid=uid),
-                existing_keys.json(),
-                etag,
-            )
-
-            # 3. associate newkey2uid mapping
-            client.save_state(
-                config.secret_store,
-                API_KEY2UID_FORMAT.format(key=new_key.value),
-                uid,
-            )
-
-            return new_key
-        except HTTPException:
-            key = JugsawApiKey(name=key_name)
-            keys = JugsawApiKeys(keys={key_name: key})
-            client.save_state(
-                config.secret_store, UID2API_KEY_FORMAT.format(uid=uid), keys.json()
-            )
-            client.save_state(
-                config.secret_store, API_KEY2UID_FORMAT.format(key=key.value), uid
-            )
-
-            return key
+def get_uid_by_api_key(user: UserBasic = Depends(get_user_by_api_key)):
+    return user.id

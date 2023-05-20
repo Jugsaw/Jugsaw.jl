@@ -1,7 +1,7 @@
 apiVersion: dapr.io/v1alpha1
 kind: Component
 metadata:
-  name: job-result-store
+  name: jugsaw-job-result-store
 spec:
   type: state.redis
   metadata:

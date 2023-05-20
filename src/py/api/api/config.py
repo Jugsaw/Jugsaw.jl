@@ -3,21 +3,23 @@ from pydantic import BaseSettings
 
 
 class Config(BaseSettings):
-    # topics by `proj.app`
-    job_channel: str = "jobs"
+    # pubsub
+    job_channel: str = "jugsaw-job-pubsub"
+    job_event_channel: str = "jugsaw-job-event-pubsub"  # AWS SNS/SQS ?
 
-    # in-memory cache
-    job_store: str = "job-store"
-    job_key_format: str = "JUGSAW-JOB-STATUS:{job_id}"
+    # storage (with query support)
+    job_store: str = "jugsaw-job-store"
+    job_event_store: str = "jugsaw-job-event-store"
+    user_store: str = "jugsaw-user-store"
 
-    # persistent storage (s3)
-    job_result_store: str = "job-result-store"
-    job_result_key_format: str = "JUGSAW-JOB-RESULT:{job_id}"
+    # general storage
+    job_result_store: str = "jugsaw-job-result-store"
 
-    # RDB
-    secret_store: str = "secret-store"
-
+    # auth
     jwt_secret: str = "SET ME THROUGH ENVIRONMENT VARIABLE"
+    registry_base_url: str = "https://harbor.jugsaw.co"
+    registry_admin_username: str = "SET ME THROUGH ENVIRONMENT VARIABLE"
+    registry_admin_password: str = "SET ME THROUGH ENVIRONMENT VARIABLE"
 
 
 @cache

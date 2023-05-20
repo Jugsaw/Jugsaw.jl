@@ -4,11 +4,13 @@ using EnumX
 using CloudEvents
 using DaprClients
 using StructTypes
+using TimeZones
 using Dates
+using UUIDs
 
-JOB_PUB_SUB = "jobs"
-JOB_RESULT_STORE = "job-result-store"
-JOB_RESULT_KEY_FORMAT = k -> "JUGSAW-JOB-RESULT:$k"
+JOB_PUB_SUB = "jugsaw-job-pubsub"
+JOB_EVENT_PUB_SUB = "jugsaw-job-event-pubsub"
+JOB_RESULT_STORE = "jugsaw-job-result-store"
 
 @enumx JobStatusEnum starting processing pending succeeded failed canceled
 
@@ -23,7 +25,7 @@ end
 
 struct Job
     id::String
-    created_at::Float64
+    created_at::String
     created_by::String
 
     app::String
@@ -32,15 +34,16 @@ struct Job
     payload::Payload
 end
 
-Base.@kwdef struct JobStatus
-    id::String
+Base.@kwdef struct JobEvent
+    id::String = string(uuid4())
+    job_id::String
     status::JobStatusEnum.T
-    timestamp::Float64 = datetime2unix(now())
+    created_at::String = replace(string(now(tz"UTC")), "+00:00" => "Z")
     description::String = ""
 end
 
 
-publish(job_status::JobStatus) = publish_event(JOB_PUB_SUB, string(job_status.status), job_status; headers=Pair{SubString{String},SubString{String}}["Content-Type"=>"application/json"])
+publish(job_event::JobEvent) = publish_event(JOB_EVENT_PUB_SUB, string(job_event.status), job_event; headers=Pair{SubString{String},SubString{String}}["Content-Type"=>"application/json"])
 
 # TODO: use register instead
 greet(x::String="World") = "Hello, $x"
@@ -52,14 +55,14 @@ JOB_MANAGER.tasks["greet"] = Channel() do ch
     for job in ch
         try
             res = greet(job.payload.args...; job.payload.kwargs...)
-            save_state(JOB_RESULT_STORE, JOB_RESULT_KEY_FORMAT(job.id), JSON3.write(res))
-            publish(JobStatus(id=job.id, status=JobStatusEnum.succeeded))
+            save_state(JOB_RESULT_STORE, job.id, JSON3.write(res))
+            publish(JobEvent(job_id=job.id, status=JobStatusEnum.succeeded))
         catch ex
             st_io = IOBuffer()
             showerror(st_io, CapturedException(ex, catch_backtrace()))
             println(String(take!(st_io)))
 
-            publish(JobStatus(id=job.id, status=JobStatusEnum.failed, description=string(ex)))
+            publish(JobEvent(job_id=job.id, status=JobStatusEnum.failed, description=string(ex)))
         end
     end
 end
@@ -80,26 +83,27 @@ function submit_job(job::Job)
     if haskey(JOB_MANAGER.tasks, job.func)
         res = timedwait(TIME_OUT) do
             put!(JOB_MANAGER.tasks[job.func], job)
-            publish(JobStatus(id=job.id, status=JobStatusEnum.processing))
+            publish(JobEvent(job_id=job.id, status=JobStatusEnum.processing))
             true
         end
-        res == :ok || publish(JobStatus(id=job.id, status=JobStatusEnum.pending, description="Failed to submit job after $TIME_OUT seconds."))
+        res == :ok || publish(JobEvent(job_id=job.id, status=JobStatusEnum.pending, description="Failed to submit job after $TIME_OUT seconds."))
     else
-        publish(JobStatus(id=job.id, status=JobStatusEnum.failed, description="$(job.func) is not registered!"))
+        publish(JobEvent(job_id=job.id, status=JobStatusEnum.failed, description="$(job.func) is not registered!"))
     end
+end
+
+function subscribe(req)
+    user = get(ENV, "JUGSAW_USER_NAME", "test")
+    app = get(ENV, "JUGSAW_APP_NAME", "helloworld")
+    ver = get(ENV, "JUGSAW_APP_VERSION", "sha256:c849f3b6c7f5f621251a58d6c26722a97ea6b1f8b3c31ecdf2b7bab09b24b3f9")
+    JSON3.write([(pubsubname=JOB_PUB_SUB, topic="$user.$app.$ver", route="/events/jobs")])
 end
 
 r = HTTP.Router()
 
 HTTP.register!(r, "GET", "/healthz", _ -> JSON3.write((; status="OK")))
 HTTP.register!(r, "POST", "/events/jobs", job_handler)
-HTTP.register!(
-    r,
-    "GET",
-    "/dapr/subscribe",
-    _ -> JSON3.write([(pubsubname="jobs", topic="jugsaw.helloworld.latest", route="/events/jobs")])
-)
-
+HTTP.register!(r, "GET", "/dapr/subscribe", subscribe)
 
 #####
 

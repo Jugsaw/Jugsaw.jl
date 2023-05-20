@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  project: jugsaw
+  project: test
   pullPolicy: Always
   tag: latest
 
