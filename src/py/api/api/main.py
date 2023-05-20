@@ -1,21 +1,22 @@
 from typing_extensions import Annotated
+import aiohttp
 from fastapi import Depends, FastAPI, HTTPException, status
-from dapr.clients import DaprClient
-import json
 
 from .auth import (
-    JugsawApiKey,
-    User,
-    delete_api_key_by_uid_name,
-    get_api_keys_by_uid,
+    UserBasic,
     get_uid_by_api_key,
-    get_uid_from_jwt_token,
-    get_user_from_jwt_token,
-    try_create_api_key,
-    try_create_registry_key,
+    get_user_by_jwt_token,
+    try_get_secret,
 )
-from .job import Job, JobEvent, JobStatusEnum, Payload
-from .config import get_config
+from . import job
+from .job import Job, JobEvent, Payload
+from .harbor import (
+    HARBOR_CLIENT,
+    list_artifacts,
+    list_projects_names,
+    list_repositories,
+    resolve_artifact,
+)
 
 
 app = FastAPI(title="Jugsaw API")
@@ -23,29 +24,40 @@ app = FastAPI(title="Jugsaw API")
 #####
 
 
-@app.get("/v1/proj", tags=["api"])
-async def list_projects(uid: Annotated[str, Depends(get_uid_by_api_key)]) -> list[str]:
-    # TODO: pagination
-    ...
+@app.get("/v1/proj", tags=["App"])
+async def list_projects(
+    client: Annotated[aiohttp.ClientSession, Depends(HARBOR_CLIENT)],
+    uid: Annotated[str, Depends(get_uid_by_api_key)],
+    page: int = 1,
+    page_size: int = 10,
+) -> list[str]:
+    return await list_projects_names(client, page, page_size)
 
 
-@app.get("/v1/proj/{proj}", tags=["api"])
+@app.get("/v1/proj/{proj}", tags=["App"])
 async def describe_project(
-    proj: str, uid: Annotated[str, Depends(get_uid_by_api_key)]
+    client: Annotated[aiohttp.ClientSession, Depends(HARBOR_CLIENT)],
+    uid: Annotated[str, Depends(get_uid_by_api_key)],
+    proj: str,
+    page: int = 1,
+    page_size: int = 10,
 ) -> list[str]:
-    # TODO: pagination
-    ...
+    return await list_repositories(client, proj, page, page_size)
 
 
-@app.get("/v1/proj/{proj}/app/{app}", tags=["api"])
+@app.get("/v1/proj/{proj}/app/{app}", tags=["App"])
 async def list_applications(
-    proj: str, app: str, uid: Annotated[str, Depends(get_uid_by_api_key)]
+    client: Annotated[aiohttp.ClientSession, Depends(HARBOR_CLIENT)],
+    uid: Annotated[str, Depends(get_uid_by_api_key)],
+    proj: str,
+    app: str,
+    page: int = 1,
+    page_size: int = 10,
 ) -> list[str]:
-    # TODO: pagination
-    ...
+    return await list_artifacts(client, proj, app, page, page_size)
 
 
-@app.get("/v1/proj/{proj}/app/{app}/ver/{ver}", tags=["api"])
+@app.get("/v1/proj/{proj}/app/{app}/ver/{ver}", tags=["App"])
 async def describe_application(
     proj: str,
     app: str,
@@ -55,7 +67,7 @@ async def describe_application(
     ...
 
 
-@app.get("/v1/proj/{proj}/app/{app}/ver/{ver}/func", tags=["api"])
+@app.get("/v1/proj/{proj}/app/{app}/ver/{ver}/func", tags=["App"])
 async def list_functions(
     uid: Annotated[str, Depends(get_uid_by_api_key)],
     proj: str,
@@ -65,7 +77,7 @@ async def list_functions(
     ...
 
 
-@app.get("/v1/proj/{proj}/app/{app}/ver/{ver}/func/{func}", tags=["api"])
+@app.get("/v1/proj/{proj}/app/{app}/ver/{ver}/func/{func}", tags=["App"])
 async def describe_function(
     proj: str,
     app: str,
@@ -76,7 +88,7 @@ async def describe_function(
     ...
 
 
-@app.post("/v1/proj/{proj}/app/{app}/ver/{ver}/func/{func}", tags=["api"])
+@app.post("/v1/proj/{proj}/app/{app}/ver/{ver}/func/{func}", tags=["App"])
 async def submit_job(
     proj: str,
     app: str,
@@ -84,155 +96,80 @@ async def submit_job(
     func: str,
     payload: Payload,
     uid: Annotated[str, Depends(get_uid_by_api_key)],
+    client: Annotated[aiohttp.ClientSession, Depends(HARBOR_CLIENT)],
 ) -> str:
-    # TODO: resolve `ver` of `"latest"` to docker image hash
-    config = get_config()
-    with DaprClient() as client:
-        job = Job(
-            created_by=uid,
-            app=app,
-            func=func,
-            ver=ver,
-            payload=payload,
+    # TODO: resolve func
+    artifact = await resolve_artifact(client, proj, app, ver)
+    if artifact is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Unable to resolve the application",
         )
-        client.save_state(
-            config.job_store,
-            job.id,
-            job.json(),
-        )
-        client.publish_event(
-            config.job_channel,
-            f"{proj}.{app}.{ver}",
-            job.json(),
-            data_content_type="application/json",
-        )
-        client.publish_event(
-            config.job_event_channel,
-            JobStatusEnum.starting,
-            JobEvent(job_id=job.id, status=JobStatusEnum.starting).json(),
-            data_content_type="application/json",
-        )
-        return job.id
+    else:
+        return job.submit_job(proj, app, artifact, func, payload, uid)
 
 
 #####
 
 
-@app.get("/v1/job/{job_id}", tags=["api"])
-async def describe_job(
+@app.get("/v1/job", tags=["Job"])
+def list_jobs(uid: Annotated[str, Depends(get_uid_by_api_key)]) -> list[Job]:
+    return job.list_jobs(uid)
+
+
+@app.get("/v1/job/{job_id}", tags=["Job"])
+def describe_job(uid: Annotated[str, Depends(get_uid_by_api_key)], job_id: str) -> Job:
+    res = job.describe_job(uid, job_id)
+    if res is None:
+        raise HTTPException(status_code=404, detail=f"Job[{job_id}] not found")
+    else:
+        return res
+
+
+@app.get("/v1/job/{job_id}/result", tags=["Job"])
+def get_job_result(uid: Annotated[str, Depends(get_uid_by_api_key)], job_id: str):
+    res = job.get_job_result(uid, job_id)
+    if res is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Job[{job_id}] not found"
+        )
+    else:
+        return res
+
+
+@app.get("/v1/job/{job_id}/events", tags=["Job"])
+def get_job_events(
     uid: Annotated[str, Depends(get_uid_by_api_key)], job_id: str
-) -> Job:
-    config = get_config()
-    with DaprClient() as client:
-        res = client.get_state(config.job_store, job_id)
-        if res.data:
-            job = Job.parse_raw(res.data)
-            if job.created_by == uid:
-                return job
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail=f"Job[{job_id}] is not created by {uid}",
-                )
-        else:
-            raise HTTPException(status_code=404, detail=f"Job[{job_id}] not found")
-
-
-@app.get("/v1/job/{job_id}/result", tags=["api"])
-async def get_job_result(uid: Annotated[str, Depends(get_uid_by_api_key)], job_id: str):
-    config = get_config()
-    with DaprClient() as client:
-        res = client.get_state(config.job_result_store, job_id)
-        if res.data:
-            # TODO: make sure the result is create by `uid`
-            return res.json()  # ??? plain text or json?
-        else:
-            raise HTTPException(
-                status_code=404, detail=f"Job[{job_id}] result not found"
-            )
-
-
-@app.get("/v1/job/{job_id}/events", tags=["api"])
-async def get_job_events(uid: Annotated[str, Depends(get_uid_by_api_key)], job_id: str):
-    config = get_config()
-    with DaprClient() as client:
-        query = {"filter": {"EQ": {"job_id": job_id}}, "sort": [{"key": "created_at"}]}
-        resp = client.query_state(config.job_event_store, query=json.dumps(query))
-        return [JobEvent.parse_raw(r.value) for r in resp.results]
-
-
-@app.delete("/v1/job/{job_id}", tags=["api"])
-async def cancel_job(job_id: str, uid: Annotated[str, Depends(get_uid_by_api_key)]):
-    ...
+) -> list[JobEvent]:
+    return job.get_job_events(uid, job_id)
 
 
 #####
 
 
-@app.get("/v1/key", tags=["account"])
-async def get_secret_keys(
-    uid: Annotated[str, Depends(get_uid_from_jwt_token)]
-) -> list[JugsawApiKey]:
-    return get_api_keys_by_uid(uid)
+@app.get("/v1/key", tags=["Secret"])
+async def get_secret(
+    client: Annotated[aiohttp.ClientSession, Depends(HARBOR_CLIENT)],
+    uid: Annotated[UserBasic, Depends(get_user_by_jwt_token)],
+) -> str:
+    return await try_get_secret(client, uid)
 
 
-@app.patch("/v1/key/api/{key_name}", tags=["account"])
-@app.post("/v1/key/api/{key_name}", tags=["account"])
-async def create_api_key(
-    uid: Annotated[str, Depends(get_uid_from_jwt_token)],
-    key_name: str,
-) -> JugsawApiKey:
-    return try_create_api_key(uid, key_name)
-
-
-@app.delete("/v1/key/api/{key_name}", tags=["account"])
-async def delete_api_key(
-    uid: Annotated[str, Depends(get_uid_from_jwt_token)],
-    key_name: str,
-):
-    delete_api_key_by_uid_name(uid, key_name)
-
-
-@app.patch("/v1/key/reg/{key_name}", tags=["account"])
-@app.post("/v1/key/reg/{key_name}", tags=["account"])
-async def create_registry_key(
-    user: Annotated[User, Depends(get_user_from_jwt_token)],
-    key_name: str,
-) -> JugsawApiKey:
-    return try_create_registry_key(user, key_name)
+@app.get("/v1/key/ping", tags=["Secret"])
+async def ping_key(
+    user: Annotated[UserBasic, Depends(get_user_by_jwt_token)]
+) -> UserBasic:
+    return user
 
 
 #####
 
 
-@app.get("/v1/jobs", tags=["account"])
-async def get_user_jobs(
-    uid: Annotated[str, Depends(get_uid_from_jwt_token)]
-) -> list[str]:
-    ...
+@app.on_event("startup")
+async def startup():
+    HARBOR_CLIENT.open()
 
 
-@app.get("/v1/apps", tags=["account"])
-async def get_user_apps(
-    uid: Annotated[str, Depends(get_uid_from_jwt_token)]
-) -> list[str]:
-    ...
-
-
-#####
-
-
-@app.get("/v1/ping/api", tags=["ping"])
-async def ping_api(uid: Annotated[str, Depends(get_uid_by_api_key)]) -> str:
-    return "pong"
-
-
-@app.get("/v1/ping/key", tags=["ping"])
-async def ping_key(uid: Annotated[str, Depends(get_uid_from_jwt_token)]) -> str:
-    return "pong"
-
-
-#####
-@app.get("/dapr/subscribe")
-async def subscribe() -> list[dict[str, str]]:
-    return []
+@app.on_event("shutdown")
+async def on_shutdown():
+    await HARBOR_CLIENT.close()
