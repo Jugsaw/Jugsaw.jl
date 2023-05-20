@@ -11,7 +11,10 @@ class HarborClientSingleton:
     def open(self):
         c = get_config()
         auth = aiohttp.BasicAuth(c.registry_admin_username, c.registry_admin_password)
-        self._client = aiohttp.ClientSession(c.registry_base_url, auth=auth)
+        jar = aiohttp.DummyCookieJar()
+        self._client = aiohttp.ClientSession(
+            c.registry_base_url, auth=auth, cookie_jar=jar
+        )
 
     async def close(self):
         if self._client:
@@ -31,11 +34,11 @@ async def create_project(client: aiohttp.ClientSession, name: str):
         "/api/v2.0/projects",
         json={
             "project_name": name,
-            "metadata": {"public": False},
+            "public": False,
             "storage_limit": -1,
         },
     ) as resp:
-        assert resp.status == 200
+        assert resp.status == 201
 
 
 class CreateRobotResponse(BaseModel):
@@ -138,7 +141,7 @@ async def resolve_artifact(
     reference: str,
 ) -> Optional[str]:
     async with client.get(
-        f"/projects/{project_name}/repositories/{repository_name}/artifacts/{reference}",
+        f"/api/v2.0/projects/{project_name}/repositories/{repository_name}/artifacts/{reference}",
         params={
             "page": 1,
             "page_size": 1,

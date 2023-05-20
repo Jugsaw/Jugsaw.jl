@@ -1,3 +1,5 @@
+!example/hello_world/app/Manifest.toml
+
 .vscode/
 !launch.json
 !tasks.json

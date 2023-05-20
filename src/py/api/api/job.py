@@ -61,6 +61,7 @@ def submit_job(
             config.job_store,
             job.id,
             job.json(),
+            state_metadata={"contentType": "application/json"},
         )
         client.publish_event(
             config.job_channel,

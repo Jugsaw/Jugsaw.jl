@@ -103,7 +103,7 @@ async def submit_job(
     if artifact is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Unable to resolve the application",
+            detail=f"Unable to resolve the application[{proj}/{app}:{ver}]",
         )
     else:
         return job.submit_job(proj, app, artifact, func, payload, uid)
@@ -160,6 +160,14 @@ async def ping_key(
     user: Annotated[UserBasic, Depends(get_user_by_jwt_token)]
 ) -> UserBasic:
     return user
+
+
+#####
+
+
+@app.get("/dapr/subscribe", include_in_schema=False)
+def subscribe():
+    return []
 
 
 #####

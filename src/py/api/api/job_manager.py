@@ -29,4 +29,9 @@ async def update_job_event(request: Request):
     config = get_config()
 
     with DaprClient() as client:
-        client.save_state(config.job_event_store, job_evt.id, job_evt.json())
+        client.save_state(
+            config.job_event_store,
+            job_evt.id,
+            job_evt.json(),
+            state_metadata={"contentType": "application/json"},
+        )

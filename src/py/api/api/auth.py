@@ -75,7 +75,12 @@ async def try_get_secret(client: aiohttp.ClientSession, u: UserBasic) -> str:
         )
         with DaprClient() as dapr_client:
             config = get_config()
-            dapr_client.save_state(config.user_store, u.id, user.json())
+            dapr_client.save_state(
+                config.user_store,
+                u.id,
+                user.json(),
+                state_metadata={"contentType": "application/json"},
+            )
         return user.secret
 
 
@@ -84,16 +89,14 @@ async def try_get_secret(client: aiohttp.ClientSession, u: UserBasic) -> str:
 API_KEY_HEADER = APIKeyHeader(name="JUGSAW-API-KEY", scheme_name="Jugsaw API Key")
 
 
-def get_user_by_api_key(
-    api_key_header: Annotated[HTTPAuthorizationCredentials, Depends(API_KEY_HEADER)]
-) -> UserBasic:
-    secret = api_key_header.credentials
+def get_user_by_api_key(secret: Annotated[str, Depends(API_KEY_HEADER)]) -> UserBasic:
     with DaprClient() as client:
         config = get_config()
         query = {"filter": {"EQ": {"secret": secret}}}
         resp = client.query_state(config.user_store, json.dumps(query))
         if len(resp.results) == 1:
-            return UserBasic.parse_raw(resp.results[0].value)
+            user = User.parse_raw(resp.results[0].value)
+            return user.basic
         else:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
