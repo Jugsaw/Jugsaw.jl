@@ -1,9 +1,9 @@
 apiVersion: dapr.io/v1alpha1
 kind: Component
 metadata:
-  name: secret-store
+  name: jugsaw-job-event-pubsub
 spec:
-  type: state.redis
+  type: pubsub.redis
   metadata:
     - name: redisHost
       value: localhost:6379

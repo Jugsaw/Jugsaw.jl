@@ -20,7 +20,7 @@ def subscribe():
 
 # Dapr subscription in /dapr/subscribe sets up this route
 @app.post("/jobs")
-async def update_job_status(request: Request):
+async def update_job_event(request: Request):
     # TODO: support web hooks
     body = await request.body()
     event = from_http(dict(request.headers), body)

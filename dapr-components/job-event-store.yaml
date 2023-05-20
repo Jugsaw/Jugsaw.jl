@@ -1,0 +1,12 @@
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: jugsaw-job-event-store
+spec:
+  type: state.postgresql
+  version: v1
+  metadata:
+  - name: connectionString
+    value: host=localhost user=postgres password=test port=5432 connect_timeout=10 database=jugsaw_job_event_store
+  - name: keyPrefix
+    value: name

@@ -5,6 +5,7 @@ using CloudEvents
 using DaprClients
 using StructTypes
 using Dates
+using UUIDs
 
 JOB_PUB_SUB = "jobs"
 JOB_RESULT_STORE = "job-result-store"
@@ -32,15 +33,16 @@ struct Job
     payload::Payload
 end
 
-Base.@kwdef struct JobStatus
-    id::String
+Base.@kwdef struct JobEvent
+    id::String = string(uuid4())
+    job_id::String
     status::JobStatusEnum.T
     timestamp::Float64 = datetime2unix(now())
     description::String = ""
 end
 
 
-publish(job_status::JobStatus) = publish_event(JOB_PUB_SUB, string(job_status.status), job_status; headers=Pair{SubString{String},SubString{String}}["Content-Type"=>"application/json"])
+publish(job_event::JobEvent) = publish_event(JOB_PUB_SUB, string(job_event.status), job_event; headers=Pair{SubString{String},SubString{String}}["Content-Type"=>"application/json"])
 
 # TODO: use register instead
 greet(x::String="World") = "Hello, $x"
@@ -53,13 +55,13 @@ JOB_MANAGER.tasks["greet"] = Channel() do ch
         try
             res = greet(job.payload.args...; job.payload.kwargs...)
             save_state(JOB_RESULT_STORE, JOB_RESULT_KEY_FORMAT(job.id), JSON3.write(res))
-            publish(JobStatus(id=job.id, status=JobStatusEnum.succeeded))
+            publish(JobEvent(job_id=job.id, status=JobStatusEnum.succeeded))
         catch ex
             st_io = IOBuffer()
             showerror(st_io, CapturedException(ex, catch_backtrace()))
             println(String(take!(st_io)))
 
-            publish(JobStatus(id=job.id, status=JobStatusEnum.failed, description=string(ex)))
+            publish(JobEvent(job_id=job.id, status=JobStatusEnum.failed, description=string(ex)))
         end
     end
 end
@@ -80,12 +82,12 @@ function submit_job(job::Job)
     if haskey(JOB_MANAGER.tasks, job.func)
         res = timedwait(TIME_OUT) do
             put!(JOB_MANAGER.tasks[job.func], job)
-            publish(JobStatus(id=job.id, status=JobStatusEnum.processing))
+            publish(JobEvent(job_id=job.id, status=JobStatusEnum.processing))
             true
         end
-        res == :ok || publish(JobStatus(id=job.id, status=JobStatusEnum.pending, description="Failed to submit job after $TIME_OUT seconds."))
+        res == :ok || publish(JobEvent(job_id=job.id, status=JobStatusEnum.pending, description="Failed to submit job after $TIME_OUT seconds."))
     else
-        publish(JobStatus(id=job.id, status=JobStatusEnum.failed, description="$(job.func) is not registered!"))
+        publish(JobEvent(job_id=job.id, status=JobStatusEnum.failed, description="$(job.func) is not registered!"))
     end
 end
 
