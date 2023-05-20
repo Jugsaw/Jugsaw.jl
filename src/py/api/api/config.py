@@ -13,7 +13,7 @@ class Config(BaseSettings):
     user_store: str = "jugsaw-user-store"
 
     # general storage
-    job_result_store: str = "jugaw-job-result-store"
+    job_result_store: str = "jugsaw-job-result-store"
 
     # auth
     jwt_secret: str = "SET ME THROUGH ENVIRONMENT VARIABLE"

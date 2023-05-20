@@ -4,12 +4,13 @@ using EnumX
 using CloudEvents
 using DaprClients
 using StructTypes
+using TimeZones
 using Dates
 using UUIDs
 
-JOB_PUB_SUB = "jobs"
-JOB_RESULT_STORE = "job-result-store"
-JOB_RESULT_KEY_FORMAT = k -> "JUGSAW-JOB-RESULT:$k"
+JOB_PUB_SUB = "jugsaw-job-pubsub"
+JOB_EVENT_PUB_SUB = "jugsaw-job-event-pubsub"
+JOB_RESULT_STORE = "jugsaw-job-result-store"
 
 @enumx JobStatusEnum starting processing pending succeeded failed canceled
 
@@ -24,7 +25,7 @@ end
 
 struct Job
     id::String
-    created_at::Float64
+    created_at::String
     created_by::String
 
     app::String
@@ -37,12 +38,12 @@ Base.@kwdef struct JobEvent
     id::String = string(uuid4())
     job_id::String
     status::JobStatusEnum.T
-    timestamp::Float64 = datetime2unix(now())
+    created_at::String = replace(string(now(tz"UTC")), "+00:00" => "Z")
     description::String = ""
 end
 
 
-publish(job_event::JobEvent) = publish_event(JOB_PUB_SUB, string(job_event.status), job_event; headers=Pair{SubString{String},SubString{String}}["Content-Type"=>"application/json"])
+publish(job_event::JobEvent) = publish_event(JOB_EVENT_PUB_SUB, string(job_event.status), job_event; headers=Pair{SubString{String},SubString{String}}["Content-Type"=>"application/json"])
 
 # TODO: use register instead
 greet(x::String="World") = "Hello, $x"
@@ -54,7 +55,7 @@ JOB_MANAGER.tasks["greet"] = Channel() do ch
     for job in ch
         try
             res = greet(job.payload.args...; job.payload.kwargs...)
-            save_state(JOB_RESULT_STORE, JOB_RESULT_KEY_FORMAT(job.id), JSON3.write(res))
+            save_state(JOB_RESULT_STORE, job.id, JSON3.write(res))
             publish(JobEvent(job_id=job.id, status=JobStatusEnum.succeeded))
         catch ex
             st_io = IOBuffer()
@@ -99,7 +100,7 @@ HTTP.register!(
     r,
     "GET",
     "/dapr/subscribe",
-    _ -> JSON3.write([(pubsubname="jobs", topic="jugsaw.helloworld.latest", route="/events/jobs")])
+    _ -> JSON3.write([(pubsubname=JOB_PUB_SUB, topic="test.helloworld.sha256:c849f3b6c7f5f621251a58d6c26722a97ea6b1f8b3c31ecdf2b7bab09b24b3f9", route="/events/jobs")])
 )
 
 

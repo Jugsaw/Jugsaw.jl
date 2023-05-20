@@ -3,7 +3,7 @@ kind: Component
 metadata:
   name: jugsaw-job-result-store
 spec:
-  type: pubsub.redis
+  type: state.redis
   metadata:
     - name: redisHost
       value: localhost:6379
