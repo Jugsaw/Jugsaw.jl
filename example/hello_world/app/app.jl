@@ -92,17 +92,18 @@ function submit_job(job::Job)
     end
 end
 
+function subscribe(req)
+    user = get(ENV, "JUGSAW_USER_NAME", "test")
+    app = get(ENV, "JUGSAW_APP_NAME", "helloworld")
+    ver = get(ENV, "JUGSAW_APP_VERSION", "sha256:c849f3b6c7f5f621251a58d6c26722a97ea6b1f8b3c31ecdf2b7bab09b24b3f9")
+    JSON3.write([(pubsubname=JOB_PUB_SUB, topic="$user.$app.$ver", route="/events/jobs")])
+end
+
 r = HTTP.Router()
 
 HTTP.register!(r, "GET", "/healthz", _ -> JSON3.write((; status="OK")))
 HTTP.register!(r, "POST", "/events/jobs", job_handler)
-HTTP.register!(
-    r,
-    "GET",
-    "/dapr/subscribe",
-    _ -> JSON3.write([(pubsubname=JOB_PUB_SUB, topic="test.helloworld.sha256:c849f3b6c7f5f621251a58d6c26722a97ea6b1f8b3c31ecdf2b7bab09b24b3f9", route="/events/jobs")])
-)
-
+HTTP.register!(r, "GET", "/dapr/subscribe", subscribe)
 
 #####
 
