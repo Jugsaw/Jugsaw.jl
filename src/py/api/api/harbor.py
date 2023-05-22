@@ -50,7 +50,7 @@ async def create_project(client: aiohttp.ClientSession, name: str):
             "targets": [
                 {
                     "type": "http",
-                    "address": "https://api.jugsaw.co/v1/webhook/harbor",
+                    "address": "https://api.jugsaw.co/v1/hook/harbor",
                     "skip_cert_verify": False,
                     "payload_format": "CloudEvents",
                     "auth_header": f"Bearer {config.registry_webhook_token}",
