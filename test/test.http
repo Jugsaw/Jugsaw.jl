@@ -1,0 +1,31 @@
+POST http://localhost:7035/v1/hook/harbor HTTP/1.1
+Authorization: Bearer {{$dotenv REGISTRY_WEBHOOK_TOKEN}}
+
+{
+  "specversion": "1.0",
+  // id is a generated UUID to make sure the unique
+  "id": "66e18103-09c1-41f6-982f-37df223f3eeb",
+  // requestid is the http request id for tracing the source request of this event
+  "requestid": "51c0b694-0168-4f3c-b0db-282565455d7b",
+  "source": "/projects/2/webhook/policies/15",
+  "type": "harbor.artifact.pushed",
+  "datacontenttype": "application/json",
+  "time": "2023-04-03T06:04:46Z",
+  "data": {
+    "resources": [
+      {
+        "digest": "sha256:954b378c375d852eb3c63ab88978f640b4348b01c1b3456a024a81536dafbbf4",
+        "tag": "sha256:954b378c375d852eb3c63ab88978f640b4348b01c1b3456a024a81536dafbbf4",
+        "resource_url": "localhost/harbor/alpine@sha256:954b378c375d852eb3c63ab88978f640b4348b01c1b3456a024a81536dafbbf4"
+      }
+    ],
+    "repository": {
+      "date_created": 1680501893,
+      "name": "alpine",
+      "namespace": "harbor",
+      "repo_full_name": "harbor/alpine",
+      "repo_type": "private"
+    }
+  },
+  "operator": "harbor-jobservice"
+}

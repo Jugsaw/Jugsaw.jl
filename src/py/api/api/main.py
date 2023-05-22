@@ -1,6 +1,9 @@
-from typing_extensions import Annotated
 import aiohttp
-from fastapi import Depends, FastAPI, HTTPException, status
+
+from typing_extensions import Annotated
+from fastapi import Request, Depends, FastAPI, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from cloudevents.http import from_http
 
 from .auth import (
     UserBasic,
@@ -8,13 +11,16 @@ from .auth import (
     get_user_by_jwt_token,
     try_get_secret,
 )
+from .config import get_config
 from . import job
 from .job import Job, JobEvent, Payload
 from .harbor import (
     HARBOR_CLIENT,
+    ArtifactPushedData,
     list_artifacts,
     list_projects_names,
     list_repositories,
+    on_artifact_push,
     resolve_artifact,
 )
 
@@ -160,6 +166,33 @@ async def ping_key(
     user: Annotated[UserBasic, Depends(get_user_by_jwt_token)]
 ) -> UserBasic:
     return user
+
+
+#####
+
+HARBER_BEARER = HTTPBearer(scheme_name="Harbor Bearer")
+
+
+@app.post("/v1/hook/harbor", include_in_schema=False)
+async def handle_harbor_webhook(
+    token: Annotated[HTTPAuthorizationCredentials, Depends(HARBER_BEARER)],
+    request: Request,
+):
+    config = get_config()
+    if token.credentials == config.registry_webhook_token:
+        body = await request.body()
+        evt = from_http(dict(request.headers), body)
+        if evt["type"] == "harbor.artifact.pushed":
+            on_artifact_push(ArtifactPushedData.parse_obj(evt.data))
+        else:
+            # WARN?
+            raise Exception(f"Unknown event type: {evt['type']}")
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 
 #####

@@ -20,6 +20,7 @@ class Config(BaseSettings):
     registry_base_url: str = "https://harbor.jugsaw.co"
     registry_admin_username: str = "SET ME THROUGH ENVIRONMENT VARIABLE"
     registry_admin_password: str = "SET ME THROUGH ENVIRONMENT VARIABLE"
+    registry_webhook_token: str = "SET ME THROUGH ENVIRONMENT VARIABLE"
 
 
 @cache
