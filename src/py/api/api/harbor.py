@@ -30,12 +30,33 @@ HARBOR_CLIENT = HarborClientSingleton()
 
 
 async def create_project(client: aiohttp.ClientSession, name: str):
+    config = get_config()
+    # 1. create project
     async with client.post(
         "/api/v2.0/projects",
         json={
             "project_name": name,
             "public": False,
             "storage_limit": -1,
+        },
+    ) as resp:
+        assert resp.status == 201
+    # 2. create webhook
+    async with client.post(
+        f"/api/v2.0/projects/{name}/webhook/policies",
+        json={
+            "enabled": True,
+            "event_types": ["PUSH_ARTIFACT"],
+            "targets": [
+                {
+                    "type": "http",
+                    "address": "https://api.jugsaw.co/v1/webhook/harbor",
+                    "skip_cert_verify": False,
+                    "payload_format": "CloudEvents",
+                    "auth_header": f"Bearer {config.registry_webhook_token}",
+                }
+            ],
+            "name": "jugsaw",
         },
     ) as resp:
         assert resp.status == 201
@@ -150,3 +171,29 @@ async def resolve_artifact(
         if resp.status == 200:
             res = await resp.json()
             return res["digest"]
+
+
+#####
+
+
+class ArtifactResource(BaseModel):
+    digest: str
+    tag: str
+    resource_url: str
+
+
+class Repository(BaseModel):
+    date_created: int
+    name: str
+    namespace: str
+    repo_full_name: str
+    repo_type: str
+
+
+class ArtifactPushedData(BaseModel):
+    resources: list[ArtifactResource]
+    repository: Repository
+
+
+def on_artifact_push(a: ArtifactPushedData):
+    print(a)
