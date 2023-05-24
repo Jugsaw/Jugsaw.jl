@@ -75,16 +75,35 @@ function publish_status(dapr::MockEventService, job_status::JobStatus)
     # log into file
     dir = joinpath(dapr.save_dir, job_status.id)
     mkpath(dir)
-    open(joinpath(dir, "status.log"), "a") do f
-        JSON3.write(f, job_status)
+    filename = joinpath(dir, "status.log")
+    if isfile(filename)
+        open(filename, "a") do f
+            write(f, "\n")
+            JSON3.write(f, job_status)
+        end
+    else
+        open(filename, "w") do f
+            JSON3.write(f, job_status)
+        end
     end
     return nothing
 end
 function fetch_status(dapr::MockEventService, job_id::String; timeout::Real)
     dapr.print_event && @info "[FETCH STATUS] $job_id"
-    status, s = load_until_success(joinpath(dapr.save_dir, job_id, "status.log"); timeout, pollint=0.1)
+    filename = joinpath(dapr.save_dir, job_id, "status.log")
+
+    # load last line
+    s = Ref{JobStatus}()
+    status = timedwait(timeout; pollint=0.1) do
+        if isfile(filename)
+            s[] = JSON3.read(last(eachline(filename)), JobStatus)
+            return true
+        end
+        return false
+    end
+
     if status == :ok
-        return status, JSON3.read(s, JobStatus)
+        return status, s[]
     else
         return status, nothing
     end
@@ -104,25 +123,24 @@ end
 function load_state(dapr::MockEventService, job_id::AbstractString, resdemo; timeout::Real)
     key = "JUGSAW-JOB-RESULT:$(job_id)"
     dapr.print_event && @info "Fetching [$key]"
-    status, s = load_until_success(joinpath(dapr.save_dir, job_id, "result.jug"); timeout, pollint=0.1)
-    if status == :ok
-        return status, ir2julia(s, resdemo)
-    else
-        return status, nothing
-    end
-end
-function load_until_success(filename; pollint, timeout)
-    res = Ref("")
-    status = timedwait(timeout; pollint) do
+    filename = joinpath(dapr.save_dir, job_id, "result.jug")
+
+    s = Ref{String}()
+    status = timedwait(timeout; pollint=0.1) do
         if isfile(filename)
-            res[] = open(filename, "r") do f
+            s[] = open(filename, "r") do f
                 read(f, String)
             end
             return true
         end
         return false
     end
-    return status, res[]
+
+    if status == :ok
+        return status, ir2julia(s[], resdemo)
+    else
+        return status, nothing
+    end
 end
 
 ########################## Application Runtime

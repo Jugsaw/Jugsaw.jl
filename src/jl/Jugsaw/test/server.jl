@@ -9,9 +9,18 @@ using Jugsaw.Server
     @test get_timeout(dapr) == 1.0
 
     job_id = string(Jugsaw.uuid4())
+
+    # status updated
     status = JobStatus(id=job_id, status=Jugsaw.Server.succeeded)
     publish_status(dapr, status)
     @test fetch_status(dapr, job_id; timeout=1.0) == (:ok, status)
+
+    # another status updated
+    status = JobStatus(id=job_id, status=Jugsaw.Server.failed)
+    publish_status(dapr, status)
+    @test fetch_status(dapr, job_id; timeout=1.0) == (:ok, status)
+
+    # incorrect id triggers the timeout
     @test fetch_status(dapr, "asfd"; timeout=1.0) == (:timed_out, nothing)
 
     save_state(dapr, job_id, Dict("x"=>42))
@@ -34,6 +43,7 @@ end
     addjob!(r, job_id, round(Int, time()), "jugsaw", 1.0, adt, thisdemo)
     st, res = load_state(dapr, job_id, thisdemo.result; timeout=1.0)
     @test res ≈ sin(0.5)
+    @test fetch_status(dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.succeeded
 
     # nested call
     job_id = string(Jugsaw.uuid4())
@@ -42,6 +52,34 @@ end
     addjob!(r, job_id, round(Int, time()), "jugsaw", 1.0, adt, thisdemo)
     st, res = load_state(dapr, job_id, thisdemo.result; timeout=1.0)
     @test res ≈ sin(cos(0.7))
+    @test fetch_status(dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.succeeded
+end
+
+@testset "app runtime error" begin
+    # error call
+    function buggy(x)
+        if x < 0
+            error("you did not catch me!")
+        end
+    end
+    app = AppSpecification(:testapp)
+    dapr = MockEventService(joinpath(@__DIR__, ".daprtest"))
+    @register app sin(cos(0.5))::Float64
+    @register app buggy(0.5)
+    r = AppRuntime(app, dapr)
+
+    job_id = string(Jugsaw.uuid4())
+    adt1, = JugsawIR.julia2adt(JugsawIR.Call(buggy, (1.0,), (;)))
+    adt2, = JugsawIR.julia2adt(JugsawIR.Call(buggy, (-1.0,), (;)))
+    thisdemo = JugsawIR.JugsawDemo(JugsawIR.Call(buggy, (0.6,), (;)), buggy(0.6), Dict{String, String}())
+    # normal call
+    addjob!(r, job_id, round(Int, time()), "jugsaw", 1.0, adt1, thisdemo)
+    st, res = load_state(dapr, job_id, thisdemo.result; timeout=1.0)
+    @test fetch_status(dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.succeeded
+    # trigger error
+    addjob!(r, job_id, round(Int, time()), "jugsaw", 1.0, adt2, thisdemo)
+    st, res = load_state(dapr, job_id, thisdemo.result; timeout=1.0)
+    @test fetch_status(dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.failed
 end
 
 @testset "parse fcall" begin
