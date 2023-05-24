@@ -1,6 +1,18 @@
 using Test
 using Jugsaw, JugsawIR
 using HTTP, JugsawIR.JSON3, URIs
+using Jugsaw.Server
+
+@testset "mock event" begin
+    dapr = MockEventService(save_dir=joinpath(@__DIR__, ".daprtest"))
+    @test get_timeout(dapr) == 1.0
+
+    status = JobStatus(id=job.id, status=succeeded)
+    publish_status(dapr, status)
+    fetch_status(dapr, job.id)
+
+    publish, save_state, load_state, get_timeout
+end
 
 @testset "parse fcall" begin
     app = AppSpecification(:testapp)
