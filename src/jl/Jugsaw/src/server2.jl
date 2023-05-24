@@ -5,6 +5,7 @@ using Dates: now, datetime2unix
 using JugsawIR.JSON3
 import CloudEvents
 import DaprClients
+import UUIDs
 import ..AppSpecification
 
 export Job, JobStatus
@@ -22,6 +23,7 @@ struct Job
     id::String
     created_at::Float64
     created_by::String
+    maxtime::Float64
 
     demo::JugsawDemo
     payload::Payload
@@ -59,11 +61,14 @@ end
 struct MockEventService <: AbstractEventService
     print_event::Bool
     save_dir::String
+    timeout::Float64
+    query_interval::Float64
 end
-function MockEventService(save_dir::String; print_event::Bool=true)
-    return MockEventService(print_event, save_dir)
+function MockEventService(save_dir::String; print_event::Bool=true, timeout=1.0, query_interval=0.1)
+    return MockEventService(print_event, save_dir, timeout, query_interval)
 end
-get_timeout(::MockEventService) = 1.0
+get_timeout(dapr::MockEventService) = dapr.timeout
+get_query_interval(dapr::MockEventService) = dapr.query_interval
 # update job status to Dapr
 function publish_status(dapr::MockEventService, job_status::JobStatus)
     dapr.print_event && @info "[PUBLISH STATUS] $job_status"
@@ -77,9 +82,12 @@ function publish_status(dapr::MockEventService, job_status::JobStatus)
 end
 function fetch_status(dapr::MockEventService, job_id::String; timeout::Real)
     dapr.print_event && @info "[FETCH STATUS] $job_id"
-    s = load_until_success(joinpath(dapr.save_dir, job_id, "status.log"); timeout)
-    isempty(s) && return nothing
-    return JSON3.read(s, JobStatus)
+    status, s = load_until_success(joinpath(dapr.save_dir, job_id, "status.log"); timeout, pollint=0.1)
+    if status == :ok
+        return status, JSON3.read(s, JobStatus)
+    else
+        return status, nothing
+    end
 end
 function save_state(dapr::MockEventService, job_id::AbstractString, res)
     key = "JUGSAW-JOB-RESULT:$(job_id)"
@@ -96,21 +104,25 @@ end
 function load_state(dapr::MockEventService, job_id::AbstractString, resdemo; timeout::Real)
     key = "JUGSAW-JOB-RESULT:$(job_id)"
     dapr.print_event && @info "Fetching [$key]"
-    s = load_until_success(joinpath(dapr.save_dir, job_id, "result.jug"); timeout)
-    isempty(s) && return nothing
-    return ir2julia(s, resdemo)
+    status, s = load_until_success(joinpath(dapr.save_dir, job_id, "result.jug"); timeout, pollint=0.1)
+    if status == :ok
+        return status, ir2julia(s, resdemo)
+    else
+        return status, nothing
+    end
 end
-function load_until_success(filename; interval=0.01, timeout=Inf)
-    t0 = time()
-    while time() - t0 < timeout
+function load_until_success(filename; pollint, timeout)
+    res = Ref("")
+    status = timedwait(timeout; pollint) do
         if isfile(filename)
-            return open(filename, "r") do f
+            res[] = open(filename, "r") do f
                 read(f, String)
             end
+            return true
         end
-        sleep(interval)
+        return false
     end
-    return ""
+    return status, res[]
 end
 
 ########################## Application Runtime
@@ -138,15 +150,15 @@ function AppRuntime(app::AppSpecification, dapr::AbstractEventService)
     return AppRuntime(app, dapr, channel)
 end
 
-function addjob!(r::AppRuntime, job_id::String, created_at, created_by, adt::JugsawADT, thisdemo::JugsawDemo)
+function addjob!(r::AppRuntime, job_id::String, created_at::Int, created_by::String, maxtime::Float64, adt::JugsawADT, thisdemo::JugsawDemo)
     fname, args, kwargs = adt.fields
     # IF tree is a function call, return an `object_id` for return value.
     #     recurse over args and kwargs to get `Call` parsed.
-    newargs = ntuple(i->renderobj!(r, created_at, created_by, args.fields[i], thisdemo.fcall.args[i]), length(args.fields))
-    newkwargs = typeof(thisdemo.fcall.kwargs)(ntuple(i->renderobj!(r, created_at, created_by, kwargs.fields[i], thisdemo.fcall.kwargs[i]), length(kwargs.fields)))
+    newargs = ntuple(i->renderobj!(r, created_at, created_by, maxtime, args.fields[i], thisdemo.fcall.args[i]), length(args.fields))
+    newkwargs = typeof(thisdemo.fcall.kwargs)(ntuple(i->renderobj!(r, created_at, created_by, maxtime, kwargs.fields[i], thisdemo.fcall.kwargs[i]), length(kwargs.fields)))
     # add task to the queue
     @info "task added to the queue: $job_id => $adt"
-    job = Job(job_id, created_at, created_by, thisdemo, Payload(newargs, newkwargs))
+    job = Job(job_id, created_at, created_by, maxtime, thisdemo, Payload(newargs, newkwargs))
 
     # submit job
     res = timedwait(get_timeout(r.dapr)) do
@@ -155,7 +167,7 @@ function addjob!(r::AppRuntime, job_id::String, created_at, created_by, adt::Jug
         true
     end
     if res != :ok
-        publish_status(r.dapr, JobStatus(id=job.id, status=pending, description="Failed to submit job after $TIME_OUT seconds."))
+        publish_status(r.dapr, JobStatus(id=job.id, status=pending, description="Failed to submit job after $maxtime seconds."))
     end
     return nothing
 end
@@ -185,27 +197,29 @@ function _match_demo(fname, args_type, kwargs_type, app::AppSpecification)
 end
 
 # if adt is a function call, launch a job and return an object getter, else, return an object.
-function renderobj!(r::AppRuntime, created_at, created_by, adt, thisdemo)
+function renderobj!(r::AppRuntime, created_at, created_by, maxtime, adt, thisdemo)
     if adt isa JugsawADT && hasproperty(adt, :typename) && adt.typename == "JugsawIR.Call"
         fdemo = match_demo_or_throw(adt, r.app)
-        object_id = uuid4()
-        addjob!(r, object_id, created_at, created_by, adt, fdemo.fcall)
+        object_id = string(UUIDs.uuid4())
+        addjob!(r, object_id, created_at, created_by, maxtime, adt, fdemo)
         # Return an object getter, which is a `Call` instance that fetches objects from the state_store.
-        return object_getter(r.dapr, object_id, fdemo.result)
+        return object_getter(r.dapr, object_id, fdemo.result; timeout=get_timeout(r.dapr)+maxtime)
     else
         return JugsawIR.adt2julia(adt, thisdemo)
     end
 end
 
 # an object getter to load return values of a function call from the state store
-function object_getter(dapr::AbstractEventService, object_id::String, resdemo)
+function object_getter(dapr::AbstractEventService, object_id::String, resdemo; timeout)
     function getter(dapr, id::String, resdemo)
-        res = load_state(dapr, id, resdemo)
+        status, res = load_state(dapr, id, resdemo; timeout)
         # rethrow a cached error
-        res isa CachedError && Base.rethrow(res.exception)
+        if status != :ok
+            error("get object fail ($status): $object_id")
+        end
         return res
     end
-    Call(getter, (dapr, object_id), (;))
+    Call(getter, (dapr, object_id, resdemo), (;))
 end
 
 
@@ -223,7 +237,7 @@ function job_handler(r::AppRuntime, req::HTTP.Request)
     # add jobs recursively to the queue
     try
         thisdemo = match_demo_or_throw(adt, r.app)
-        addjob!(r, obj.id, obj.created_at, obj.created_by, adt, thisdemo)
+        addjob!(r, obj.id, obj.created_at, obj.created_by, obj.maxtime, adt, thisdemo)
         return HTTP.Response(200, "Job submitted!")
     catch e
         @info e

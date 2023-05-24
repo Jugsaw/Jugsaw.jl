@@ -11,11 +11,12 @@ using Jugsaw.Server
     job_id = string(Jugsaw.uuid4())
     status = JobStatus(id=job_id, status=Jugsaw.Server.succeeded)
     publish_status(dapr, status)
-    @test fetch_status(dapr, job_id; timeout=1.0) == status
-    @test fetch_status(dapr, "asfd"; timeout=1.0) === nothing
+    @test fetch_status(dapr, job_id; timeout=1.0) == (:ok, status)
+    @test fetch_status(dapr, "asfd"; timeout=1.0) == (:timed_out, nothing)
 
     save_state(dapr, job_id, Dict("x"=>42))
-    d = load_state(dapr, job_id, Dict("y"=>4); timeout=1.0)
+    st, d = load_state(dapr, job_id, Dict("y"=>4); timeout=1.0)
+    @test st == :ok
     @test d == Dict("x"=>42)
 end
 
@@ -25,12 +26,22 @@ end
     dapr = MockEventService(joinpath(@__DIR__, ".daprtest"))
     r = AppRuntime(app, dapr)
     @test r isa AppRuntime
-    # addjob!(r, obj.id, obj.created_at, obj.created_by, adt, thisdemo)
+
+    # simple call
     job_id = string(Jugsaw.uuid4())
     adt, = JugsawIR.julia2adt(JugsawIR.Call(sin, (0.5,), (;)))
     thisdemo = JugsawIR.JugsawDemo(JugsawIR.Call(sin, (0.6,), (;)), sin(0.6), Dict{String, String}())
-    addjob!(r, job_id, round(Int, time()), "jugsaw", adt, thisdemo)
-    @test load_state(dapr, job_id, thisdemo.result; timeout=1.0) ≈ sin(0.5)
+    addjob!(r, job_id, round(Int, time()), "jugsaw", 1.0, adt, thisdemo)
+    st, res = load_state(dapr, job_id, thisdemo.result; timeout=1.0)
+    @test res ≈ sin(0.5)
+
+    # nested call
+    job_id = string(Jugsaw.uuid4())
+    adt, = JugsawIR.julia2adt(JugsawIR.Call(sin, (JugsawIR.Call(cos, (0.7,), (;)),), (;)))
+    thisdemo = JugsawIR.JugsawDemo(JugsawIR.Call(sin, (0.6,), (;)), sin(0.6), Dict{String, String}())
+    addjob!(r, job_id, round(Int, time()), "jugsaw", 1.0, adt, thisdemo)
+    st, res = load_state(dapr, job_id, thisdemo.result; timeout=1.0)
+    @test res ≈ sin(cos(0.7))
 end
 
 @testset "parse fcall" begin
