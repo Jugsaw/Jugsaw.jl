@@ -6,6 +6,7 @@ version = "0.1.0"
 [deps]
 CloudEvents = "d3baf920-4533-4796-be79-acb40839d791"
 DaprClients = "f4b2537f-2a16-4095-98fc-a229818e8b13"
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 JugsawIR = "6340f1c1-b722-4800-8081-8412e0693b45"

@@ -4,14 +4,33 @@ using HTTP, JugsawIR.JSON3, URIs
 using Jugsaw.Server
 
 @testset "mock event" begin
-    dapr = MockEventService(save_dir=joinpath(@__DIR__, ".daprtest"))
+    dapr = MockEventService(joinpath(@__DIR__, ".daprtest"))
+    mkpath(dapr.save_dir)
     @test get_timeout(dapr) == 1.0
 
-    status = JobStatus(id=job.id, status=succeeded)
+    job_id = string(Jugsaw.uuid4())
+    status = JobStatus(id=job_id, status=Jugsaw.Server.succeeded)
     publish_status(dapr, status)
-    fetch_status(dapr, job.id)
+    @test fetch_status(dapr, job_id; timeout=1.0) == status
+    @test fetch_status(dapr, "asfd"; timeout=1.0) === nothing
 
-    publish, save_state, load_state, get_timeout
+    save_state(dapr, job_id, Dict("x"=>42))
+    d = load_state(dapr, job_id, Dict("y"=>4); timeout=1.0)
+    @test d == Dict("x"=>42)
+end
+
+@testset "app runtime" begin
+    app = AppSpecification(:testapp)
+    @register app sin(cos(0.5))::Float64
+    dapr = MockEventService(joinpath(@__DIR__, ".daprtest"))
+    r = AppRuntime(app, dapr)
+    @test r isa AppRuntime
+    # addjob!(r, obj.id, obj.created_at, obj.created_by, adt, thisdemo)
+    job_id = string(Jugsaw.uuid4())
+    adt, = JugsawIR.julia2adt(JugsawIR.Call(sin, (0.5,), (;)))
+    thisdemo = JugsawIR.JugsawDemo(JugsawIR.Call(sin, (0.6,), (;)), sin(0.6), Dict{String, String}())
+    addjob!(r, job_id, round(Int, time()), "jugsaw", adt, thisdemo)
+    @test load_state(dapr, job_id, thisdemo.result; timeout=1.0) ≈ sin(0.5)
 end
 
 @testset "parse fcall" begin
