@@ -6,27 +6,38 @@ using JugsawIR.JSON3
 import CloudEvents
 import DaprClients
 import UUIDs
-import ..AppSpecification
+import ..AppSpecification, ..NoDemoException
 
-export Job, JobStatus
+export Job, JobStatus, JobSpec
 export MockEventService, publish_status, fetch_status, save_state, load_state, get_timeout
 export AppRuntime, addjob!
 
 @enum JobStatusEnum starting processing pending succeeded failed canceled
 
-struct Payload
-    args::Any
-    kwargs::Any
-end
-
-struct Job
+struct JobSpec
+    # meta information
     id::String
     created_at::Float64
     created_by::String
     maxtime::Float64
 
+    # payload
+    fname::String
+    args::JugsawADT
+    kwargs::JugsawADT
+end
+
+struct Job
+    # meta information
+    id::String
+    created_at::Float64
+    created_by::String
+    maxtime::Float64
+
+    # payload
     demo::JugsawDemo
-    payload::Payload
+    args::Tuple
+    kwargs::NamedTuple
 end
 
 Base.@kwdef struct JobStatus
@@ -154,7 +165,7 @@ function AppRuntime(app::AppSpecification, dapr::AbstractEventService)
     channel = Channel{Job}() do ch
         for job in ch
             try
-                res = fevalself(Call(job.demo.fcall.fname, job.payload.args, job.payload.kwargs))
+                res = fevalself(Call(job.demo.fcall.fname, job.args, job.kwargs))
                 save_state(dapr, job.id, res)
                 publish_status(dapr, JobStatus(id=job.id, status=succeeded))
             catch ex
@@ -168,15 +179,21 @@ function AppRuntime(app::AppSpecification, dapr::AbstractEventService)
     return AppRuntime(app, dapr, channel)
 end
 
-function addjob!(r::AppRuntime, job_id::String, created_at::Int, created_by::String, maxtime::Float64, adt::JugsawADT, thisdemo::JugsawDemo)
-    fname, args, kwargs = adt.fields
+function addjob!(r::AppRuntime, jobspec::JobSpec)
+    # Find the demo and parse the arguments
+    created_at, created_by, maxtime, fname, args, kwargs = jobspec.created_at, jobspec.created_by, jobspec.maxtime, jobspec.fname, jobspec.args, jobspec.kwargs
+    # match demo or throw
+    thisdemo = match_demo(fname, args.typename, kwargs.typename, r.app)
+    thisdemo === nothing && throw(NoDemoException(jobspec, r.app))
+
     # IF tree is a function call, return an `object_id` for return value.
     #     recurse over args and kwargs to get `Call` parsed.
     newargs = ntuple(i->renderobj!(r, created_at, created_by, maxtime, args.fields[i], thisdemo.fcall.args[i]), length(args.fields))
     newkwargs = typeof(thisdemo.fcall.kwargs)(ntuple(i->renderobj!(r, created_at, created_by, maxtime, kwargs.fields[i], thisdemo.fcall.kwargs[i]), length(kwargs.fields)))
+
     # add task to the queue
-    @info "task added to the queue: $job_id => $adt"
-    job = Job(job_id, created_at, created_by, maxtime, thisdemo, Payload(newargs, newkwargs))
+    job = Job(jobspec.id, created_at, created_by, maxtime, thisdemo, newargs, newkwargs)
+    @info "adding job to the queue: $job"
 
     # submit job
     res = timedwait(get_timeout(r.dapr)) do
@@ -187,21 +204,11 @@ function addjob!(r::AppRuntime, job_id::String, created_at::Int, created_by::Str
     if res != :ok
         publish_status(r.dapr, JobStatus(id=job.id, status=pending, description="Failed to submit job after $maxtime seconds."))
     end
-    return nothing
+    return job
 end
 
-function match_demo_or_throw(adt::JugsawADT, app::AppSpecification)
-    if adt.typename != "JugsawIR.Call"
-        throw(BadSyntax(adt))
-    end
-    fname, args, kwargs = adt.fields
-    res = _match_demo(fname, args.typename, kwargs.typename, app)
-    if res === nothing
-        throw(NoDemoException(adt, app))
-    end
-    return res
-end
-function _match_demo(fname, args_type, kwargs_type, app::AppSpecification)
+# TODO: design a more powerful IR for chaining.
+function match_demo(fname, args_type, kwargs_type, app::AppSpecification)
     if !haskey(app.method_demos, fname) || isempty(app.method_demos[fname])
         return nothing
     end
@@ -217,11 +224,10 @@ end
 # if adt is a function call, launch a job and return an object getter, else, return an object.
 function renderobj!(r::AppRuntime, created_at, created_by, maxtime, adt, thisdemo)
     if adt isa JugsawADT && hasproperty(adt, :typename) && adt.typename == "JugsawIR.Call"
-        fdemo = match_demo_or_throw(adt, r.app)
         object_id = string(UUIDs.uuid4())
-        addjob!(r, object_id, created_at, created_by, maxtime, adt, fdemo)
+        addjob!(r, JobSpec(object_id, created_at, created_by, maxtime, adt.fields...))
         # Return an object getter, which is a `Call` instance that fetches objects from the state_store.
-        return object_getter(r.dapr, object_id, fdemo.result; timeout=get_timeout(r.dapr)+maxtime)
+        return object_getter(r.dapr, object_id, thisdemo; timeout=get_timeout(r.dapr)+maxtime)
     else
         return JugsawIR.adt2julia(adt, thisdemo)
     end
@@ -243,19 +249,16 @@ end
 
 ################### Server #################
 
-function job_handler(r::AppRuntime, req::HTTP.Request)
-    println(req.headers)
-    println(req.body)
-    evt = from_http(req.headers, req.body)
-    # CloudEvent
-    adt = JugsawIR.ir2adt(String(evt.data))
-    @info "got job adt: $adt"
-
+function job_handler(r::AppRuntime, evt::CloudEvents.CloudEvent)
     # top level must be a function call
     # add jobs recursively to the queue
     try
-        thisdemo = match_demo_or_throw(adt, r.app)
-        addjob!(r, obj.id, obj.created_at, obj.created_by, obj.maxtime, adt, thisdemo)
+        # CloudEvent
+        jobadt = JugsawIR.ir2adt(String(evt.data))
+        job_id, created_at, created_by, maxtime, fname, args, kwargs = jobadt.fields
+        jobspec = JobSpec(job_id, created_at, created_by, Int(maxtime), fname, args, kwargs)
+        @info "get job: $jobspec"
+        addjob!(r, jobspec)
         return HTTP.Response(200, "Job submitted!")
     catch e
         @info e
@@ -263,13 +266,17 @@ function job_handler(r::AppRuntime, req::HTTP.Request)
     end
 end
 
+function code_handler(r::AppRuntime, lang::String, endpoint::String, evt::CloudEvents.CloudEvent)
+end
+
 function get_router(runtime::AppRuntime)
     r = HTTP.Router()
 
     HTTP.register!(r, "GET", "/healthz", _ -> JSON3.write((; status="OK")))
-    HTTP.register!(r, "POST", "/events/jobs", req->job_handler(runtime, req))
+    HTTP.register!(r, "POST", "/events/jobs", req->job_handler(runtime, from_http(req.headers, req.body)))
     HTTP.register!(r, "GET", "/demos", _ -> ((demos, types) = JugsawIR.julia2ir(r.app); "[$demos, $types]"))
-    HTTP.register!(r, "GET", "/api/{lang}", _ -> "")
+    # TODO: we need context here!
+    HTTP.register!(r, "GET", "/api/{lang}", _ -> code_handler(runtime, lang, endpoint, from_http(req.headers, req.body)))
     HTTP.register!(r, "GET", "/dapr/subscribe",
         _ -> JSON3.write([(pubsubname="jobs", topic="$(runtime.app.created_by).$(runtime.app.name).$(rumtime.app.ver)", route="/events/jobs")])
     )

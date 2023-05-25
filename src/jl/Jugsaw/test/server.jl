@@ -39,18 +39,21 @@ end
     # simple call
     job_id = string(Jugsaw.uuid4())
     adt, = JugsawIR.julia2adt(JugsawIR.Call(sin, (0.5,), (;)))
-    thisdemo = JugsawIR.JugsawDemo(JugsawIR.Call(sin, (0.6,), (;)), sin(0.6), Dict{String, String}())
-    addjob!(r, job_id, round(Int, time()), "jugsaw", 1.0, adt, thisdemo)
-    st, res = load_state(dapr, job_id, thisdemo.result; timeout=1.0)
+    jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, adt.fields...)
+    job = addjob!(r, jobspec)
+    st, res = load_state(dapr, job_id, job.demo.result; timeout=1.0)
     @test res ≈ sin(0.5)
     @test fetch_status(dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.succeeded
 
     # nested call
     job_id = string(Jugsaw.uuid4())
-    adt, = JugsawIR.julia2adt(JugsawIR.Call(sin, (JugsawIR.Call(cos, (0.7,), (;)),), (;)))
-    thisdemo = JugsawIR.JugsawDemo(JugsawIR.Call(sin, (0.6,), (;)), sin(0.6), Dict{String, String}())
-    addjob!(r, job_id, round(Int, time()), "jugsaw", 1.0, adt, thisdemo)
-    st, res = load_state(dapr, job_id, thisdemo.result; timeout=1.0)
+    adt1, = JugsawIR.julia2adt(JugsawIR.Call(cos, (0.7,), (;)),)
+    adt = JugsawIR.JugsawADT.Object("JugsawIR.Call",
+        ["sin", JugsawIR.JugsawADT.Object(JugsawIR.type2str(Tuple{Float64}), [adt1]), JugsawIR.julia2adt((;))[1]])
+    # fix adt
+    jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, adt.fields...)
+    job = addjob!(r, jobspec)
+    st, res = load_state(dapr, job_id, job.demo.result; timeout=1.0)
     @test res ≈ sin(cos(0.7))
     @test fetch_status(dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.succeeded
 end
@@ -70,16 +73,37 @@ end
 
     job_id = string(Jugsaw.uuid4())
     adt1, = JugsawIR.julia2adt(JugsawIR.Call(buggy, (1.0,), (;)))
-    adt2, = JugsawIR.julia2adt(JugsawIR.Call(buggy, (-1.0,), (;)))
-    thisdemo = JugsawIR.JugsawDemo(JugsawIR.Call(buggy, (0.6,), (;)), buggy(0.6), Dict{String, String}())
     # normal call
-    addjob!(r, job_id, round(Int, time()), "jugsaw", 1.0, adt1, thisdemo)
-    st, res = load_state(dapr, job_id, thisdemo.result; timeout=1.0)
+    jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, adt1.fields...)
+    job = addjob!(r, jobspec)
+    st, res = load_state(dapr, job_id, job.demo.result; timeout=1.0)
     @test fetch_status(dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.succeeded
     # trigger error
-    addjob!(r, job_id, round(Int, time()), "jugsaw", 1.0, adt2, thisdemo)
-    st, res = load_state(dapr, job_id, thisdemo.result; timeout=1.0)
+    adt2, = JugsawIR.julia2adt(JugsawIR.Call(buggy, (-1.0,), (;)))
+    jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, adt2.fields...)
+    job = addjob!(r, jobspec)
+    st, res = load_state(dapr, job_id, job.demo.result; timeout=1.0)
     @test fetch_status(dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.failed
+end
+
+@testset "job handler" begin
+    # create an app
+    app = AppSpecification(:testapp)
+    dapr = MockEventService(joinpath(@__DIR__, ".daprtest"))
+    @register app sin(cos(0.5))::Float64
+    r = AppRuntime(app, dapr)
+
+    # create a job
+    job_id = string(Jugsaw.uuid4())
+    jobspec = (job_id, round(Int, time()), "jugsaw", 1.0, sin, (0.5,), (;))
+    ir, = JugsawIR.julia2ir(jobspec)
+    # create a cloud event
+    event_id = string(Jugsaw.uuid4())
+    evt = Jugsaw.Server.CloudEvents.CloudEvent(Vector{UInt8}(ir); id=event_id, type="any", source="any")
+    resp = Jugsaw.Server.job_handler(r, evt)
+    @test resp.status == 200
+    st, res = load_state(dapr, job_id, job.demo.result; timeout=1.0)
+    @test res ≈ sin(0.5)
 end
 
 @testset "parse fcall" begin
