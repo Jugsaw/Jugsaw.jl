@@ -112,7 +112,8 @@ async def submit_job(
             detail=f"Unable to resolve the application[{proj}/{app}:{ver}]",
         )
     else:
-        return job.submit_job(proj, app, artifact, func, payload, uid)
+        _, digest = artifact.split(":", maxsplit=1)  # sha256:xxx
+        return job.submit_job(proj, app, digest, func, payload, uid)
 
 
 #####
