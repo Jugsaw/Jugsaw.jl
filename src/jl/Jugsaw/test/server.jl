@@ -119,23 +119,75 @@ end
     @register app sin(cos(0.5))::Float64
     r = AppRuntime(app, dapr)
 
-    # create a job
+    # luanch and fetch a job
+    fcall = JugsawIR.Call(:sin, (0.5,), (;))
+    resp1, resp2, obj, job_id = Jugsaw.launch_and_fetch(r, fcall)
+    @test resp1.status == 200
+    @test resp2.status == 200
+    @test fetch_status(r.dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.succeeded
+
+    # load object
+    @test obj ≈ sin(0.5)
+end
+
+@testset "code handler" begin
+    app = AppSpecification(:testapp)
+    dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
+    @register app sin(cos(0.5))::Float64
+
+    ir, = julia2ir((; endpoint="https://jugsaw.co", appname="testapp", fcall=JugsawIR.Call("sin", (0.5,), (;))))
+    req = HTTP.Request("POST", "/api/julia", ["Content-Type" => "application/json"], ir; context=Dict(:params=>Dict("lang"=>"JuliaLang")))
+    ret = Jugsaw.Server.code_handler(req, app)
+    @test ret.status == 200
+    @test JSON3.read(ret.body).code isa String
+    @show JSON3.read(ret.body).code
+
+    ir, = julia2ir((; endpoint="https://jugsaw.co", appname="testapp", fcall=JugsawIR.Call("sinx", (0.5,), (;))))
+    req = HTTP.Request("POST", "/api/julia", ["Content-Type" => "application/json"], ir; context=Dict(:params=>Dict("lang"=>"JuliaLang")))
+    ret = Jugsaw.Server.code_handler(req, app)
+    @test ret.status == 400
+end
+
+@testset "routes" begin
+    app = AppSpecification(:testapp)
+    dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
+    @register app sin(cos(0.5))::Float64
+    ar = AppRuntime(app, dapr)
+    r = Jugsaw.Server.get_router(ar)
+    # services
+    @test JSON3.read(r(HTTP.Request("GET", "/healthz"))).status == "OK"
+
+    # demos
+    @test r(HTTP.Request("GET", "/demos")).status == 200
+
+    # api
+    ir, = julia2ir((; endpoint="https://jugsaw.co", appname="testapp", fcall=JugsawIR.Call("sin", (0.5,), (;))))
+    req = HTTP.Request("POST", "/api/JuliaLang", ["Content-Type" => "application/json"], ir; context=Dict(:params=>Dict("lang"=>"JuliaLang")))
+    @test r(req).status == 200
+    # language not defined
+    req = HTTP.Request("POST", "/api/julia", ["Content-Type" => "application/json"], ir; context=Dict(:params=>Dict("lang"=>"JuliaLang")))
+    @test r(req).status == 400
+    
+    # subscribe
+    @test r(HTTP.Request("GET", "/demos")).status == 200
+
+    # launch a job
     job_id = string(Jugsaw.uuid4())
     jobspec = (job_id, round(Int, time()), "jugsaw", 1.0, sin, (0.5,), (;))
     ir, = JugsawIR.julia2ir(jobspec)
-    # create a cloud event
     event_id = string(Jugsaw.uuid4())
-    evt = Jugsaw.Server.CloudEvents.CloudEvent(Vector{UInt8}(ir); id=event_id, type="any", source="any")
     req = HTTP.Request("POST", "/events/jobs/", ["Content-Type" => "application/json",
-        "ce_id"=>"$event_id", "ce_type"=>"any", "ce_source"=>"any"],
-        JSON3.write(evt.data))
-    resp = Jugsaw.Server.job_handler(r, req)
-    @test resp.status == 200
-    # load object
-    st, res = load_object_as_ir(dapr, job_id; timeout=1.0)
-    @test Meta.parse(res) ≈ sin(0.5)
-    # fetch interface
-    resp = Jugsaw.Server.fetch(r, req)
+        "ce-id"=>"$event_id", "ce-type"=>"any", "ce-source"=>"any",
+        "ce-specversion"=>"1.0"
+        ],
+        JSON3.write(ir))
+    ret = r(req)
+    @test ret.status == 200
+
+    # fetch result
+    req = HTTP.Request("GET", "/events/jobs/fetch", ["Content-Type" => "application/json"], JSON3.write((; job_id=job_id)))
+    ret = r(req)
+    @test ret.status == 200
 end
 
 @testset "parse fcall" begin
@@ -150,51 +202,6 @@ end
     @test newdemos == app
     @test newtypes isa Jugsaw.JugsawIR.TypeTable
 
-    # parse function call
-    fcall, _ = julia2ir(first(app.method_demos["sin"]).fcall)
-    
-    r = AppRuntime(app)
-    req = HTTP.Request("POST", "/actors/testapp.sin/0/method/", ["Content-Type" => "application/json"], fcall)
-    ret = Jugsaw.act!(r, req)
-    @test JSON3.read(String(ret.body)).object_id isa String
-    #@test req == first(app.method_demos)[2].fcall
-    @test Jugsaw.nfunctions(app) == 2
-    object_id = JSON3.read(String(ret.body)).object_id
-    @test r.state_store[object_id] ≈ sin(0.8775825618903728)
-    @test length(r.state_store.store) == 1
-
-    # nested function call
-    cos_call = """{"fields":["cos",
-        {"fields":[8.0],"type":"Core.Tuple{Core.Float64}"},
-        {"fields":[],"type":"Core.NamedTuple{(), Core.Tuple{}}"}],
-        "type":"JugsawIR.Call"}"""
-
-    fcall3 = """{"fields":["sin",
-        {"fields":[$cos_call],"type":"Core.Tuple{Core.Float64}"},
-        {"fields":[],"type":"Core.NamedTuple{(), Core.Tuple{}}"}],
-        "type":"JugsawIR.Call"}"""
-    req = HTTP.Request("POST", "/actors/testapp.sinx/0/method/", ["Content-Type" => "application/json"], fcall3)
-    ret = Jugsaw.act!(r, req)
-    @test ret.status == 200
-    object_id = JSON3.read(String(ret.body)).object_id
-    @test length(r.state_store.store) == 3
-    @test r.state_store[object_id] ≈ sin(cos(8.0))
-    # act!
-    # 1. create a state store
-    key = string(Jugsaw.uuid4())
-    state_store = Jugsaw.StateStore(Dict{String, Jugsaw.Future}())
-    state_store[key] = Jugsaw.Future()
-
-    # 2. create a demo message call
-    demo = first(first(app.method_demos)[2])
-    fcall = Call(demo.fcall.fname, (0.6,), (;))
-    msg = Jugsaw.Message(fcall, Jugsaw.ObjectRef(key))
-
-    # 3. compute and fetch the result
-    Jugsaw.do!(state_store, demo.fcall, msg)
-    res = state_store[key]
-    @test res == feval(demo.fcall, 0.6)
-
     # empty!
     empty!(app)
     @test Jugsaw.nfunctions(app) == 0
@@ -208,24 +215,4 @@ end
     @test feval(demo.fcall) == A()
     demo = app.method_demos[app.method_names[1]][1]
     @test fevalself(demo.fcall) == (1, 2, 3)
-end
-
-@testset "routes" begin
-    app = AppSpecification(:testapp)
-    @register app sin(cos(0.5))::Float64
-    ar = AppRuntime(app)
-    r = Jugsaw.get_router(ar)
-    # services
-    @test JSON3.read(r(HTTP.Request("GET", "/healthz"))).status == "OK"
-    @test JSON3.read(r(HTTP.Request("GET", "/dapr/config"))).entities == []
-    demo = app.method_demos["sin"][1]
-    req, types = julia2ir(Call(demo.fcall.fname, (8.0,), (;)))
-    id = JSON3.read(r(HTTP.Request("POST", "/actors/testapp.sin/method/", ["Content-Type" => "application/json"], req)).body).object_id
-    @test id isa String
-    fet = JSON3.write((; object_id=id))
-    @test ir2julia(r(HTTP.Request("POST", "/actors/testapp.sin/method/fetch", ["Content-Type" => "application/json"], fet)), demo.result) ≈ sin(8.0)
-    uri = URI("http://jugsaw.co")
-    loaded_app = Jugsaw.Client.load_app(r(HTTP.Request("GET", "/apps/testapp/demos")), uri)
-    @test loaded_app isa Jugsaw.Client.App
-    @test_broken r(HTTP.Request("DELETE", "/actors/testapp.sin/0"))
 end

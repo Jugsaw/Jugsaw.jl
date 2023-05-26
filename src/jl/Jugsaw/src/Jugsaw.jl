@@ -20,10 +20,11 @@ include("errors.jl")
 include("config.jl")
 include("common.jl")
 include("register.jl")
+include("clientcode.jl")
 include("server2.jl")
 include("client/Client.jl")
 include("template.jl")
 include("checkapp.jl")
-include("clientcode.jl")
+include("testkit.jl")
 
 end # module

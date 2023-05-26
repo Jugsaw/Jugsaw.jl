@@ -6,7 +6,7 @@ using JugsawIR.JSON3
 import CloudEvents
 import DaprClients
 import UUIDs
-import ..AppSpecification, ..NoDemoException
+import ..AppSpecification, ..NoDemoException, .._error_response, ..JuliaLang, ..Python, ..Javascript, ..generate_code, .._error_msg
 
 export Job, JobStatus, JobSpec
 export AbstractEventService, DaprService, FileEventService, InMemoryEventService, publish_status, fetch_status, save_object, load_object, load_object_as_ir, get_timeout
@@ -342,7 +342,11 @@ function addjob!(r::AppRuntime, jobspec::JobSpec)
     created_at, created_by, maxtime, fname, args, kwargs = jobspec.created_at, jobspec.created_by, jobspec.maxtime, jobspec.fname, jobspec.args, jobspec.kwargs
     # match demo or throw
     thisdemo = match_demo(fname, args.typename, kwargs.typename, r.app)
-    thisdemo === nothing && throw(NoDemoException(jobspec, r.app))
+    if thisdemo === nothing
+        err = NoDemoException(jobspec, r.app)
+        publish_status(r.dapr, JobStatus(id=jobspec.id, status=failed, description=_error_msg(err)))
+        throw(err)
+    end
 
     # IF tree is a function call, return an `object_id` for return value.
     #     recurse over args and kwargs to get `Call` parsed.
@@ -404,7 +408,6 @@ function object_getter(dapr::AbstractEventService, object_id::String, resdemo; t
     Call(getter, (dapr, object_id, resdemo), (;))
 end
 
-
 ################### Server #################
 
 function job_handler(r::AppRuntime, req::HTTP.Request)
@@ -412,8 +415,10 @@ function job_handler(r::AppRuntime, req::HTTP.Request)
     # add jobs recursively to the queue
     try
         evt = CloudEvents.from_http(req.headers, req.body)
+        @show evt
         # CloudEvent
         jobadt = JugsawIR.ir2adt(String(evt.data))
+        @show jobadt
         job_id, created_at, created_by, maxtime, fname, args, kwargs = jobadt.fields
         jobspec = JobSpec(job_id, created_at, created_by, maxtime, fname, args, kwargs)
         @info "get job: $jobspec"
@@ -438,7 +443,37 @@ function fetch_handler(r::AppRuntime, req::HTTP.Request)
     end
 end
 
-function code_handler(r::AppRuntime, lang::String, endpoint::String, evt::CloudEvents.CloudEvent)
+function demos_handler(app::AppSpecification)
+    (demos, types) = JugsawIR.julia2ir(app)
+    ir = "[$demos, $types]"
+    return HTTP.Response(200, ["Content-Type" => "application/json"], ir)
+end
+
+function code_handler(req::HTTP.Request, app::AppSpecification)
+    # get language
+    params = HTTP.getparams(req)
+    lang = params["lang"]
+    pl = if lang == "JuliaLang"
+        JuliaLang()
+    elseif lang == "Python"
+        Python()
+    elseif lang == "Javascript"
+        Javascript()
+    else
+        return _error_response(ErrorException("Client langauge not defined, got: $lang"))
+    end
+
+    # get request
+    adt = JugsawIR.ir2adt(String(req.body))
+    endpoint, appname, fcall = adt.fields
+    fname, args, kwargs = fcall.fields
+    demo = match_demo(fname, args.typename, kwargs.typename, app)
+    if demo === nothing
+        return _error_response(NoDemoException(fcall, app))
+    else
+        code = generate_code(pl, endpoint, Symbol(appname), fcall, demo.fcall)
+        return HTTP.Response(200, ["Content-Type" => "application/json"], JSON3.write((; code=code)))
+    end
 end
 
 function get_router(runtime::AppRuntime)
@@ -447,9 +482,9 @@ function get_router(runtime::AppRuntime)
     HTTP.register!(r, "GET", "/healthz", _ -> JSON3.write((; status="OK")))
     HTTP.register!(r, "POST", "/events/jobs", req->job_handler(runtime, req))
     HTTP.register!(r, "GET", "/events/jobs/fetch", req -> fetch_handler(runtime, req))
-    HTTP.register!(r, "GET", "/demos", _ -> ((demos, types) = JugsawIR.julia2ir(r.app); "[$demos, $types]"))
+    HTTP.register!(r, "GET", "/demos", _ -> demos_handler(runtime.app))
     # TODO: we need context about endpoint here!
-    HTTP.register!(r, "GET", "/api/{lang}", _ -> code_handler(runtime, lang, endpoint, CloudEvents.from_http(req.headers, req.body)))
+    HTTP.register!(r, "POST", "/api/{lang}", req -> code_handler(req, runtime.app))
     HTTP.register!(r, "GET", "/dapr/subscribe",
         _ -> JSON3.write([(pubsubname="jobs", topic="$(runtime.app.created_by).$(runtime.app.name).$(rumtime.app.ver)", route="/events/jobs")])
     )
