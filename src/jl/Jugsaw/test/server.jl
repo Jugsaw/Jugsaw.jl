@@ -3,8 +3,8 @@ using Jugsaw, JugsawIR
 using HTTP, JugsawIR.JSON3, URIs
 using Jugsaw.Server
 
-@testset "mock event" begin
-    dapr = MockEventService(joinpath(@__DIR__, ".daprtest"))
+@testset "file event service" begin
+    dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
     mkpath(dapr.save_dir)
     @test get_timeout(dapr) == 1.0
 
@@ -23,16 +23,42 @@ using Jugsaw.Server
     # incorrect id triggers the timeout
     @test fetch_status(dapr, "asfd"; timeout=1.0) == (:timed_out, nothing)
 
-    save_state(dapr, job_id, Dict("x"=>42))
-    st, d = load_state(dapr, job_id, Dict("y"=>4); timeout=1.0)
+    save_object(dapr, job_id, Dict("x"=>42))
+    st, d = load_object(dapr, job_id, Dict("y"=>4); timeout=1.0)
     @test st == :ok
     @test d == Dict("x"=>42)
+end
+
+@testset "in memory event" begin
+    dapr = InMemoryEventService()
+    @test get_timeout(dapr) == 0.0
+    job_id = string(Jugsaw.uuid4())
+
+    # status updated
+    status = JobStatus(id=job_id, status=Jugsaw.Server.succeeded)
+    publish_status(dapr, status)
+    @test fetch_status(dapr, job_id; timeout=1.0) == (:ok, status)
+
+    # another status updated
+    status = JobStatus(id=job_id, status=Jugsaw.Server.failed)
+    publish_status(dapr, status)
+    @test fetch_status(dapr, job_id; timeout=1.0) == (:ok, status)
+
+    # incorrect id triggers the timeout
+    @test fetch_status(dapr, "asfd"; timeout=1.0) == (:timed_out, nothing)
+
+    save_object(dapr, job_id, Dict("x"=>42))
+    st, d = load_object(dapr, job_id, Dict("y"=>4); timeout=1.0)
+    st, dir = load_object_as_ir(dapr, job_id; timeout=1.0)
+    @test st == :ok
+    @test d == Dict("x"=>42)
+    @test dir isa String
 end
 
 @testset "app runtime" begin
     app = AppSpecification(:testapp)
     @register app sin(cos(0.5))::Float64
-    dapr = MockEventService(joinpath(@__DIR__, ".daprtest"))
+    dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
     r = AppRuntime(app, dapr)
     @test r isa AppRuntime
 
@@ -41,7 +67,7 @@ end
     adt, = JugsawIR.julia2adt(JugsawIR.Call(sin, (0.5,), (;)))
     jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, adt.fields...)
     job = addjob!(r, jobspec)
-    st, res = load_state(dapr, job_id, job.demo.result; timeout=1.0)
+    st, res = load_object(dapr, job_id, job.demo.result; timeout=1.0)
     @test res ≈ sin(0.5)
     @test fetch_status(dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.succeeded
 
@@ -53,7 +79,7 @@ end
     # fix adt
     jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, adt.fields...)
     job = addjob!(r, jobspec)
-    st, res = load_state(dapr, job_id, job.demo.result; timeout=1.0)
+    st, res = load_object(dapr, job_id, job.demo.result; timeout=1.0)
     @test res ≈ sin(cos(0.7))
     @test fetch_status(dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.succeeded
 end
@@ -66,7 +92,7 @@ end
         end
     end
     app = AppSpecification(:testapp)
-    dapr = MockEventService(joinpath(@__DIR__, ".daprtest"))
+    dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
     @register app sin(cos(0.5))::Float64
     @register app buggy(0.5)
     r = AppRuntime(app, dapr)
@@ -76,20 +102,20 @@ end
     # normal call
     jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, adt1.fields...)
     job = addjob!(r, jobspec)
-    st, res = load_state(dapr, job_id, job.demo.result; timeout=1.0)
+    st, res = load_object(dapr, job_id, job.demo.result; timeout=1.0)
     @test fetch_status(dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.succeeded
     # trigger error
     adt2, = JugsawIR.julia2adt(JugsawIR.Call(buggy, (-1.0,), (;)))
     jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, adt2.fields...)
     job = addjob!(r, jobspec)
-    st, res = load_state(dapr, job_id, job.demo.result; timeout=1.0)
+    st, res = load_object(dapr, job_id, job.demo.result; timeout=1.0)
     @test fetch_status(dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.failed
 end
 
 @testset "job handler" begin
     # create an app
     app = AppSpecification(:testapp)
-    dapr = MockEventService(joinpath(@__DIR__, ".daprtest"))
+    dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
     @register app sin(cos(0.5))::Float64
     r = AppRuntime(app, dapr)
 
@@ -100,10 +126,16 @@ end
     # create a cloud event
     event_id = string(Jugsaw.uuid4())
     evt = Jugsaw.Server.CloudEvents.CloudEvent(Vector{UInt8}(ir); id=event_id, type="any", source="any")
-    resp = Jugsaw.Server.job_handler(r, evt)
+    req = HTTP.Request("POST", "/events/jobs/", ["Content-Type" => "application/json",
+        "ce_id"=>"$event_id", "ce_type"=>"any", "ce_source"=>"any"],
+        JSON3.write(evt.data))
+    resp = Jugsaw.Server.job_handler(r, req)
     @test resp.status == 200
-    st, res = load_state(dapr, job_id, job.demo.result; timeout=1.0)
-    @test res ≈ sin(0.5)
+    # load object
+    st, res = load_object_as_ir(dapr, job_id; timeout=1.0)
+    @test Meta.parse(res) ≈ sin(0.5)
+    # fetch interface
+    resp = Jugsaw.Server.fetch(r, req)
 end
 
 @testset "parse fcall" begin
