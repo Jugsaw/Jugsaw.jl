@@ -1,69 +1,42 @@
-abstract type AbstractHandler end
-struct RemoteHandler <: AbstractHandler
-    uri::URI
-end
-RemoteHandler(uri::String="http://localhost:8081/") = RemoteHandler(URI(uri))
-
-struct LocalHandler <: AbstractHandler
-    uri::URI
-end
-LocalHandler(uri::String) = LocalHandler(URI(; scheme="file", host=uri))
-
 # NOTE: demo_result is not the return value!
 struct LazyReturn
-    uri::URI
-    object_id::String
+    endpoint::String
+    job_id::String
     demo_result
 end
 function (r::LazyReturn)()
-    return fetch(r.uri, r.object_id, r.demo_result)
+    return fetch(r.endpoint, r.job_id, r.demo_result)
 end
 
-function request_app(appname::Symbol; uri::String="http://localhost:8081/")
-    _uri = URI(uri)
-    if _uri.scheme == "https" || _uri.scheme == "http"
-        return request_app(RemoteHandler(_uri), appname)
-    elseif _uri.scheme == "file"
-        return request_app(LocalHandler(_uri), appname)
-    else
-        error("uri string scheme error, expected http, https or file, got: $(_uri.scheme)")
-    end
-end
-function request_app(remote::AbstractHandler, appname::Symbol)
-    if remote isa LocalHandler
-        path = remote.uri.host * remote.uri.path
-        retstr = read(joinpath(path, "demos.json"), String)
-    else
-        demo_url = joinpath(remote.uri, "apps", "$appname", "demos")
-        r = HTTP.get(demo_url) # Deserialize
-        retstr = String(r.body)
-    end
-    return load_app(retstr, remote.uri)
-end
-function load_demos_from_dir(dirname::String)
-    request_app(LocalHandler(dirname), :any)
+function request_app(appname::Symbol; endpoint::String="http://localhost:8081/")
+    r = new_request(ClientContext(; appname, endpoint), Val(:demos))
+    retstr = String(r.body)
+    return load_app(retstr, remote.endpoint)
 end
 
-function test_demo(uri::URI, app::App, fname::Symbol)
+function test_demo(endpoint::String, app::App, fname::Symbol)
     for (i, demo) in enumerate(getproperty(app, fname))
-        got = call(uri, app, fname, i, demo.fcall.args...; demo.fcall.kwargs...)()
+        got = call(endpoint, app, fname, i, demo.fcall.args...; demo.fcall.kwargs...)()
         got == demo.result || got ≈ demo.result || return false
     end
     return true
 end
-call(demo::DemoRef, args...; kwargs...) = call(demo.uri, demo.demo, args...; kwargs...)
-function call(uri::URI, demo::Demo, args...; kwargs...)
+call(demo::DemoRef, args...; kwargs...) = call(demo.context, demo.demo, args...; kwargs...)
+function call(context::ClientContext, demo::Demo, args...; kwargs...)
     args_adt = adt_norecur(demo.meta["args_type"], args)
     kwargs_adt = adt_norecur(demo.meta["kwargs_type"], (; kwargs...))
     @assert length(args_adt.fields) == length(demo.fcall.args)
     @assert length(kwargs_adt.fields) == length(demo.fcall.kwargs)
-    #req = JugsawIR.adt2ir(JugsawADT.Object("JugsawIR.Call",
-    #        [demo.fcall.fname, args_adt, kwargs_adt]))
-    req, job_id = new_job_request(fcall; endpoint=uri, maxtime, created_by)
-    act_url = joinpath(uri, "method")
+    fcall = JugsawADT.Object("JugsawIR.Call",
+            [demo.fcall.fname, args_adt, kwargs_adt])
+    job_id = String(uuid4())
+    safe_request(()->new_request(context, Val(:job), job_id, fcall; endpoint=endpoint, maxtime=60.0, created_by="jugsaw"))
+    return LazyReturn(endpoint, job_id, demo.result)
+end
+function safe_request(f)
     local res
     try
-        res = HTTP.post(act_url, ["content-type" => "application/json"], req) # Deserialize
+        res = f()
     catch e
         if e isa HTTP.Exceptions.StatusError && e.status == 400
             res = JSON3.read(String(e.response.body))
@@ -71,27 +44,25 @@ function call(uri::URI, demo::Demo, args...; kwargs...)
         end
         Base.rethrow(e)
     end
-    retstr = String(res.body)
-    object_id = JSON3.read(retstr).object_id
-    return LazyReturn(uri, object_id, demo.result)
+    return res
 end
+
 function adt_norecur(typename::String, x::T) where T
     fields = Any[isdefined(x, fn) ? getfield(x, fn) : undef for fn in fieldnames(T)]
     return JugsawADT.Object(typename, fields)
 end
 
 # can we access the object without knowing the appname and function name?
-function fetch(uri::URI, job_id::String, demo_result)
-    ret = new_fetch_request(job_id; endpoint=uri)
+function fetch(endpoint::String, job_id::String, demo_result)
+    ret = safe_request(()->new_fetch_request(job_id; endpoint=endpoint))
     return ir2julia(String(ret.body), demo_result)
 end
 
-healthz(remote::RemoteHandler) = JSON3.read(HTTP.get(joinpath(remote.uri, "healthz")).body)
+healthz(remote::ClientContext) = JSON3.read(HTTP.get(joinpath(remote.endpoint, "healthz")).body)
 
-function _new_job_request(fcall::JugsawIR.Call; maxtime=10.0, created_by="jugsaw", endpoint="")
+function _new_request(context::ClientContext, ::Val{:job}, job_id::String, fcall::JugsawIR.Call; maxtime=10.0, created_by="jugsaw")
     # create a job
-    job_id = string(uuid4())
-    jobspec = (job_id, round(Int, time()), created_by, maxtime, fcall.fname, fcall.args, fcall.kwargs)
+    jobspec = (string(job_id), round(Int, time()), created_by, maxtime, fcall.fname, fcall.args, fcall.kwargs)
     ir, = JugsawIR.julia2ir(jobspec)
     # NOTE: UGLY!
     # create a cloud event
@@ -100,28 +71,36 @@ function _new_job_request(fcall::JugsawIR.Call; maxtime=10.0, created_by="jugsaw
         "ce-specversion"=>"1.0"
         ]
     data = JSON3.write(ir)
-    return ("POST", joinpath(endpoint, "/events/jobs/"), header, data), job_id
+    return ("POST", joinpath(context.endpoint,
+        context.endpoint ? "/events/jobs/" : "/v1/proj/$project/app/$appname/ver/$version/func/$fname"
+    ), header, data)
 end
-function new_job_request_obj(args...; kwargs...)
-    reqargs, job_id
-    return HTTP.Request(reqargs...), job_id
+function _new_request(context::ClientContext, ::Val{:healthz})
+    return ("GET", joinpath(context.endpoint, 
+        context.endpoint ? "/healthz" : "/v1/proj/$project/app/$appname/ver/$version/healthz"
+    ))
 end
-function new_job_request(args...; kwargs...)
-    reqargs, job_id
-    return HTTP.request(reqargs...), job_id
+function _new_request(context::ClientContext, ::Val{:subscribe})
+    return ("GET", joinpath(context.endpoint, "/dapr/subscribe"))
 end
-
-function new_healthz_request(; endpoint="")
-    return HTTP.Request("GET", joinpath(endpoint, "/healthz"))
+function _new_request(context::ClientContext, ::Val{:demos})
+    return ("GET", joinpath(context.endpoint,
+        context.endpoint ? "/demos" : "/v1/proj/$project/app/$appname/ver/$version/func"
+    ))
 end
-function new_demos_request(; endpoint="")
-    return HTTP.Request("GET", joinpath(endpoint, "/demos"))
+function _new_request(context::ClientContext, ::Val{:fetch}, job_id::String)
+    return ("GET", joinpath(context.endpoint,
+        context.endpoint ? "/events/jobs/fetch" : "/v1/job/$job_id/result"
+    ), ["Content-Type" => "application/json"], JSON3.write((; job_id=job_id)))
 end
-function new_fetch_request(job_id::String; endpoint="")
-    return HTTP.Request("GET", joinpath(endpoint, "/events/jobs/fetch"), ["Content-Type" => "application/json"], JSON3.write((; job_id=job_id)))
+function _new_request(context::ClientContext, ::Val{:api}, fcall::JugsawIR.Call, lang::String)
+    return _new_request(Val(:api), JugsawIR.julia2adt(fcall)[1], lang; context.endpoint)
 end
-function new_api_request(fcall::JugsawIR.Call, lang::String; endpoint="")
-    ir, = julia2ir((; endpoint, fcall))
-    return HTTP.Request("POST", joinpath(endpoint, "/api/$lang"), ["Content-Type" => "application/json"], ir; context=Dict(:params=>Dict("lang"=>"$lang")))
+function _new_request(context::ClientContext, ::Val{:api}, fcall::JugsawADT, lang::String)
+    ir = JugsawIR.adt2ir(JugsawADT.Object("Core.Tuple{Core.String, JugsawIR.Call}", [context.endpoint, fcall]))
+    return ("GET", joinpath(context.endpoint,
+        context.endpoint ? "/api/$lang" : "/v1/proj/$project/app/$appname/ver/$version/func/$fname/api/$lang"
+    ), ["Content-Type" => "application/json"], ir)
 end
-
+new_request(context, args...; kwargs...) = HTTP.request(_new_request(context, args...; kwargs...)...)
+new_request_obj(context, args...; kwargs...) = HTTP.Request(_new_request(context, args...; kwargs...)...)

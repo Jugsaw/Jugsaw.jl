@@ -6,7 +6,7 @@ using JugsawIR.JSON3
 import CloudEvents
 import DaprClients
 import UUIDs
-import ..AppSpecification, ..NoDemoException, .._error_response, ..JuliaLang, ..Python, ..Javascript, ..generate_code, .._error_msg
+import ..AppSpecification, ..NoDemoException, .._error_response, ..JuliaLang, ..Python, ..Javascript, ..generate_code, .._error_msg, ..TimedOutException
 
 export Job, JobStatus, JobSpec
 export AbstractEventService, DaprService, FileEventService, InMemoryEventService, publish_status, fetch_status, save_object, load_object, load_object_as_ir, get_timeout
@@ -433,9 +433,12 @@ function fetch_handler(r::AppRuntime, req::HTTP.Request)
     s = String(req.body)
     @info "fetching: $s"
     job_id = JSON3.read(s)["job_id"]
-    status, ir = load_object_as_ir(r.dapr, job_id; timeout=get_timeout(r.dapr))
+    timeout = get_timeout(r.dapr)
+    status, ir = load_object_as_ir(r.dapr, job_id; timeout=timeout)
     if status != :ok
         return _error_response(ErrorException("object not ready yet!"))
+    elseif status == :timed_out
+        return _error_response(TimedOutException(job_id, timeout))
     else
         return HTTP.Response(200, ["Content-Type" => "application/json"], JSON3.write((; data=ir)))
     end
@@ -474,7 +477,10 @@ function code_handler(req::HTTP.Request, app::AppSpecification)
     end
 end
 
-function get_router(runtime::AppRuntime)
+struct RemoteRoute end
+struct LocalRoute end
+
+function get_router(::LocalRoute, runtime::AppRuntime)
     r = HTTP.Router()
 
     HTTP.register!(r, "GET", "/healthz", _ -> JSON3.write((; status="OK")))
@@ -482,7 +488,7 @@ function get_router(runtime::AppRuntime)
     HTTP.register!(r, "GET", "/events/jobs/fetch", req -> fetch_handler(runtime, req))
     HTTP.register!(r, "GET", "/demos", _ -> demos_handler(runtime.app))
     # TODO: we need context about endpoint here!
-    HTTP.register!(r, "POST", "/api/{lang}", req -> code_handler(req, runtime.app))
+    HTTP.register!(r, "GET", "/api/{lang}", req -> code_handler(req, runtime.app))
     # TODO: complete subscribe
     HTTP.register!(r, "GET", "/dapr/subscribe",
         _ -> JSON3.write([(pubsubname="jobs", topic="$(runtime.app.created_by).$(runtime.app.name).$(rumtime.app.ver)", route="/events/jobs")])
@@ -490,9 +496,38 @@ function get_router(runtime::AppRuntime)
     return r
 end
 
-function serve(runtime::AppRuntime, is_async::Bool=false, port::Int=8088)
+function get_router(::RemoteRoute, runtime::AppRuntime)
+    r = HTTP.Router()
+    # job
+    HTTP.register!(r, "POST", "/v1/proj/{project}/app/{appname}/ver/{version}/func/{fname}",
+        req->job_handler(runtime, req)
+    )
+    # fetch
+    HTTP.register!(r, "GET", "/v1/job/{job_id}/result",
+        req -> fetch_handler(runtime, req)
+    )
+    # demos
+    HTTP.register!(r, "GET", "/v1/proj/{project}/app/{appname}/ver/{version}/func",
+        req -> demos_handler(runtime.app)
+    )
+    # api, NOTE: this is new!!!!
+    HTTP.register!(r, "GET", "/v1/proj/{project}/app/{appname}/ver/{version}/func/{fname}/api/{lang}",
+        req -> code_handler(req, runtime.app)
+    )
+    # healthz
+    HTTP.register!(r, "GET", "/v1/proj/{project}/app/{appname}/ver/{version}/healthz",
+        req -> JSON3.write((; status="OK"))
+    )
+    # subscribe
+    HTTP.register!(r, "GET", "/dapr/subscribe",
+         req-> JSON3.write([(pubsubname="jobs", topic="$(runtime.app.created_by).$(runtime.app.name).$(rumtime.app.ver)", route="/events/jobs")])
+    )
+    return r
+end
+
+function serve(runtime::AppRuntime, is_async::Bool=false, port::Int=8088, localmode::Bool=true)
     # release demo
-    r = get_router(runtime)
+    r = get_router(localmode ? LocalRoute() : RemoteRoute(), runtime)
     if is_async
         @async HTTP.serve(r, "0.0.0.0", port)
     else

@@ -5,6 +5,15 @@ end
 function Base.showerror(io::IO, e::NoDemoException, trace)
     print(io, "method does not exist, got: $(e.func_sig), available functions are: $(e.methods)")
 end
+
+struct TimedOutException <: Exception
+    job_id::String
+    timelimit::Float64
+end
+function Base.showerror(io::IO, e::TimedOutException, trace)
+    print(io, "Job $(e.job_id) does not finish in time limit: $(e.timelimit) (seconds)")
+end
+
 struct BadSyntax <: Exception
     adt::JugsawADT
 end

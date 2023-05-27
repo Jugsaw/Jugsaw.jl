@@ -25,6 +25,5 @@ include("server2.jl")
 include("client/Client.jl")
 include("template.jl")
 include("checkapp.jl")
-include("testkit.jl")
 
 end # module
