@@ -17,7 +17,9 @@ spec:
         dapr.io/enabled: "true"
         dapr.io/app-id: "{{ .Chart.Name }}"
         dapr.io/app-port: "{{ .Values.service.port }}"
+        dapr.io/log-level: "debug"
     spec:
+      serviceAccountName: dapr-service-account
       {{- with .Values.global.image.pullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
