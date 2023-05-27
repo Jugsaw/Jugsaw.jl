@@ -195,5 +195,111 @@ class ArtifactPushedData(BaseModel):
     repository: Repository
 
 
+from kubernetes import client, config, utils
+
+
 def on_artifact_push(a: ArtifactPushedData):
-    print(a)
+    config.load_incluster_config()
+    k8s_client = client.ApiClient()
+    # FIXME: examine repo_type
+    for x in a.resources:
+        assert x.digest.startswith("sha256:")
+        digest = x.digest[7:]
+        digest_short = digest[:8]  # TODO: label has a limit on length (<= 63)
+        name = f"{a.repository.namespace}-{a.repository.name}-{digest_short}"
+        image = (
+            f"harbor.jugsaw.co/{a.repository.namespace}/{a.repository.name}@{x.digest}"
+        )
+        deployment = {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {"name": name},
+            "spec": {
+                "replicas": 1,
+                "selector": {"matchLabels": {"app": name}},
+                "template": {
+                    "metadata": {
+                        "labels": {"app": name},
+                        "annotations": {
+                            "dapr.io/enabled": "true",
+                            "dapr.io/app-id": name,
+                            "dapr.io/app-port": "8088",  # TODO: read from GLOBAL CONFIG
+                            "dapr.io/log-level": "debug",  # TODO: read from GLOBAL CONFIG
+                        },
+                    },
+                    "spec": {
+                        "serviceAccountName": "dapr-service-account",  # TODO: read from GLOBAL CONFIG
+                        "imagePullSecrets": [
+                            {"name": "harbor-registry-jugsaw-deploy"}
+                        ],  # TODO: read from GLOBAL CONFIG
+                        "containers": [
+                            {
+                                "name": name,
+                                "image": image,
+                                "imagePullPolicy": "IfNotPresent",
+                                "env": [
+                                    {
+                                        "name": "JUGSAW_USER_NAME",
+                                        "value": a.repository.namespace,
+                                    },
+                                    {
+                                        "name": "JUGSAW_APP_NAME",
+                                        "value": a.repository.name,
+                                    },
+                                    {
+                                        "name": "JUGSAW_APP_VERSION",
+                                        "value": digest,
+                                    },
+                                ],
+                                "ports": [
+                                    {
+                                        "name": "http",
+                                        "containerPort": 8088,
+                                        "protocol": "TCP",
+                                    }
+                                ],
+                            }
+                        ],
+                    },
+                },
+            },
+        }
+
+        utils.create_from_dict(k8s_client, deployment)
+        # TODO: https://github.com/kubernetes-client/python/issues/571#issuecomment-908209994
+        # wait until it become ready first
+        # then we apply the keda scalar
+        # because the SQS subscriber is only created on startup
+        # or maybe we can create eh subscriber through dapr component explicitly?
+        # In this case, the scalar metrics is not ready, it will turn into error mode.
+        # By default it will scale to 0 immediately. We'd like to delay this process here.
+
+        scalar = {
+            "apiVersion": "keda.sh/v1alpha1",
+            "kind": "ScaledObject",
+            "metadata": {"name": name, "namespace": "jugsaw"},  # FIXME: GLOBAL CONFIG
+            "spec": {
+                "scaleTargetRef": {"name": name},
+                "pollingInterval": 15,
+                "cooldownPeriod": 300,
+                "maxReplicaCount": 1,
+                "minReplicaCount": 1,
+                "idleReplicaCount": 0,
+                "triggers": [
+                    {
+                        "type": "aws-sqs-queue",
+                        "authenticationRef": {
+                            "name": "keda-trigger-auth-aws-credentials"
+                        },
+                        "metadata": {
+                            "queueURL": f"https://sqs.us-west-1.amazonaws.com/701218724223/{name}",
+                            "queueLength": "5",
+                            "awsRegion": "us-west-1",
+                            "identityOwner": "operator",
+                        },
+                    }
+                ],
+            },
+        }
+
+        utils.create_from_dict(k8s_client, scalar)
