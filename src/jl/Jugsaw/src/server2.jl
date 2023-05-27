@@ -440,7 +440,7 @@ function fetch_handler(r::AppRuntime, req::HTTP.Request)
     elseif status == :timed_out
         return _error_response(TimedOutException(job_id, timeout))
     else
-        return HTTP.Response(200, ["Content-Type" => "application/json"], JSON3.write((; data=ir)))
+        return HTTP.Response(200, ["Content-Type" => "application/json"], ir)
     end
 end
 
@@ -525,7 +525,7 @@ function get_router(::RemoteRoute, runtime::AppRuntime)
     return r
 end
 
-function serve(runtime::AppRuntime, is_async::Bool=false, port::Int=8088, localmode::Bool=true)
+function serve(runtime::AppRuntime; is_async::Bool=false, port::Int=8088, localmode::Bool=true)
     # release demo
     r = get_router(localmode ? LocalRoute() : RemoteRoute(), runtime)
     if is_async

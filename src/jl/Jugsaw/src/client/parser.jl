@@ -1,11 +1,11 @@
 # endpoint is the remote endpoint
-function load_app(str::String, endpoint::String)
+function load_app(context::ClientContext, str::String)
     adt = JugsawIR.ir2adt(str)
     appadt, typesadt = adt.storage
     tt = JugsawIR.adt2julia(typesadt, JugsawIR.demoof(JugsawIR.TypeTable))
-    return _load_app(appadt, tt, endpoint::String)
+    return _load_app(context, appadt, tt)
 end
-function _load_app(obj::JugsawADT, tt::TypeTable, endpoint::String)
+function _load_app(context::ClientContext, obj::JugsawADT, tt::TypeTable)
     name, method_names, _method_demos = obj.fields
     ks, vs = _method_demos.fields
     method_demos = Dict(zip(ks.storage, vs.storage))
@@ -21,7 +21,7 @@ function _load_app(obj::JugsawADT, tt::TypeTable, endpoint::String)
             push!(demos[fname], demo)
         end
     end
-    app = App(Symbol(name), demos, tt, endpoint)
+    app = App(Symbol(name), demos, tt, context)
     return app
 end
 

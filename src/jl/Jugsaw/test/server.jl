@@ -2,6 +2,7 @@ using Test
 using Jugsaw, JugsawIR
 using HTTP, JugsawIR.JSON3, URIs
 using Jugsaw.Server
+using Jugsaw.Client
 
 @testset "file event service" begin
     dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
@@ -118,59 +119,62 @@ end
     dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
     @register app sin(cos(0.5))::Float64
     r = AppRuntime(app, dapr)
+    context = Client.ClientContext()
 
     # luanch and fetch a job
     fcall = JugsawIR.Call(:sin, (0.5,), (;))
     job_id = string(Jugsaw.uuid4())
-    req = Jugsaw.Client.new_request_obj(Val(:job), job_id, fcall; maxtime=10.0)
+    req = Jugsaw.Client.new_request_obj(context, Val(:job), job_id, fcall; maxtime=10.0)
     resp1 = Jugsaw.Server.job_handler(r, req)
     # fetch interface
-    req = Jugsaw.Client.new_request_obj(Val(:fetch), job_id)
+    req = Jugsaw.Client.new_request_obj(context, Val(:fetch), job_id)
     resp2 = Server.fetch_handler(r, req)
     @test resp1.status == 200
     @test resp2.status == 200
     @test fetch_status(r.dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.succeeded
 
     # load object
-    obj = JugsawIR.ir2adt(JSON3.read(resp2.body).data)
+    obj = JugsawIR.ir2adt(String(resp2.body))
     @test obj ≈ sin(0.5)
 end
 
 @testset "code handler" begin
+    context = Client.ClientContext()
     app = AppSpecification(:testapp)
     dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
     @register app sin(cos(0.5))::Float64
 
-    req = Jugsaw.Client.new_request_obj(Val(:api), JugsawIR.Call("sin", (0.5,), (;)), "JuliaLang")
+    req = Jugsaw.Client.new_request_obj(context, Val(:api), JugsawIR.Call("sin", (0.5,), (;)), "JuliaLang")
     req.context[:params] = Dict("lang"=>"JuliaLang")
     ret = Jugsaw.Server.code_handler(req, app)
     @test ret.status == 200
     @test JSON3.read(ret.body).code isa String
     @show JSON3.read(ret.body).code
 
-    req = Jugsaw.Client.new_request_obj(Val(:api), JugsawIR.Call("sinx", (0.5,), (;)), "JuliaLang")
+    req = Jugsaw.Client.new_request_obj(context, Val(:api), JugsawIR.Call("sinx", (0.5,), (;)), "JuliaLang")
     req.context[:params] = Dict("lang"=>"JuliaLang")
     ret = Jugsaw.Server.code_handler(req, app)
     @test ret.status == 400
 end
 
 @testset "routes" begin
+    context = Client.ClientContext()
     app = AppSpecification(:testapp)
     dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
     @register app sin(cos(0.5))::Float64
     ar = AppRuntime(app, dapr)
-    r = Jugsaw.Server.get_router(ar)
+    r = Jugsaw.Server.get_router(Jugsaw.Server.LocalRoute(), ar)
     # services
-    @test JSON3.read(r(Jugsaw.Client.new_request_obj(Val(:healthz)))).status == "OK"
+    @test JSON3.read(r(Jugsaw.Client.new_request_obj(context, Val(:healthz)))).status == "OK"
 
     # demos
-    @test r(Jugsaw.Client.new_request_obj(Val(:demos))).status == 200
+    @test r(Jugsaw.Client.new_request_obj(context, Val(:demos))).status == 200
 
     # api
-    req = Jugsaw.Client.new_request_obj(Val(:api), JugsawIR.Call("sin", (0.5,), (;)), "JuliaLang")
+    req = Jugsaw.Client.new_request_obj(context, Val(:api), JugsawIR.Call("sin", (0.5,), (;)), "JuliaLang")
     @test r(req).status == 200
     # language not defined
-    req = Jugsaw.Client.new_request_obj(Val(:api), JugsawIR.Call("sin", (0.5,), (;)), "Julia")
+    req = Jugsaw.Client.new_request_obj(context, Val(:api), JugsawIR.Call("sin", (0.5,), (;)), "Julia")
     @test r(req).status == 400
     
     # subscribe
@@ -178,12 +182,12 @@ end
 
     # launch a job
     job_id = string(Jugsaw.uuid4())
-    req = Jugsaw.Client.new_request_obj(Val(:job), job_id, JugsawIR.Call(sin, (0.5,), (;)))
+    req = Jugsaw.Client.new_request_obj(context, Val(:job), job_id, JugsawIR.Call(sin, (0.5,), (;)))
     ret = r(req)
     @test ret.status == 200
 
     # fetch result
-    req = Jugsaw.Client.new_request_obj(Val(:fetch), job_id)
+    req = Jugsaw.Client.new_request_obj(context, Val(:fetch), job_id)
     ret = r(req)
     @test ret.status == 200
 end

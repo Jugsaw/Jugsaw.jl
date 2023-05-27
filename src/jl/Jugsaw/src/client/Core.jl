@@ -1,11 +1,11 @@
 Base.@kwdef mutable struct ClientContext
-    endpoint::String = "http://localhost:8081/"
-    localmode::Bool = false
+    endpoint::String = "http://localhost:8088/"
+    localmode::Bool = true
 
     project::String = "unspecified"
-    appname::Symbol = "unspecified"
+    appname::Symbol = :unspecified
     version::String = "1.0"
-    fname::Symbol = "unspecified"
+    fname::Symbol = :unspecified
 end
 Base.copy(c::ClientContext) = ClientContext(c.endpoint, c.localmode, c.project, c.appname, c.version, c.fname)
 
@@ -91,7 +91,7 @@ function Base.getproperty(app::App, fname::Symbol)
     context = copy(app[:context])
     context.appname = app[:name]
     context.fname = fname
-    res = DemoRefs(fname, app[:method_demos][fname], endpoint)
+    res = DemoRefs(fname, app[:method_demos][fname], context)
     return res
 end
 Base.getindex(a::App, f::Symbol) = getfield(a, f)
