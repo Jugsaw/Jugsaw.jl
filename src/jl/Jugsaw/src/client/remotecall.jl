@@ -57,31 +57,23 @@ function call(uri::URI, demo::Demo, args...; kwargs...)
     kwargs_adt = adt_norecur(demo.meta["kwargs_type"], (; kwargs...))
     @assert length(args_adt.fields) == length(demo.fcall.args)
     @assert length(kwargs_adt.fields) == length(demo.fcall.kwargs)
-    req = JugsawIR.adt2ir(JugsawADT.Object("JugsawIR.Call",
-            [demo.fcall.fname, args_adt, kwargs_adt]))
-    if uri.scheme == "file"
-        path = uri.host * uri.path
-        mkpath(path)
-        open(joinpath(path, "fcall.json"), "w") do f
-            write(f, req)
+    #req = JugsawIR.adt2ir(JugsawADT.Object("JugsawIR.Call",
+    #        [demo.fcall.fname, args_adt, kwargs_adt]))
+    req, job_id = new_job_request(fcall; endpoint=uri, maxtime, created_by)
+    act_url = joinpath(uri, "method")
+    local res
+    try
+        res = HTTP.post(act_url, ["content-type" => "application/json"], req) # Deserialize
+    catch e
+        if e isa HTTP.Exceptions.StatusError && e.status == 400
+            res = JSON3.read(String(e.response.body))
+            Base.println(stdout, res.error)
         end
-        return () -> ir2julia(read(joinpath(path, "result.json"), String), demo.result)
-    else
-        act_url = joinpath(uri, "method")
-        local res
-        try
-            res = HTTP.post(act_url, ["content-type" => "application/json"], req) # Deserialize
-        catch e
-            if e isa HTTP.Exceptions.StatusError && e.status == 400
-                res = JSON3.read(String(e.response.body))
-                Base.println(stdout, res.error)
-            end
-            Base.rethrow(e)
-        end
-        retstr = String(res.body)
-        object_id = JSON3.read(retstr).object_id
-        return LazyReturn(uri, object_id, demo.result)
+        Base.rethrow(e)
     end
+    retstr = String(res.body)
+    object_id = JSON3.read(retstr).object_id
+    return LazyReturn(uri, object_id, demo.result)
 end
 function adt_norecur(typename::String, x::T) where T
     fields = Any[isdefined(x, fn) ? getfield(x, fn) : undef for fn in fieldnames(T)]
@@ -96,21 +88,29 @@ end
 
 healthz(remote::RemoteHandler) = JSON3.read(HTTP.get(joinpath(remote.uri, "healthz")).body)
 
-function new_job_request(fcall::JugsawIR.Call; maxtime=10.0, created_by="jugsaw", endpoint="")
+function _new_job_request(fcall::JugsawIR.Call; maxtime=10.0, created_by="jugsaw", endpoint="")
     # create a job
     job_id = string(uuid4())
     jobspec = (job_id, round(Int, time()), created_by, maxtime, fcall.fname, fcall.args, fcall.kwargs)
     ir, = JugsawIR.julia2ir(jobspec)
     # NOTE: UGLY!
     # create a cloud event
-    req = HTTP.Request("POST", joinpath(endpoint, "/events/jobs/"), ["Content-Type" => "application/json",
+    header = ["Content-Type" => "application/json",
         "ce-id"=>"$(uuid4())", "ce-type"=>"any", "ce-source"=>"any",
         "ce-specversion"=>"1.0"
-        ],
-        JSON3.write(ir)
-    )
-    return req, job_id
+        ]
+    data = JSON3.write(ir)
+    return ("POST", joinpath(endpoint, "/events/jobs/"), header, data), job_id
 end
+function new_job_request_obj(args...; kwargs...)
+    reqargs, job_id
+    return HTTP.Request(reqargs...), job_id
+end
+function new_job_request(args...; kwargs...)
+    reqargs, job_id
+    return HTTP.request(reqargs...), job_id
+end
+
 function new_healthz_request(; endpoint="")
     return HTTP.Request("GET", joinpath(endpoint, "/healthz"))
 end
