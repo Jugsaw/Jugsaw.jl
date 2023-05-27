@@ -415,10 +415,8 @@ function job_handler(r::AppRuntime, req::HTTP.Request)
     # add jobs recursively to the queue
     try
         evt = CloudEvents.from_http(req.headers, req.body)
-        @show evt
         # CloudEvent
         jobadt = JugsawIR.ir2adt(String(evt.data))
-        @show jobadt
         job_id, created_at, created_by, maxtime, fname, args, kwargs = jobadt.fields
         jobspec = JobSpec(job_id, created_at, created_by, maxtime, fname, args, kwargs)
         @info "get job: $jobspec"
@@ -465,13 +463,13 @@ function code_handler(req::HTTP.Request, app::AppSpecification)
 
     # get request
     adt = JugsawIR.ir2adt(String(req.body))
-    endpoint, appname, fcall = adt.fields
+    endpoint, fcall = adt.fields
     fname, args, kwargs = fcall.fields
     demo = match_demo(fname, args.typename, kwargs.typename, app)
     if demo === nothing
         return _error_response(NoDemoException(fcall, app))
     else
-        code = generate_code(pl, endpoint, Symbol(appname), fcall, demo.fcall)
+        code = generate_code(pl, endpoint, app.name, fcall, demo.fcall)
         return HTTP.Response(200, ["Content-Type" => "application/json"], JSON3.write((; code=code)))
     end
 end
@@ -485,6 +483,7 @@ function get_router(runtime::AppRuntime)
     HTTP.register!(r, "GET", "/demos", _ -> demos_handler(runtime.app))
     # TODO: we need context about endpoint here!
     HTTP.register!(r, "POST", "/api/{lang}", req -> code_handler(req, runtime.app))
+    # TODO: complete subscribe
     HTTP.register!(r, "GET", "/dapr/subscribe",
         _ -> JSON3.write([(pubsubname="jobs", topic="$(runtime.app.created_by).$(runtime.app.name).$(rumtime.app.ver)", route="/events/jobs")])
     )

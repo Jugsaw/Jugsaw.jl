@@ -7,7 +7,7 @@ struct Javascript <: AbstractLang end
 function generate_code(::JuliaLang, endpoint::String, appname::Symbol, fcall::JugsawADT, democall::JugsawIR.Call)
     @assert fcall.typename == "JugsawIR.Call"
     if isempty(endpoint)
-        error("The endpoint of this server is not set properly.")
+        @warn("The endpoint of this server is not set properly.")
     end
     callexpr = fexpr(JuliaLang(), fcall, democall)
     callexpr.args[1] = :(app.$(callexpr.args[1]))

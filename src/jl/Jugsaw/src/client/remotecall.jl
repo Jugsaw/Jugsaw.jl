@@ -89,12 +89,39 @@ function adt_norecur(typename::String, x::T) where T
 end
 
 # can we access the object without knowing the appname and function name?
-function fetch(uri::URI, object_id::String, demo_result)
-    fet = JSON3.write((; object_id))
-    ret = HTTP.post(joinpath(uri, "method", "fetch"), ["Content-Type" => "application/json"], fet)
+function fetch(uri::URI, job_id::String, demo_result)
+    ret = new_fetch_request(job_id; endpoint=uri)
     return ir2julia(String(ret.body), demo_result)
 end
 
 healthz(remote::RemoteHandler) = JSON3.read(HTTP.get(joinpath(remote.uri, "healthz")).body)
-dapr_config(remote::RemoteHandler) = JSON3.read(HTTP.get(joinpath(remote.uri, "dapr", "config")).body).entities
-delete(remote::RemoteHandler, app::App, fname::Symbol) = JSON3.read(HTTP.delete(joinpath(remote.uri, "actors", "$fname")).body)
+
+function new_job_request(fcall::JugsawIR.Call; maxtime=10.0, created_by="jugsaw", endpoint="")
+    # create a job
+    job_id = string(uuid4())
+    jobspec = (job_id, round(Int, time()), created_by, maxtime, fcall.fname, fcall.args, fcall.kwargs)
+    ir, = JugsawIR.julia2ir(jobspec)
+    # NOTE: UGLY!
+    # create a cloud event
+    req = HTTP.Request("POST", joinpath(endpoint, "/events/jobs/"), ["Content-Type" => "application/json",
+        "ce-id"=>"$(uuid4())", "ce-type"=>"any", "ce-source"=>"any",
+        "ce-specversion"=>"1.0"
+        ],
+        JSON3.write(ir)
+    )
+    return req, job_id
+end
+function new_healthz_request(; endpoint="")
+    return HTTP.Request("GET", joinpath(endpoint, "/healthz"))
+end
+function new_demos_request(; endpoint="")
+    return HTTP.Request("GET", joinpath(endpoint, "/demos"))
+end
+function new_fetch_request(job_id::String; endpoint="")
+    return HTTP.Request("GET", joinpath(endpoint, "/events/jobs/fetch"), ["Content-Type" => "application/json"], JSON3.write((; job_id=job_id)))
+end
+function new_api_request(fcall::JugsawIR.Call, lang::String; endpoint="")
+    ir, = julia2ir((; endpoint, fcall))
+    return HTTP.Request("POST", joinpath(endpoint, "/api/$lang"), ["Content-Type" => "application/json"], ir; context=Dict(:params=>Dict("lang"=>"$lang")))
+end
+

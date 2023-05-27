@@ -121,12 +121,17 @@ end
 
     # luanch and fetch a job
     fcall = JugsawIR.Call(:sin, (0.5,), (;))
-    resp1, resp2, obj, job_id = Jugsaw.launch_and_fetch(r, fcall)
+    req, job_id = Jugsaw.Client.new_job_request(fcall; maxtime=10.0)
+    resp1 = Jugsaw.Server.job_handler(r, req)
+    # fetch interface
+    req = Jugsaw.Client.new_fetch_request(job_id)
+    resp2 = Server.fetch_handler(r, req)
     @test resp1.status == 200
     @test resp2.status == 200
     @test fetch_status(r.dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.succeeded
 
     # load object
+    obj = JugsawIR.ir2adt(JSON3.read(resp2.body).data)
     @test obj ≈ sin(0.5)
 end
 
@@ -135,15 +140,13 @@ end
     dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
     @register app sin(cos(0.5))::Float64
 
-    ir, = julia2ir((; endpoint="https://jugsaw.co", appname="testapp", fcall=JugsawIR.Call("sin", (0.5,), (;))))
-    req = HTTP.Request("POST", "/api/julia", ["Content-Type" => "application/json"], ir; context=Dict(:params=>Dict("lang"=>"JuliaLang")))
+    req = Jugsaw.Client.new_api_request(JugsawIR.Call("sin", (0.5,), (;)), "JuliaLang")
     ret = Jugsaw.Server.code_handler(req, app)
     @test ret.status == 200
     @test JSON3.read(ret.body).code isa String
     @show JSON3.read(ret.body).code
 
-    ir, = julia2ir((; endpoint="https://jugsaw.co", appname="testapp", fcall=JugsawIR.Call("sinx", (0.5,), (;))))
-    req = HTTP.Request("POST", "/api/julia", ["Content-Type" => "application/json"], ir; context=Dict(:params=>Dict("lang"=>"JuliaLang")))
+    req = Jugsaw.Client.new_api_request(JugsawIR.Call("sinx", (0.5,), (;)), "JuliaLang")
     ret = Jugsaw.Server.code_handler(req, app)
     @test ret.status == 400
 end
@@ -155,37 +158,28 @@ end
     ar = AppRuntime(app, dapr)
     r = Jugsaw.Server.get_router(ar)
     # services
-    @test JSON3.read(r(HTTP.Request("GET", "/healthz"))).status == "OK"
+    @test JSON3.read(r(Jugsaw.Client.new_healthz_request())).status == "OK"
 
     # demos
-    @test r(HTTP.Request("GET", "/demos")).status == 200
+    @test r(Jugsaw.Client.new_demos_request()).status == 200
 
     # api
-    ir, = julia2ir((; endpoint="https://jugsaw.co", appname="testapp", fcall=JugsawIR.Call("sin", (0.5,), (;))))
-    req = HTTP.Request("POST", "/api/JuliaLang", ["Content-Type" => "application/json"], ir; context=Dict(:params=>Dict("lang"=>"JuliaLang")))
+    req = Jugsaw.Client.new_api_request(JugsawIR.Call("sin", (0.5,), (;)), "JuliaLang")
     @test r(req).status == 200
     # language not defined
-    req = HTTP.Request("POST", "/api/julia", ["Content-Type" => "application/json"], ir; context=Dict(:params=>Dict("lang"=>"JuliaLang")))
+    req = Jugsaw.Client.new_api_request(JugsawIR.Call("sin", (0.5,), (;)), "Julia")
     @test r(req).status == 400
     
     # subscribe
-    @test r(HTTP.Request("GET", "/demos")).status == 200
+    @test_broken r(HTTP.Request("GET", "/dapr/subscribe")).status == 200
 
     # launch a job
-    job_id = string(Jugsaw.uuid4())
-    jobspec = (job_id, round(Int, time()), "jugsaw", 1.0, sin, (0.5,), (;))
-    ir, = JugsawIR.julia2ir(jobspec)
-    event_id = string(Jugsaw.uuid4())
-    req = HTTP.Request("POST", "/events/jobs/", ["Content-Type" => "application/json",
-        "ce-id"=>"$event_id", "ce-type"=>"any", "ce-source"=>"any",
-        "ce-specversion"=>"1.0"
-        ],
-        JSON3.write(ir))
+    req, job_id = Jugsaw.Client.new_job_request(JugsawIR.Call(sin, (0.5,), (;)))
     ret = r(req)
     @test ret.status == 200
 
     # fetch result
-    req = HTTP.Request("GET", "/events/jobs/fetch", ["Content-Type" => "application/json"], JSON3.write((; job_id=job_id)))
+    req = Jugsaw.Client.new_fetch_request(job_id)
     ret = r(req)
     @test ret.status == 200
 end

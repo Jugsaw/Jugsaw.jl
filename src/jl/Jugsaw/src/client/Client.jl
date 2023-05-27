@@ -9,6 +9,7 @@ using URIs
 using JugsawIR.AbstractTrees
 using OrderedCollections: OrderedDict
 using Markdown
+using UUIDs
 
 export App, DemoRefs, DemoRef, Demo
 export RemoteHandler, LocalHandler, request_app
