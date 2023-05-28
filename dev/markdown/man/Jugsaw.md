@@ -52,43 +52,28 @@ The nested `Call` is then executed by the `JugsawIR.fevalself` with the followin
 
 ## APIs
 
-<a id='Jugsaw.activate-Tuple{AppRuntime, JugsawADT}' href='#Jugsaw.activate-Tuple{AppRuntime, JugsawADT}'>#</a>
-**`Jugsaw.activate`** &mdash; *Method*.
+<a id='Jugsaw.generate_code-Tuple{String, Vararg{Any}}' href='#Jugsaw.generate_code-Tuple{String, Vararg{Any}}'>#</a>
+**`Jugsaw.generate_code`** &mdash; *Method*.
 
 
 
-Try to activate an actor. If the requested actor does not exist yet, a new one is created based on the registered `ActorFactor` of `actor_type`. Note that the actor may be configured to recover from its lastest state snapshot.
+```julia
+generate_code(lang, endpoint::String, appname::Symbol, fcall::JugsawADT, democall::JugsawIR.Call)
+```
+
+Generate code for target language.
+
+**Arguments**
+
+  * `lang` can be a string or an [`AbstractLang`](@ref) instance that specifies the target language.
+
+Please use `subtypes(AbstractLang)` for supported client languages.
+
+  * `endpoint` is the url for service provider, e.g. it can be [https://www.jugsaw.co](https://www.jugsaw.co).
+  * `appname` is the application name.
+  * `fcall` is a [`JugsawADT`](@ref) that specifies the function call.
+  * `democall` is the demo instance of that function call.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/56fbe344fe3ccaaef4b9956329daf86d9991cb2e/src/jl/Jugsaw/src/server.jl#L71-L75' class='documenter-source'>source</a><br>
-
-<a id='Jugsaw.deactivate!-Tuple{AppRuntime, HTTP.Messages.Request}' href='#Jugsaw.deactivate!-Tuple{AppRuntime, HTTP.Messages.Request}'>#</a>
-**`Jugsaw.deactivate!`** &mdash; *Method*.
-
-
-
-Remove idle actors. Actors may be configure to persistent its current state.
-
-
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/56fbe344fe3ccaaef4b9956329daf86d9991cb2e/src/jl/Jugsaw/src/server.jl#L167-L169' class='documenter-source'>source</a><br>
-
-<a id='Jugsaw.fetch-Tuple{AppRuntime, HTTP.Messages.Request}' href='#Jugsaw.fetch-Tuple{AppRuntime, HTTP.Messages.Request}'>#</a>
-**`Jugsaw.fetch`** &mdash; *Method*.
-
-
-
-This is just a workaround. In the future, users should fetch results from StateStore directly.
-
-
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/56fbe344fe3ccaaef4b9956329daf86d9991cb2e/src/jl/Jugsaw/src/server.jl#L183-L185' class='documenter-source'>source</a><br>
-
-<a id='Jugsaw.Actor' href='#Jugsaw.Actor'>#</a>
-**`Jugsaw.Actor`** &mdash; *Type*.
-
-
-
-Describe current status of an actor.
-
-
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/56fbe344fe3ccaaef4b9956329daf86d9991cb2e/src/jl/Jugsaw/src/server.jl#L12-L14' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/2f4ba607e36afa1ec4ab07cc25fdeb10183e5435/src/jl/Jugsaw/src/clientcode.jl#L6-L18' class='documenter-source'>source</a><br>
 
