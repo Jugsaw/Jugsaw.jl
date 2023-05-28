@@ -17,13 +17,11 @@ export generate_code
 
 include("typeuniverse.jl")
 include("errors.jl")
-include("config.jl")
-include("common.jl")
 include("register.jl")
+include("clientcode.jl")
 include("server.jl")
 include("client/Client.jl")
 include("template.jl")
 include("checkapp.jl")
-include("clientcode.jl")
 
 end # module

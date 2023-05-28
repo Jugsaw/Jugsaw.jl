@@ -1,3 +1,14 @@
+Base.@kwdef mutable struct ClientContext
+    endpoint::String = "http://localhost:8088/"
+    localmode::Bool = true
+
+    project::String = "unspecified"
+    appname::Symbol = :unspecified
+    version::String = "1.0"
+    fname::Symbol = :unspecified
+end
+Base.copy(c::ClientContext) = ClientContext(c.endpoint, c.localmode, c.project, c.appname, c.version, c.fname)
+
 struct Demo
     fcall::Call
     result
@@ -11,13 +22,13 @@ Base.Docs.doc(d::Demo) = Markdown.parse(get(d.meta, "docstring", ""))
 
 struct DemoRef
     demo::Demo
-    uri::URI
+    context::ClientContext
 end
 Base.show(io::IO, ::MIME"text/plain", d::DemoRef) = Base.show(io, d)
 function Base.show(io::IO, ref::DemoRef)
-    demo, uri = ref.demo, ref.uri
+    demo, context = ref.demo, ref.context
     println(io, demo)
-    print(io, "remote = $uri")
+    print(io, "context = $context")
 end
 #Base.Docs.doc(d::DemoRef) = Base.Docs.doc(d.demo)
 function (demo::DemoRef)(args...; kwargs...)
@@ -34,14 +45,14 @@ end
 struct DemoRefs
     name::Symbol
     demos::Vector{Demo}
-    uri::URI
+    context::ClientContext
 end
 Base.show(io::IO, ::MIME"text/plain", d::DemoRefs) = Base.show(io, d)
 function Base.show(io::IO, ref::DemoRefs)
-    name, demos, uri = ref.name, ref.demos, ref.uri
+    name, demos, context = ref.name, ref.demos, ref.context
     print_demos(io, name, demos)
     println()
-    print(io, "remote = $uri")
+    print(io, "context = $context")
 end
 function print_demos(io::IO, name, demos::Vector{Demo}, prefix="")
     println(io, prefix, "- $name")
@@ -56,7 +67,7 @@ function print_demos(io::IO, name, demos::Vector{Demo}, prefix="")
         end
     end
 end
-Base.getindex(refs::DemoRefs, i::Int) = DemoRef(getindex(refs.demos, i), refs.uri)
+Base.getindex(refs::DemoRefs, i::Int) = DemoRef(getindex(refs.demos, i), refs.context)
 Base.length(refs::DemoRefs) = length(refs.demos)
 Base.iterate(refs::DemoRefs, state=1) = state <= length(refs.demos) ? (refs[state], state+1) : nothing
 function (refs::DemoRefs)(args...; kwargs...)
@@ -74,11 +85,13 @@ struct App
     name::Symbol
     method_demos::OrderedDict{Symbol, Vector{Demo}}
     type_table::TypeTable
-    uri::URI
+    context::ClientContext
 end
 function Base.getproperty(app::App, fname::Symbol)
-    uri = app[:uri].scheme == "file" ? app[:uri] : joinpath(app[:uri], "actors", "$(app[:name]).$(fname)")
-    res = DemoRefs(fname, app[:method_demos][fname], uri)
+    context = copy(app[:context])
+    context.appname = app[:name]
+    context.fname = fname
+    res = DemoRefs(fname, app[:method_demos][fname], context)
     return res
 end
 Base.getindex(a::App, f::Symbol) = getfield(a, f)

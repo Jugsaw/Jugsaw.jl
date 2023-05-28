@@ -1,113 +1,391 @@
-#####
-struct StateStore
-    store::Dict{String,Future}
-end
+module Server
+using HTTP
+using JugsawIR
+using Dates: now, datetime2unix
+using JugsawIR.JSON3
+import CloudEvents
+import DaprClients
+import UUIDs
+import ..AppSpecification, ..NoDemoException, .._error_response, ..generate_code, .._error_msg, ..TimedOutException
 
-Base.setindex!(s::StateStore, v::Future, k) = s.store[k] = v
-Base.setindex!(s::StateStore, v, k) = put!(s.store[k], v)
-Base.getindex(s::StateStore, k) = s.store[k][]
+export Job, JobStatus, JobSpec
+export AbstractEventService, DaprService, FileEventService, InMemoryEventService, publish_status, fetch_status, save_object, load_object, load_object_as_ir, get_timeout
+export AppRuntime, addjob!
 
-#####
+@enum JobStatusEnum starting processing pending succeeded failed canceled
 
 """
-Describe current status of an actor.
+    JobSpec
+
+A job specified as a Jugsaw ADT.
 """
-struct Actor
-    # actor is a function demo
-    actor::JugsawDemo
-    taskref::Ref{Task}
-    mailbox::Channel{Message}
+struct JobSpec
+    # meta information
+    id::String
+    created_at::Float64
+    created_by::String
+    maxtime::Float64
+
+    # payload
+    fname::String
+    args::JugsawADT
+    kwargs::JugsawADT
 end
 
-function Actor(state_store, actor::JugsawDemo)
-    taskref = Ref{Task}()
-    chnl = Channel{Message}(taskref=taskref) do ch
-        for msg in ch
-            do!(state_store, actor.fcall, msg)
+"""
+    Job
+
+A resolved job can be queued and executed in a `AppRuntime`.
+"""
+struct Job
+    # meta information
+    id::String
+    created_at::Float64
+    created_by::String
+    maxtime::Float64
+
+    # payload
+    demo::JugsawDemo
+    args::Tuple
+    kwargs::NamedTuple
+end
+
+"""
+    JobStatus
+
+A job status.
+"""
+Base.@kwdef struct JobStatus
+    id::String
+    status::JobStatusEnum
+    timestamp::Float64 = datetime2unix(now())
+    description::String = ""
+end
+
+"""
+    AbstractEventService
+
+The abstract type for event service. Its concrete subtypes include
+* [`DaprService`](@ref)
+* [`FileEventService`](@ref)
+* [`InMemoryEventService`](@ref)
+
+### Required Interfaces
+* [`get_timeout`](@ref)
+* [`publish_event`](@ref)
+* [`fetch_status`](@ref)
+* [`save_object`](@ref)
+* [`load_object`](@ref)
+* [`load_object_as_ir`](@ref)
+"""
+abstract type AbstractEventService end
+
+"""
+    get_timeout(dapr::AbstractEventService) -> Float64
+
+Returns the timeout of the event service in seconds.
+"""
+function get_timeout end
+
+"""
+    get_query_interval(dapr::AbstractEventService)::Float64
+
+Returns the query time interval of the event service in seconds.
+"""
+function get_query_interval end
+
+"""
+    save_object(dapr::AbstractEventService, job_id::AbstractString, res) -> nothing
+
+Save an object to the event service in the form of local or web storage.
+The stored object can be loaded with [`load_object`](@ref) function.
+"""
+function save_object end
+
+"""
+    load_object(dapr::AbstractEventService, job_id::AbstractString, resdemo; timeout::Real) -> (status_code, object)
+
+Load an object to the main memory. The return value is a tuple with the following two elements
+* `status_code` is a symbol to indicate the status query result, which can be `:ok` or `:timed_out`
+* `status` is an object if the `status_code` is `:ok`, otherwise, is `nothing`.
+
+The keyword argument `timeout` is should be greater than the expected job run time.
+"""
+function load_object(dapr::AbstractEventService, job_id::AbstractString, resdemo; timeout::Real)
+    status, obj = load_object_as_ir(dapr, job_id; timeout)
+    if status == :ok
+        return status, ir2julia(obj, resdemo)
+    else
+        return status, nothing
+    end
+end
+"""
+    load_object_as_ir(dapr::AbstractEventService, job_id::AbstractString; timeout::Real) -> (status_code, ir)
+
+Similar to [`load_object`](@ref), but returns a Jugsaw IR instead. An object demo is not required.
+"""
+function load_object_as_ir end
+
+"""
+    publish_status(dapr::AbstractEventService, job_status::JobStatus) -> nothing
+
+Publish the status of a job to the event service.
+The published event can be accessed with [`fetch_status`](@ref) function.
+"""
+function publish_status end
+
+"""
+    fetch_status(dapr::AbstractEventService, job_id::String; timeout::Real=get_timeout(dapr)) -> (status_code, status)
+
+Get the status of a job. The return value is a tuple with the following two elements
+* `status_code` is a symbol to indicate the status query result, which can be `:ok` or `:timed_out`
+* `status` is a `JobStatus` object if the `status_code` is `:ok`, otherwise, is `nothing`.
+"""
+function fetch_status end
+
+"""
+    DaprService <: AbstractEventService
+
+Dapr event service for storing and fetching events and results.
+Please check [`AbstractEventService`](@ref) for implemented interfaces.
+"""
+Base.@kwdef struct DaprService <: AbstractEventService
+    timeout::Float64 = 15.0
+    query_interval::Float64 = 0.1
+    pub_sub::String = "jobs"
+    result_store::String = "job-result-store"
+end
+get_timeout(dapr::DaprService) = dapr.timeout
+get_query_interval(dapr::DaprService) = dapr.query_interval
+function publish_status(dapr::DaprService, job_status::JobStatus)
+    return DaprClients.publish_event(dapr.pub_sub, string(job_status.status), job_status; headers=Pair{SubString{String},SubString{String}}["Content-Type"=>"application/json"])
+end
+function fetch_status(dapr::DaprService, job_id::String; timeout::Real=get_timeout(dapr))
+    error("Not implemented")
+end
+function save_object(dapr::DaprService, job_id::AbstractString, res)
+    key = "JUGSAW-JOB-RESULT:$(job_id)"
+    return DaprClients.save_object(dapr.result_store, key, JSON3.write(res))
+end
+function load_object_as_ir(dapr::DaprService, job_id::AbstractString; timeout::Real)
+    error("Not implemented")
+end
+
+############# The mock event service for printing job status and saving results
+"""
+    FileEventService <: AbstractEventService
+
+Mocked event service for storing and fetching events and results from the local file system.
+Please check [`AbstractEventService`](@ref) for implemented interfaces.
+"""
+struct FileEventService <: AbstractEventService
+    print_event::Bool
+    save_dir::String
+    timeout::Float64
+    query_interval::Float64
+end
+function FileEventService(save_dir::String; print_event::Bool=true, timeout=1.0, query_interval=0.1)
+    return FileEventService(print_event, save_dir, timeout, query_interval)
+end
+get_timeout(dapr::FileEventService) = dapr.timeout
+get_query_interval(dapr::FileEventService) = dapr.query_interval
+# update job status to Dapr
+function publish_status(dapr::FileEventService, job_status::JobStatus)
+    dapr.print_event && @info "[PUBLISH STATUS] $job_status"
+    # log into file
+    dir = joinpath(dapr.save_dir, job_status.id)
+    mkpath(dir)
+    filename = joinpath(dir, "status.log")
+    if isfile(filename)
+        open(filename, "a") do f
+            write(f, "\n")
+            JSON3.write(f, job_status)
+        end
+    else
+        open(filename, "w") do f
+            JSON3.write(f, job_status)
         end
     end
-    Actor(deepcopy(actor), taskref, chnl)
+    return nothing
 end
+function fetch_status(dapr::FileEventService, job_id::String; timeout::Real=get_timeout(dapr))
+    dapr.print_event && @info "[FETCH STATUS] $job_id"
+    filename = joinpath(dapr.save_dir, job_id, "status.log")
 
-Base.close(a::Actor) = close(a.mailbox) # TODO: save actor state to state store
+    # load last line
+    s = Ref{JobStatus}()
+    status = timedwait(timeout; pollint=get_query_interval(dapr)) do
+        if isfile(filename)
+            s[] = JSON3.read(last(eachline(filename)), JobStatus)
+            return true
+        end
+        return false
+    end
 
-# NOTE: I prefer using a function name, otherwise it is hard to located the function definition.
-function put_message(a::Actor, msg::Message)
-    # FIXME: no need if we have a state store db
-    put!(a.mailbox, msg)
-end
-
-# do the computation
-function do!(state_store::StateStore, democall::Call, msg::Message)
-    try
-        res = fevalself(Call(democall.fname, msg.request.args, msg.request.kwargs))
-        @info "store result: $res"
-        # TODO: custom serializer
-        state_store[msg.response.object_id] = res
-    catch e
-        # if the program errors, returns a cached error object to be thrown.
-        state_store[msg.response.object_id] = CachedError(e, _error_msg(e))
+    if status == :ok
+        return status, s[]
+    else
+        return status, nothing
     end
 end
-# a run time instance
-struct AppRuntime
+function save_object(dapr::FileEventService, job_id::AbstractString, res)
+    key = "JUGSAW-JOB-RESULT:$(job_id)"
+    dapr.print_event && @info "[$key] $res"
+    # save to file
+    ir, tt = julia2ir(res)
+    dir = joinpath(dapr.save_dir, job_id)
+    mkpath(dir)
+    open(joinpath(dir, "result.jug"), "w") do f
+        write(f, ir)
+    end
+    return nothing
+end
+function load_object_as_ir(dapr::FileEventService, job_id::AbstractString; timeout::Real)
+    key = "JUGSAW-JOB-RESULT:$(job_id)"
+    dapr.print_event && @info "Fetching [$key]"
+    filename = joinpath(dapr.save_dir, job_id, "result.jug")
+
+    s = Ref("")
+    status = timedwait(timeout; pollint=get_query_interval(dapr)) do
+        if isfile(filename)
+            s[] = open(filename, "r") do f
+                read(f, String)
+            end
+            return true
+        end
+        return false
+    end
+    return status, s[]
+end
+
+"""
+    InMemoryEventService <: AbstractEventService
+
+An event service for storing and fetching events and results from the the main memory.
+Please check [`AbstractEventService`](@ref) for implemented interfaces.
+
+When deploying Jugsaw locally, read-write through local storage might be too slow.
+"""
+struct InMemoryEventService <: AbstractEventService
+    print_event::Bool
+    object_store::Dict{String, Any}
+    status_store::Dict{String, JobStatus}
+end
+function InMemoryEventService(; print_event::Bool=true)
+    return InMemoryEventService(print_event, Dict{String, Any}(), Dict{String, JobStatus}())
+end
+get_timeout(dapr::InMemoryEventService) = 0.0
+get_query_interval(dapr::InMemoryEventService) = 0.1
+# update job status to Dapr
+function publish_status(dapr::InMemoryEventService, job_status::JobStatus)
+    dapr.print_event && @info "[PUBLISH STATUS] $job_status"
+    # log into file
+    dapr.status_store[job_status.id] = job_status
+    return nothing
+end
+function fetch_status(dapr::InMemoryEventService, job_id::String; timeout::Real=get_timeout(dapr))
+    dapr.print_event && @info "[FETCH STATUS] $job_id"
+    if haskey(dapr.status_store, job_id)
+        return :ok, dapr.status_store[job_id]
+    else
+        return :timed_out, nothing
+    end
+end
+function save_object(dapr::InMemoryEventService, job_id::AbstractString, res)
+    key = "JUGSAW-JOB-RESULT:$(job_id)"
+    dapr.print_event && @info "[$key] $res"
+    # save to file
+    dapr.object_store[job_id] = res
+    return nothing
+end
+function load_object(dapr::InMemoryEventService, job_id::AbstractString, resdemo; timeout::Real)
+    key = "JUGSAW-JOB-RESULT:$(job_id)"
+    dapr.print_event && @info "Fetching [$key]"
+    s = Ref{Any}(nothing)
+    # this is because jobs are handled asynchronously
+    status = timedwait(timeout; pollint=get_query_interval(dapr)) do
+        if haskey(dapr.object_store, job_id)
+            s[] = dapr.object_store[job_id]
+            return true
+        end
+        return false
+    end
+    return status, s[]
+end
+function load_object_as_ir(dapr::InMemoryEventService, job_id::AbstractString; timeout::Real)
+    status, obj = load_object(dapr, job_id, nothing; timeout)
+    return status, julia2ir(obj)[1]
+end
+
+########################## Application Runtime
+"""
+    AppRuntime{ES<:AbstractEventService}
+
+The application instance wrapped with run time information.
+
+### Fields
+* `app` is a [`AppSpecification`](@ref) instance.
+* `dapr` is a [`AbstractEventService`](@ref) instance for handling result storing and job status updating.
+* `channel` is a [channel](https://docs.julialang.org/en/v1/base/parallel/#Channels) of jobs to be processed.
+"""
+struct AppRuntime{ES<:AbstractEventService}
     app::AppSpecification
-    actors::Dict{String,Any}
-    # This is a simple in-memory state store which holds the results from the actor calls.
-    # We may add many different kinds of state store later (local file or Database).
-    state_store::StateStore
-end
-function AppRuntime(app::AppSpecification)
-    return AppRuntime(app, Dict{String,Any}(), StateStore(Dict{String,Future}()))
+    dapr::ES
+    channel::Channel{Job}
 end
 
-function Base.empty!(r::AppRuntime)
-    empty!(r.actors)
-    empty!(r.state_store)
-end
-
-#####
-
-"""
-Try to activate an actor. If the requested actor does not exist yet, a new
-one is created based on the registered `ActorFactor` of `actor_type`. Note that
-the actor may be configured to recover from its lastest state snapshot.
-"""
-function activate(r::AppRuntime, actor_type::JugsawADT)
-    demo = match_demo_or_throw(actor_type, r.app)
-    get!(r.actors, actor_type.fields[1]) do
-        Actor(r.state_store, demo)
+function AppRuntime(app::AppSpecification, dapr::AbstractEventService)
+    channel = Channel{Job}() do ch
+        for job in ch
+            try
+                res = fevalself(Call(job.demo.fcall.fname, job.args, job.kwargs))
+                save_object(dapr, job.id, res)
+                publish_status(dapr, JobStatus(id=job.id, status=succeeded))
+            catch ex
+                st_io = IOBuffer()
+                showerror(st_io, CapturedException(ex, catch_backtrace()))
+                println(String(take!(st_io)))
+                publish_status(dapr, JobStatus(id=job.id, status=failed, description=string(ex)))
+            end
+        end
     end
+    return AppRuntime(app, dapr, channel)
 end
 
-function act!(r::AppRuntime, http::HTTP.Request)
-    # params = HTTP.getparams(http)   # we can obtain request params like this
-    adt = JugsawIR.ir2adt(String(http.body))
-    @info "got adt: $adt"
-    # top level must be a function call
-    # add jobs recursively to the queue
-    try
-        thisdemo = match_demo_or_throw(adt, r.app).fcall
-        resp = addjob!(r, adt, thisdemo)
-        return HTTP.Response(200, ["Content-Type" => "application/json"], JSON3.write(resp))
-    catch e
-        @info e
-        return _error_response(e)
+function addjob!(r::AppRuntime, jobspec::JobSpec)
+    # Find the demo and parse the arguments
+    created_at, created_by, maxtime, fname, args, kwargs = jobspec.created_at, jobspec.created_by, jobspec.maxtime, jobspec.fname, jobspec.args, jobspec.kwargs
+    # match demo or throw
+    thisdemo = match_demo(fname, args.typename, kwargs.typename, r.app)
+    if thisdemo === nothing
+        err = NoDemoException(jobspec, r.app)
+        publish_status(r.dapr, JobStatus(id=jobspec.id, status=failed, description=_error_msg(err)))
+        throw(err)
     end
+
+    # IF tree is a function call, return an `object_id` for return value.
+    #     recurse over args and kwargs to get `Call` parsed.
+    newargs = ntuple(i->renderobj!(r, created_at, created_by, maxtime, args.fields[i], thisdemo.fcall.args[i]), length(args.fields))
+    newkwargs = typeof(thisdemo.fcall.kwargs)(ntuple(i->renderobj!(r, created_at, created_by, maxtime, kwargs.fields[i], thisdemo.fcall.kwargs[i]), length(kwargs.fields)))
+
+    # add task to the queue
+    job = Job(jobspec.id, created_at, created_by, maxtime, thisdemo, newargs, newkwargs)
+    @info "adding job to the queue: $job"
+
+    # submit job
+    res = timedwait(get_timeout(r.dapr)) do
+        put!(r.channel, job)
+        publish_status(r.dapr, JobStatus(id=job.id, status=processing))
+        true
+    end
+    if res != :ok
+        publish_status(r.dapr, JobStatus(id=job.id, status=pending, description="Failed to submit job after $maxtime seconds."))
+    end
+    return job
 end
 
-function match_demo_or_throw(adt::JugsawADT, app::AppSpecification)
-    if adt.typename != "JugsawIR.Call"
-        throw(BadSyntax(adt))
-    end
-    fname, args, kwargs = adt.fields
-    res = _match_demo(fname, args.typename, kwargs.typename, app)
-    if res === nothing
-        throw(NoDemoException(adt, app))
-    end
-    return res
-end
-function _match_demo(fname, args_type, kwargs_type, app::AppSpecification)
+# TODO: design a more powerful IR for chaining.
+function match_demo(fname, args_type, kwargs_type, app::AppSpecification)
     if !haskey(app.method_demos, fname) || isempty(app.method_demos[fname])
         return nothing
     end
@@ -120,133 +398,174 @@ function _match_demo(fname, args_type, kwargs_type, app::AppSpecification)
     return nothing
 end
 
-function addjob!(r::AppRuntime, adt::JugsawADT, thisdemo::Call)
-    # find a demo
-    fname, args, kwargs = adt.fields
-    # IF tree is a function call, return an `object_id` for return value.
-    #     recurse over args and kwargs to get `Call` parsed.
-    req = Call(thisdemo.fname,
-        ntuple(i->renderobj!(r, args.fields[i], thisdemo.args[i]), length(args.fields)),
-        typeof(thisdemo.kwargs)(ntuple(i->renderobj!(r, kwargs.fields[i], thisdemo.kwargs[i]), length(kwargs.fields)))
-    )
-    # add task to the queue
-    @info "task added to the queue: $req"
-    resp = ObjectRef()
-    r.state_store[resp.object_id] = Future()
-    # TODO: load actor state from state store
-    a = activate(r, adt)
-    put_message(a, Message(req, resp))
-
-    # Return a `ObjectRef` instance.
-    return resp
-end
-
 # if adt is a function call, launch a job and return an object getter, else, return an object.
-function renderobj!(r::AppRuntime, adt, thisdemo)
+function renderobj!(r::AppRuntime, created_at, created_by, maxtime, adt, thisdemo)
     if adt isa JugsawADT && hasproperty(adt, :typename) && adt.typename == "JugsawIR.Call"
-        fdemo = match_demo_or_throw(adt, r.app)
-        resp = addjob!(r, adt, fdemo.fcall)
-        # Return an object getter, which is a `Call` instance that fetches objects from the state_store.
-        return object_getter(r.state_store, resp.object_id)
+        object_id = string(UUIDs.uuid4())
+        addjob!(r, JobSpec(object_id, created_at, created_by, maxtime, adt.fields...))
+        # Return an object getter, which is a `Call` instance that fetches objects from the event service.
+        return object_getter(r.dapr, object_id, thisdemo; timeout=get_timeout(r.dapr)+maxtime)
     else
         return JugsawIR.adt2julia(adt, thisdemo)
     end
 end
 
 # an object getter to load return values of a function call from the state store
-function object_getter(state_store::StateStore, object_id::String)
-    function getter(s::StateStore, id::String)
-        res = s[id]
+function object_getter(dapr::AbstractEventService, object_id::String, resdemo; timeout)
+    function getter(dapr, id::String, resdemo)
+        status, res = load_object(dapr, id, resdemo; timeout)
         # rethrow a cached error
-        res isa CachedError && Base.rethrow(res.exception)
+        if status != :ok
+            error("get object fail ($status): $object_id")
+        end
         return res
     end
-    Call(getter, (state_store, object_id), (;))
+    Call(getter, (dapr, object_id, resdemo), (;))
 end
 
-"""
-Remove idle actors. Actors may be configure to persistent its current state.
-"""
-function deactivate!(r::AppRuntime, req::HTTP.Request)
-    ps = HTTP.getparams(req)
-    atype = string(ps["actor_type_name"])
-    @show atype, r.actors
-    actor = get(r.actors, atype, nothing)
-    if !isnothing(actor)
-        close(actor)
-        delete!(r.actors, atype)
-        return true
+################### Server #################
+
+function job_handler(r::AppRuntime, req::HTTP.Request)
+    # top level must be a function call
+    # add jobs recursively to the queue
+    try
+        evt = CloudEvents.from_http(req.headers, req.body)
+        # CloudEvent
+        jobadt = JugsawIR.ir2adt(String(evt.data))
+        job_id, created_at, created_by, maxtime, fname, args, kwargs = jobadt.fields
+        jobspec = JobSpec(job_id, created_at, created_by, maxtime, fname, args, kwargs)
+        @info "get job: $jobspec"
+        addjob!(r, jobspec)
+        return HTTP.Response(200, "Job submitted!")
+    catch e
+        @info e
+        return _error_response(e)
     end
-    return false
 end
 
-"""
-This is just a workaround. In the future, users should fetch results from StateStore directly.
-"""
-function fetch(r::AppRuntime, req::HTTP.Request)
+function fetch_handler(r::AppRuntime, req::HTTP.Request)
     # NOTE: JSON3 errors
     s = String(req.body)
     @info "fetching: $s"
-    ref = ObjectRef(JSON3.read(s)["object_id"])
-    res = r.state_store[ref.object_id]
-    if res isa CachedError
-        return _error_response(res.exception)
-    end
-    return julia2ir(res)[1]
-end
-
-#####
-# Service
-#####
-
-# save demos to the disk
-function save_demos(dir::String, methods::AppSpecification)
-    mkpath(dir)
-    demos, types = JugsawIR.julia2ir(methods)
-    fdemos = joinpath(dir, "demos.json")
-    @info "dumping demos to: $fdemos"
-    open(fdemos, "w") do f
-        write(f, "[$demos, $types]")
+    job_id = JSON3.read(s)["job_id"]
+    timeout = get_timeout(r.dapr)
+    status, ir = load_object_as_ir(r.dapr, job_id; timeout=timeout)
+    if status != :ok
+        return _error_response(ErrorException("object not ready yet!"))
+    elseif status == :timed_out
+        return _error_response(TimedOutException(job_id, timeout))
+    else
+        return HTTP.Response(200, ["Content-Type" => "application/json"], ir)
     end
 end
 
-# load demos from the disk
-function load_demos_from_dir(dir::String, demos)
-    sdemos = read(joinpath(dir, "demos.json"), String)
-    return load_demos(sdemos, demos)
-end
-function load_demos(sdemos::String, demos)
-    adt = JugsawIR.ir2adt(sdemos)
-    appadt, typesadt = adt.storage
-    return JugsawIR.adt2julia(appadt, demos), JugsawIR.adt2julia(typesadt, JugsawIR.demoof(JugsawIR.TypeTable))
+function demos_handler(app::AppSpecification)
+    (demos, types) = JugsawIR.julia2ir(app)
+    ir = "[$demos, $types]"
+    return HTTP.Response(200, ["Content-Type" => "application/json"], ir)
 end
 
-# FIXME: set host to default in k8s
-function get_router(runtime::AppRuntime)
-    # start the service
+function code_handler(req::HTTP.Request, app::AppSpecification)
+    # get language
+    params = HTTP.getparams(req)
+    lang = params["lang"]
+    # get request
+    adt = JugsawIR.ir2adt(String(req.body))
+    endpoint, fcall = adt.fields
+    fname, args, kwargs = fcall.fields
+    demo = match_demo(fname, args.typename, kwargs.typename, app)
+    if demo === nothing
+        return _error_response(NoDemoException(fcall, app))
+    else
+        try
+            code = generate_code(lang, endpoint, app.name, fcall, demo.fcall)
+            return HTTP.Response(200, ["Content-Type" => "application/json"], JSON3.write((; code=code)))
+        catch e
+            return _error_response(e)
+        end
+    end
+end
+
+struct RemoteRoute end
+struct LocalRoute end
+
+function get_router(::LocalRoute, runtime::AppRuntime)
     r = HTTP.Router()
+
     HTTP.register!(r, "GET", "/healthz", _ -> JSON3.write((; status="OK")))
-    HTTP.register!(r, "GET", "/dapr/config", _ -> JSON3.write((; entities=collect(keys(runtime.actors)))))
-    HTTP.register!(r, "GET", "/apps/{appname}/demos", _ -> ((demos, types) = JugsawIR.julia2ir(runtime.app); "[$demos, $types]"))
-    HTTP.register!(r, "POST", "/actors/{actor_type_name}/method/", req -> act!(runtime, req))
-    HTTP.register!(r, "POST", "/actors/{actor_type_name}/method/fetch", req -> fetch(runtime, req))
-    HTTP.register!(r, "DELETE", "/actors/{actor_type_name}", req -> JSON3.write(deactivate!(runtime, req)))
+    HTTP.register!(r, "POST", "/events/jobs", req->job_handler(runtime, req))
+    HTTP.register!(r, "GET", "/events/jobs/fetch", req -> fetch_handler(runtime, req))
+    HTTP.register!(r, "GET", "/demos", _ -> demos_handler(runtime.app))
+    # TODO: we need context about endpoint here!
+    HTTP.register!(r, "GET", "/api/{lang}", req -> code_handler(req, runtime.app))
+    # TODO: complete subscribe
+    HTTP.register!(r, "GET", "/dapr/subscribe",
+        _ -> JSON3.write([(pubsubname="jobs", topic="$(runtime.app.created_by).$(runtime.app.name).$(rumtime.app.ver)", route="/events/jobs")])
+    )
     return r
 end
 
-function serve(runtime::AppRuntime, dir=nothing; is_async=isdefined(Main, :InteractiveUtils))
-    dir === nothing || save_demos(dir, runtime.app)
-    r = get_router(runtime)
+function get_router(::RemoteRoute, runtime::AppRuntime)
+    r = HTTP.Router()
+    # job
+    HTTP.register!(r, "POST", "/v1/proj/{project}/app/{appname}/ver/{version}/func/{fname}",
+        req->job_handler(runtime, req)
+    )
+    # fetch
+    HTTP.register!(r, "GET", "/v1/job/{job_id}/result",
+        req -> fetch_handler(runtime, req)
+    )
+    # demos
+    HTTP.register!(r, "GET", "/v1/proj/{project}/app/{appname}/ver/{version}/func",
+        req -> demos_handler(runtime.app)
+    )
+    # api, NOTE: this is new!!!!
+    HTTP.register!(r, "GET", "/v1/proj/{project}/app/{appname}/ver/{version}/func/{fname}/api/{lang}",
+        req -> code_handler(req, runtime.app)
+    )
+    # healthz
+    HTTP.register!(r, "GET", "/v1/proj/{project}/app/{appname}/ver/{version}/healthz",
+        req -> JSON3.write((; status="OK"))
+    )
+    # subscribe
+    HTTP.register!(r, "GET", "/dapr/subscribe",
+         req-> JSON3.write([(pubsubname="jobs", topic="$(runtime.app.created_by).$(runtime.app.name).$(rumtime.app.ver)", route="/events/jobs")])
+    )
+    return r
+end
+
+"""
+    serve(runtime::AppRuntime; is_async::Bool=false, port::Int=8088, localmode::Bool=true)
+
+Make this application online.
+
+### Arguments
+* `runtime` is an [`AppRuntime`](@ref) instance.
+
+### Keyword arguments
+* `is_async` is a switch to turn on the asynchronous mode for debugging.
+* `port` is the port to serve the application.
+* `localmode` is a switch to serve in local mode with a simplified routing table.
+In the local mode, the project name and application name are not required in the request url.
+"""
+function serve(runtime::AppRuntime; is_async::Bool=false, port::Int=8088, localmode::Bool=true)
+    # release demo
+    r = get_router(localmode ? LocalRoute() : RemoteRoute(), runtime)
     if is_async
-        #HTTP.serve!(r, "0.0.0.0", 8081)
-        @async HTTP.serve(r, "0.0.0.0", 8081)
+        @async HTTP.serve(r, "0.0.0.0", port)
     else
-        HTTP.serve(r, "0.0.0.0", 8081)
+        HTTP.serve(r, "0.0.0.0", port)
     end
 end
 
-function serve(app::AppSpecification, dir=nothing; is_async=isdefined(Main, :InteractiveUtils))
-    # create an application runtime, which will be used to store cached data and actors
-    r = Jugsaw.AppRuntime(app)
-    serve(r, dir; is_async)
+#####
+# # TODO: use register instead
+# greet(x::String="World") = "Hello, $(x)!"
+# greet(x::JSON3.Object) = "(JSON) Hello, $(x.name)!"
+
+
+# runtime = AppRuntime()
+# dapr = FileEventService(".jugsaw_workspace")
+# register!(runtime, dapr, "greet", greet)
+
 end

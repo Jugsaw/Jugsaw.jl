@@ -158,3 +158,27 @@ getname(ex) = @match ex begin
     :($x::$T) => x
     _ => error("keyword argument must be a symbol!")
 end
+
+####################### Save load demos to disk
+# save demos to the disk
+function save_demos(dir::String, methods::AppSpecification)
+    mkpath(dir)
+    demos, types = JugsawIR.julia2ir(methods)
+    fdemos = joinpath(dir, "demos.json")
+    @info "dumping demos to: $fdemos"
+    open(fdemos, "w") do f
+        write(f, "[$demos, $types]")
+    end
+end
+
+# load demos from the disk
+function load_demos_from_dir(dir::String, demos)
+    sdemos = read(joinpath(dir, "demos.json"), String)
+    return load_demos(sdemos, demos)
+end
+function load_demos(sdemos::String, demos)
+    adt = JugsawIR.ir2adt(sdemos)
+    appadt, typesadt = adt.storage
+    return JugsawIR.adt2julia(appadt, demos), JugsawIR.adt2julia(typesadt, JugsawIR.demoof(JugsawIR.TypeTable))
+end
+
