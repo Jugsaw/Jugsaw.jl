@@ -38,8 +38,8 @@ end
     @register sapp sin(cos(0.5))::Float64
     r = AppRuntime(sapp, InMemoryEventService())
     # request in remote mode
-    context = Client.ClientContext(; localmode=false)
-    t = Jugsaw.Server.serve(r; is_async=true, localmode=false)
+    context = Client.ClientContext(; localmode=false, endpoint="http://localhost:8081")
+    t = Jugsaw.Server.serve(r; is_async=true, localmode=false, port=8081)
 
     try
         @test Client.new_request(context, Val(:healthz)).status == 200

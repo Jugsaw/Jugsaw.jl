@@ -10,14 +10,14 @@ function checkapp(dir::String)
     end))
     t = @async Core.eval(Workspace, :(include(joinpath($dir, "app.jl"))))
 
-     # run tasks
-    remote = Client.RemoteHandler()  # on the default port
+    # run tasks
+    context = Client.ClientContext()
     niters = 20
     for i=1:niters
         @info "$i/$niters"
         try
-            @assert Client.healthz(remote).status == "OK"
-            app = Client.request_app(remote, Symbol(basename(dir)))
+            @assert Client.healthz(context).status == "OK"
+            app = Client.request_app(context, Symbol(basename(dir)))
             return Client.test_demo(app)
         catch e
             Base.showerror(stdout, e)

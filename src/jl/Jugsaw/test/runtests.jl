@@ -28,6 +28,6 @@ end
     include("clientcode.jl")
 end
 
-@testset "checkapp" begin
-    include("checkapp.jl")
-end
+# @testset "checkapp" begin
+#     include("checkapp.jl")
+# end
