@@ -525,6 +525,9 @@ function get_router(::RemoteRoute, runtime::AppRuntime)
     return r
 end
 
+"""
+    serve(runtime::AppRuntime; is_async::Bool=false, port::Int=8088, localmode::Bool=true)
+"""
 function serve(runtime::AppRuntime; is_async::Bool=false, port::Int=8088, localmode::Bool=true)
     # release demo
     r = get_router(localmode ? LocalRoute() : RemoteRoute(), runtime)

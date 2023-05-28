@@ -84,7 +84,7 @@ function _new_request(context::ClientContext, ::Val{:job}, job_id::String, fcall
 end
 function _new_request(context::ClientContext, ::Val{:healthz})
     return ("GET", joinpath(context.endpoint, 
-        context.localmode ? "healthz" : "v1/proj/$project/app/$appname/ver/$version/healthz"
+        context.localmode ? "healthz" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/healthz"
     ))
 end
 function _new_request(context::ClientContext, ::Val{:subscribe})
@@ -93,7 +93,7 @@ end
 function _new_request(context::ClientContext, ::Val{:demos})
     @info context
     return ("GET", joinpath(context.endpoint,
-        context.localmode ? "demos" : "v1/proj/$project/app/$appname/ver/$version/func"
+        context.localmode ? "demos" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/func"
     ))
 end
 function _new_request(context::ClientContext, ::Val{:fetch}, job_id::String)
@@ -107,7 +107,7 @@ end
 function _new_request(context::ClientContext, ::Val{:api}, fcall::JugsawADT, lang::String)
     ir = JugsawIR.adt2ir(JugsawADT.Object("Core.Tuple{Core.String, JugsawIR.Call}", [context.endpoint, fcall]))
     return ("GET", joinpath(context.endpoint,
-        context.localmode ? "api/$lang" : "v1/proj/$project/app/$appname/ver/$version/func/$fname/api/$lang"
+        context.localmode ? "api/$lang" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/func/$(context.fname)/api/$lang"
     ), ["Content-Type" => "application/json"], ir)
 end
 new_request(context, args...; kwargs...) = HTTP.request(_new_request(context, args...; kwargs...)...)
