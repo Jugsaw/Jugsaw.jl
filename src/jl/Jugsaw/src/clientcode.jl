@@ -3,6 +3,31 @@ struct JuliaLang <: AbstractLang end
 struct Python <: AbstractLang end
 struct Javascript <: AbstractLang end
 
+"""
+    generate_code(lang, endpoint::String, appname::Symbol, fcall::JugsawADT, democall::JugsawIR.Call)
+
+Generate code for target language.
+
+### Arguments
+* `lang` can be a string or an [`AbstractLang`](@ref) instance that specifies the target language.
+Please use `subtypes(AbstractLang)` for supported client languages.
+* `endpoint` is the url for service provider, e.g. it can be [https://www.jugsaw.co](https://www.jugsaw.co).
+* `appname` is the application name.
+* `fcall` is a [`JugsawADT`](@ref) that specifies the function call.
+* `democall` is the demo instance of that function call.
+"""
+function generate_code(lang::String, args...; kwargs...)
+    pl = if lang == "JuliaLang"
+        JuliaLang()
+    elseif lang == "Python"
+        Python()
+    elseif lang == "Javascript"
+        Javascript()
+    else
+        return _error_response(ErrorException("Client langauge not defined, got: $lang"))
+    end
+    return generate_code(pl, args...; kwargs...)
+end
 # converting IR to different languages
 function generate_code(::JuliaLang, endpoint::String, appname::Symbol, fcall::JugsawADT, democall::JugsawIR.Call)
     @assert fcall.typename == "JugsawIR.Call"

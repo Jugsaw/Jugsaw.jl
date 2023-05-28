@@ -65,7 +65,12 @@ end
 """
     AbstractEventService
 
-The abstract type for event service, the required interfaces of which are
+The abstract type for event service. Its concrete subtypes include
+* [`DaprService`](@ref)
+* [`FileEventService`](@ref)
+* [`InMemoryEventService`](@ref)
+
+### Required Interfaces
 * [`get_timeout`](@ref)
 * [`publish_event`](@ref)
 * [`fetch_status`](@ref)
@@ -313,6 +318,16 @@ function load_object_as_ir(dapr::InMemoryEventService, job_id::AbstractString; t
 end
 
 ########################## Application Runtime
+"""
+    AppRuntime{ES<:AbstractEventService}
+
+The application instance wrapped with run time information.
+
+### Fields
+* `app` is a [`AppSpecification`](@ref) instance.
+* `dapr` is a [`AbstractEventService`](@ref) instance for handling result storing and job status updating.
+* `channel` is a [channel](https://docs.julialang.org/en/v1/base/parallel/#Channels) of jobs to be processed.
+"""
 struct AppRuntime{ES<:AbstractEventService}
     app::AppSpecification
     dapr::ES
@@ -527,6 +542,17 @@ end
 
 """
     serve(runtime::AppRuntime; is_async::Bool=false, port::Int=8088, localmode::Bool=true)
+
+Make this application online.
+
+### Arguments
+* `runtime` is an [`AppRuntime`](@ref) instance.
+
+### Keyword arguments
+* `is_async` is a switch to turn on the asynchronous mode for debugging.
+* `port` is the port to serve the application.
+* `localmode` is a switch to serve in local mode with a simplified routing table.
+In the local mode, the project name and application name are not required in the request url.
 """
 function serve(runtime::AppRuntime; is_async::Bool=false, port::Int=8088, localmode::Bool=true)
     # release demo

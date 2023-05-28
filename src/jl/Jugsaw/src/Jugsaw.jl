@@ -17,11 +17,8 @@ export generate_code
 
 include("typeuniverse.jl")
 include("errors.jl")
-include("config.jl")
-include("common.jl")
 include("register.jl")
 include("clientcode.jl")
-include("server2.jl")
 include("client/Client.jl")
 include("template.jl")
 include("checkapp.jl")

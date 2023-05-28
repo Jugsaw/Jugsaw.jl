@@ -107,7 +107,7 @@ app = Jugsaw.AppSpecification(:$appname)
     sin(0.5) ^ 2 + cos(0.5) ^ 2 ≈ 1.0
 end
 
-serve(app, @__DIR__)
+serve(app, @__DIR__; localmode=false)
 """
 end
 end
