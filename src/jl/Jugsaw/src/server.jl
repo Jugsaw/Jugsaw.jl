@@ -6,7 +6,7 @@ using JugsawIR.JSON3
 import CloudEvents
 import DaprClients
 import UUIDs
-import ..AppSpecification, ..NoDemoException, .._error_response, ..JuliaLang, ..Python, ..Javascript, ..generate_code, .._error_msg, ..TimedOutException
+import ..AppSpecification, ..NoDemoException, .._error_response, ..generate_code, .._error_msg, ..TimedOutException
 
 export Job, JobStatus, JobSpec
 export AbstractEventService, DaprService, FileEventService, InMemoryEventService, publish_status, fetch_status, save_object, load_object, load_object_as_ir, get_timeout
@@ -469,16 +469,6 @@ function code_handler(req::HTTP.Request, app::AppSpecification)
     # get language
     params = HTTP.getparams(req)
     lang = params["lang"]
-    pl = if lang == "JuliaLang"
-        JuliaLang()
-    elseif lang == "Python"
-        Python()
-    elseif lang == "Javascript"
-        Javascript()
-    else
-        return _error_response(ErrorException("Client langauge not defined, got: $lang"))
-    end
-
     # get request
     adt = JugsawIR.ir2adt(String(req.body))
     endpoint, fcall = adt.fields
@@ -487,8 +477,12 @@ function code_handler(req::HTTP.Request, app::AppSpecification)
     if demo === nothing
         return _error_response(NoDemoException(fcall, app))
     else
-        code = generate_code(pl, endpoint, app.name, fcall, demo.fcall)
-        return HTTP.Response(200, ["Content-Type" => "application/json"], JSON3.write((; code=code)))
+        try
+            code = generate_code(lang, endpoint, app.name, fcall, demo.fcall)
+            return HTTP.Response(200, ["Content-Type" => "application/json"], JSON3.write((; code=code)))
+        catch e
+            return _error_response(e)
+        end
     end
 end
 

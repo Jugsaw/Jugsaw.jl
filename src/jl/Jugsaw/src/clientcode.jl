@@ -24,7 +24,7 @@ function generate_code(lang::String, args...; kwargs...)
     elseif lang == "Javascript"
         Javascript()
     else
-        return _error_response(ErrorException("Client langauge not defined, got: $lang"))
+        return error("Client langauge not defined, got: $lang")
     end
     return generate_code(pl, args...; kwargs...)
 end
