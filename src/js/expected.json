@@ -1,0 +1,18 @@
+{
+    "appname": "testapp",
+    "function_list": [
+        {
+            "function_name": "sin",
+            "demo_list": [
+                {
+                    "args": [{"data":4, "type":"Core.Int64"}, {"data":6.0, "type":"Core.Float64"}],
+                    "kwargs":[ 
+                        {"arg_name": "k","data":6, "type":"Core.Int64"}
+                    ],
+                    "output" : {"data":5.0, "type":"Core.Float64"}
+                }
+            ]
+
+        }
+    ]
+}

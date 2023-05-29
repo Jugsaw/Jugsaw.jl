@@ -19,5 +19,77 @@
     </pre>
 </code>
 
+<script>
+function request_app(endpoint, project, appname, version="latest") {
+    var url = new URL(`v1/proj/${project}/app/${appname}/ver/${version}/func`, endpoint).href
+    fetch(url, {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, GET',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        },
+    })
+   .then(response => response.json())
+   .then(response => console.log(JSON.stringify(response)))
+}
+request_app("http://localhost:8088", "unspecified", "helloworld")
+
+function call(demo, args, kwargs) {
+    fetch('https://reqbin.com/echo/post/json', {
+    method: 'POST',
+    headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+    },
+    body: {
+        "args" : args,
+        "kwargs" : kwargs,
+    }
+})
+   .then(response => response.json())
+   .then(response => console.log(JSON.stringify(response)))
+}
+
+function remotecall_old(handler, env, f, args, kwargs){
+    var xhr = new XMLHttpRequest();
+    var url = "http://0.0.0.0:3001";
+    xhr.open("POST", url, true);
+    xhr.setRequestHeader("Content-Type", "application/json; charset=UTF-8");
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            var json = JSON.parse(xhr.responseText);
+            handler(json);
+        }
+    };
+    var dataToSend = {
+            'environment': env,
+            'function': f,
+            'args': JSON.parse(args),
+            'kwargs' : JSON.parse(kwargs),
+        };
+    var data = JSON.stringify(dataToSend);
+    console.log(data);
+    xhr.send(data);
+}
+
+function request_app_old(endpoint, project, appname, version="latest") {
+    var url = new URL(`v1/proj/${project}/app/${appname}/ver/${version}/func`, endpoint).href
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", url, false); // false for synchronous request
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            var json = JSON.parse(xhr.responseText);
+            console.log(json);
+        }
+    };
+    xhr.send(null);
+}
+// request_app("http://localhost:8088", "unspecified", "helloworld")
+
+
+</script>
+
 </body>
 </html>

@@ -548,24 +548,14 @@ Make this application online.
 * `localmode` is a switch to serve in local mode with a simplified routing table.
 In the local mode, the project name and application name are not required in the request url.
 """
-function serve(runtime::AppRuntime; is_async::Bool=false, port::Int=8088, localmode::Bool=true)
+function serve(runtime::AppRuntime; is_async::Bool=false, host::String="0.0.0.0", port::Int=8088, localmode::Bool=true)
     # release demo
     r = get_router(localmode ? LocalRoute() : RemoteRoute(), runtime)
     if is_async
-        @async HTTP.serve(r, "0.0.0.0", port)
+        @async HTTP.serve(r, host, port)
     else
-        HTTP.serve(r, "0.0.0.0", port)
+        HTTP.serve(r, host, port)
     end
 end
-
-#####
-# # TODO: use register instead
-# greet(x::String="World") = "Hello, $(x)!"
-# greet(x::JSON3.Object) = "(JSON) Hello, $(x.name)!"
-
-
-# runtime = AppRuntime()
-# dapr = FileEventService(".jugsaw_workspace")
-# register!(runtime, dapr, "greet", greet)
 
 end

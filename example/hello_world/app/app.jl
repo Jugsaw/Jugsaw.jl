@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 using HTTP
 using JSON3
 using EnumX
@@ -11,13 +12,21 @@ using UUIDs
 JOB_PUB_SUB = "jugsaw-job-pubsub"
 JOB_EVENT_PUB_SUB = "jugsaw-job-event-pubsub"
 JOB_RESULT_STORE = "jugsaw-job-result-store"
+=======
+using Jugsaw
 
-@enumx JobStatusEnum starting processing pending succeeded failed canceled
+"""
+    greet(x)
+>>>>>>> Stashed changes
 
-Base.@kwdef struct JobManager
-    tasks::Dict = Dict()
-end
+A function returns "Hello, \$x".
+"""
+greet(x::String) = "Hello, $x"
 
+app = AppSpecification(:helloworld)
+@register app greet("Jinguo") == "Hello, Jinguo"
+
+<<<<<<< Updated upstream
 struct Payload
     args::Any
     kwargs::Any
@@ -108,3 +117,7 @@ HTTP.register!(r, "GET", "/dapr/subscribe", subscribe)
 #####
 
 HTTP.serve(r, "0.0.0.0", 8088)
+=======
+r = Jugsaw.Server.AppRuntime(app, Jugsaw.Server.InMemoryEventService())
+Jugsaw.Server.serve(r; localmode=false, host="127.0.0.1")
+>>>>>>> Stashed changes

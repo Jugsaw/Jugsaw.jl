@@ -30,7 +30,7 @@ function Base.show(io::IO, ref::DemoRef)
     println(io, demo)
     print(io, "context = $context")
 end
-#Base.Docs.doc(d::DemoRef) = Base.Docs.doc(d.demo)
+Base.Docs.doc(d::DemoRef) = Base.Docs.doc(d.demo)
 function (demo::DemoRef)(args...; kwargs...)
     call(demo, args...; kwargs...)()
 end
