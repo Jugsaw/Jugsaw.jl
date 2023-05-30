@@ -14,6 +14,17 @@ export AppRuntime, addjob!
 
 @enum JobStatusEnum starting processing pending succeeded failed canceled
 
+const JSON_HEADER = ["Content-Type" => "application/json", "Access-Control-Allow-Origin" => "*",
+                        "Access-Control-Allow-Headers" => "*",
+                        "Access-Control-Allow-Methods" => "GET,POST,OPTIONS"]
+const SIMPLE_HEADER = ["Access-Control-Allow-Origin" => "*",
+                        "Access-Control-Allow-Headers" => "*",
+                        "Access-Control-Allow-Methods" => "GET,POST,OPTIONS"]
+
+function _error_response(e::Exception)
+    HTTP.Response(400, JSON_HEADER, JSON3.write((; error=_error_msg(e))))
+end
+
 """
     JobSpec
 
@@ -426,6 +437,7 @@ end
 ################### Server #################
 
 function job_handler(r::AppRuntime, req::HTTP.Request)
+    @info "call!"
     # top level must be a function call
     # add jobs recursively to the queue
     try
@@ -436,7 +448,7 @@ function job_handler(r::AppRuntime, req::HTTP.Request)
         jobspec = JobSpec(job_id, created_at, created_by, maxtime, fname, args, kwargs)
         @info "get job: $jobspec"
         addjob!(r, jobspec)
-        return HTTP.Response(200, "Job submitted!")
+        return HTTP.Response(200, SIMPLE_HEADER, "Job submitted!")
     catch e
         @info e
         return _error_response(e)
@@ -455,14 +467,14 @@ function fetch_handler(r::AppRuntime, req::HTTP.Request)
     elseif status == :timed_out
         return _error_response(TimedOutException(job_id, timeout))
     else
-        return HTTP.Response(200, ["Content-Type" => "application/json"], ir)
+        return HTTP.Response(200, JSON_HEADER, ir)
     end
 end
 
 function demos_handler(app::AppSpecification)
     (demos, types) = JugsawIR.julia2ir(app)
     ir = "[$demos, $types]"
-    return HTTP.Response(200, ["Content-Type" => "application/json"], ir)
+    return HTTP.Response(200, JSON_HEADER, ir)
 end
 
 function code_handler(req::HTTP.Request, app::AppSpecification)
@@ -479,7 +491,7 @@ function code_handler(req::HTTP.Request, app::AppSpecification)
     else
         try
             code = generate_code(lang, endpoint, app.name, fcall, demo.fcall)
-            return HTTP.Response(200, ["Content-Type" => "application/json"], JSON3.write((; code=code)))
+            return HTTP.Response(200, JSON_HEADER, JSON3.write((; code=code)))
         catch e
             return _error_response(e)
         end
@@ -507,6 +519,13 @@ end
 
 function get_router(::RemoteRoute, runtime::AppRuntime)
     r = HTTP.Router()
+    # job
+    HTTP.register!(r, "GET", "/",
+        req->HTTP.Response(200,SIMPLE_HEADER,read(joinpath(dirname(dirname(dirname(@__DIR__))), "js", "jugsawir.html")))
+    )
+    HTTP.register!(r, "GET", "/jugsawirparser.js",
+        req->HTTP.Response(200,SIMPLE_HEADER,read(joinpath(dirname(dirname(dirname(@__DIR__))), "js", "jugsawirparser.js")))
+    )
     # job
     HTTP.register!(r, "POST", "/v1/proj/{project}/app/{appname}/ver/{version}/func/{fname}",
         req->job_handler(runtime, req)

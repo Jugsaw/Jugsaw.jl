@@ -30,10 +30,6 @@ function _error_msg(e)
     return String(take!(io))
 end
 
-function _error_response(e::Exception)
-    HTTP.Response(400, ["Content-Type" => "application/json"], JSON3.write((; error=_error_msg(e))))
-end
-
 # cache the error to be thrown (used inside the task)
 struct CachedError
     exception::Exception
