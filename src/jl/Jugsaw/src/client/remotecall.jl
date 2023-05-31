@@ -97,7 +97,7 @@ function _new_request(context::ClientContext, ::Val{:demos})
     ))
 end
 function _new_request(context::ClientContext, ::Val{:fetch}, job_id::String)
-    return ("GET", joinpath(context.endpoint,
+    return ("POST", joinpath(context.endpoint,
         context.localmode ? "events/jobs/fetch" : "v1/job/$job_id/result"
     ), ["Content-Type" => "application/json"], JSON3.write((; job_id=job_id)))
 end

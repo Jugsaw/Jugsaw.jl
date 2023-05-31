@@ -506,7 +506,7 @@ function get_router(::LocalRoute, runtime::AppRuntime)
 
     HTTP.register!(r, "GET", "/healthz", _ -> JSON3.write((; status="OK")))
     HTTP.register!(r, "POST", "/events/jobs", req->job_handler(runtime, req))
-    HTTP.register!(r, "GET", "/events/jobs/fetch", req -> fetch_handler(runtime, req))
+    HTTP.register!(r, "POST", "/events/jobs/fetch", req -> fetch_handler(runtime, req))
     HTTP.register!(r, "GET", "/demos", _ -> demos_handler(runtime.app))
     # TODO: we need context about endpoint here!
     HTTP.register!(r, "GET", "/api/{lang}", req -> code_handler(req, runtime.app))
@@ -531,7 +531,7 @@ function get_router(::RemoteRoute, runtime::AppRuntime)
         req->job_handler(runtime, req)
     )
     # fetch
-    HTTP.register!(r, "GET", "/v1/job/{job_id}/result",
+    HTTP.register!(r, "POST", "/v1/job/{job_id}/result",
         req -> fetch_handler(runtime, req)
     )
     # demos

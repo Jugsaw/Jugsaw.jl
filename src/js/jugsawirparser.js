@@ -5934,3 +5934,102 @@ function uuid4() {
     (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
   );
 }
+
+// Request an application and return an object as Promise.
+// Please use `render_app` for further processing.
+function request_app(endpoint, project, appname, version="latest") {
+    const url = new URL(`v1/proj/${project}/app/${appname}/ver/${version}/func`, endpoint).href
+    return fetch(url, {
+        method: 'GET',
+    })
+   .then(response=>response.text()).then(ir2adt)
+}
+
+// Launch a function call and return a job_id as string.
+function call(endpoint, project, appname, fname, args, kwargs, maxtime=60, created_by="unspecified", version="lastest"){
+    const url = new URL(`v1/proj/${project}/app/${appname}/ver/${version}/func/${fname}`, endpoint).href
+    const job_id = uuid4();
+    const jobspec = {"type" : "Jugsaw.JobSpec", "fields" : [job_id, Date.now(), created_by,
+        maxtime, fname, args, kwargs]};
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            "ce-id":uuid4(), "ce-type":"any", "ce-source":"any",
+            "ce-specversion":"1.0"
+        },
+        body: JSON.stringify(adt2ir(jobspec))
+    })
+    return job_id
+}
+
+// fetch and return the result (as a Promise)
+function fetch_result(endpoint, job_id) {
+    const url = new URL(`v1/job/${job_id}/result`, endpoint).href
+    return fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body : JSON.stringify({"job_id" : job_id})
+    })
+   .then(response=>response.text()).then(ir2adt)
+}
+
+function render_app(app_and_method){
+    // get application specification and type table.
+    const [app, typetable] = app_and_method;
+    const [appname, method_names, method_demos] = app.fields;
+    const [demofnames, demolists] = method_demos.fields;
+    const typemap = render_dict(...typetable.fields[1].fields);
+    // create result
+    const function_list = demofnames.map((name, i) => (
+        {"function_name":name, "demo_list":demolists[i].map(demo=>render_demo(demo, typemap))}
+    ));
+    return {"appname":appname, "funciton_list":function_list};
+}
+
+// render a demo as an object
+function render_demo(demo, typemap){
+    const [fcall, result, meta] = demo.fields;
+    const metamap = render_dict(...meta.fields);
+    const [fname, args, kwargs] = fcall.fields;
+    // positional arguments
+    const newargs = args.fields.map((arg, i)=>(
+        {"arg_name":`${i+1}`, "data": render_value(arg, typemap), "type":get_type(arg)}
+    ))
+    // keyword arguments
+    const kws = typemap[kwargs.type];
+    const newkwargs = kwargs.fields.map((arg, i)=>(
+        {"arg_name":kws[i], "data": render_value(arg, typemap), "type":get_type(arg)}
+    ))
+    return {"args":newargs, "kwargs":newkwargs, "result":render_value(result, typemap)};
+}
+// get type of an argument safely
+function get_type(value){
+    if (value === null){
+        return "null"
+    } else if (value instanceof Object){
+        return value.type
+    } else {
+        return typeof(value)
+    }
+}
+// render the value as a normal JSON object
+function render_value(value, typemap){
+    if (value instanceof Object){
+        const [typename, fieldnames, fieldtypes] = typemap[value.type].fields;
+        const obj = render_dict(fieldnames, value.fields.map(v=>render_value(v, typemap)));
+        obj.__type__ = value.type;
+        return obj
+    } else {
+        return value
+    }
+}
+// create type dictionary from two arrays
+function render_dict(keys, values){
+    var result = {};
+    keys.forEach((key, i) => result[key] = values[i]);
+    return result;
+}
+

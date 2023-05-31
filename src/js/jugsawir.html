@@ -19,33 +19,17 @@
     </pre>
 </code>
 
+<div id="jugsaw-demos"></div>
+<div id="jugsaw-result"></div>
+<div id="jugsaw-errors"></div>
+
 <script>
 
-// request_app("http://localhost:8088", "unspecified", "helloworld")
-function request_app(handler, endpoint, project, appname, version="latest") {
-    const url = new URL(`v1/proj/${project}/app/${appname}/ver/${version}/func`, endpoint).href
-    fetch(url, {
-        method: 'GET',
-    })
-   .then(response=>response.text()).then(ir2adt).then(handler)
-}
+const app_and_method = request_app("http://localhost:8088", "unspecified", "helloworld");
+const app = app_and_method.then(render_app);
 
-function call(endpoint, project, appname, fname, args, kwargs, maxtime=60, created_by="unspecified", version="lastest"){
-    const url = new URL(`v1/proj/${project}/app/${appname}/ver/${version}/func/${fname}`, endpoint).href
-    const job_id = uuid4();
-    const jobspec = {"type" : "Jugsaw.JobSpec", "fields" : [job_id, Date.now(), created_by,
-        maxtime, fname, args, kwargs]};
-    fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            "ce-id":uuid4(), "ce-type":"any", "ce-source":"any",
-            "ce-specversion":"1.0"
-        },
-        body: JSON.stringify(adt2ir(jobspec))
-    })
-    return job_id
-}
+obj = document.getElementById("jugsaw-demos");
+app.then(app => obj.innerHTML = JSON.stringify(app));
 
 </script>
 
