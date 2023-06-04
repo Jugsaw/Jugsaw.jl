@@ -13,7 +13,7 @@ end
 end
 
 @testset "server" begin
-    include("server.jl")
+    include("server/server.jl")
 end
 
 @testset "client" begin
