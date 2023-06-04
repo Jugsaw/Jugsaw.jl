@@ -134,7 +134,7 @@ function register_by_expr(app, ex, exs)
             register_by_expr.(Ref(app), body, Ref(exs))
         end 
         ::LineNumberNode => nothing
-        _ => (@warn("not handled expression: $(repr(ex))"); ex)
+        _ => (@debug("not handled expression: $(repr(ex))"); ex)
     end
 end
 

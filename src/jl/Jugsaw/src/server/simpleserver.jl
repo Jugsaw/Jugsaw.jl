@@ -81,12 +81,13 @@ end
 
 function get_router(::RemoteRoute, runtime::AppRuntime)
     r = HTTP.Router()
+    js_folder = joinpath(dirname(dirname(pkgdir(@__MODULE__))), "js")
     # job
     HTTP.register!(r, "GET", "/",
-        req->HTTP.Response(200,SIMPLE_HEADER,read(joinpath(dirname(dirname(dirname(@__DIR__))), "js", "jugsawir.html")))
+        req->HTTP.Response(200,SIMPLE_HEADER,read(joinpath(js_folder, "jugsawir.html")))
     )
     HTTP.register!(r, "GET", "/jugsawirparser.js",
-        req->HTTP.Response(200,SIMPLE_HEADER,read(joinpath(dirname(dirname(dirname(@__DIR__))), "js", "jugsawirparser.js")))
+        req->HTTP.Response(200,SIMPLE_HEADER,read(joinpath(js_folder, "jugsawirparser.js")))
     )
     # job
     HTTP.register!(r, "POST", "/v1/proj/{project}/app/{appname}/ver/{version}/func/{fname}",
