@@ -4,6 +4,7 @@ using JugsawIR
 using Dates: now, datetime2unix
 using JugsawIR.JSON3
 import CloudEvents
+import Revise
 import DaprClients
 import UUIDs
 import ..AppSpecification, ..NoDemoException, ..generate_code, .._error_msg, ..TimedOutException
