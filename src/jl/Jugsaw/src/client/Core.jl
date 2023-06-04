@@ -1,13 +1,13 @@
 Base.@kwdef mutable struct ClientContext
     endpoint::String = "http://localhost:8088/"
-    localmode::Bool = true
+    localurl::Bool = false
 
     project::String = "unspecified"
     appname::Symbol = :unspecified
     version::String = "1.0"
     fname::Symbol = :unspecified
 end
-Base.copy(c::ClientContext) = ClientContext(c.endpoint, c.localmode, c.project, c.appname, c.version, c.fname)
+Base.copy(c::ClientContext) = ClientContext(c.endpoint, c.localurl, c.project, c.appname, c.version, c.fname)
 
 struct Demo
     fcall::Call

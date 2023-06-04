@@ -117,22 +117,28 @@ function get_router(::RemoteRoute, runtime::AppRuntime)
 end
 
 """
-    serve(runtime::AppRuntime; is_async::Bool=false, port::Int=8088, localmode::Bool=true)
+    simpleserve(runtime::AppRuntime; is_async=false, host="0.0.0.0", port=8088, localurl=false)
 
-Make this application online.
+Serve this application on specified host and port.
 
 ### Arguments
 * `runtime` is an [`AppRuntime`](@ref) instance.
 
 ### Keyword arguments
 * `is_async` is a switch to turn on the asynchronous mode for debugging.
+* `host` is the IP address or url of the host.
 * `port` is the port to serve the application.
-* `localmode` is a switch to serve in local mode with a simplified routing table.
+* `localurl` is a switch to serve in local mode with a simplified routing table.
 In the local mode, the project name and application name are not required in the request url.
 """
-function serve(runtime::AppRuntime; is_async::Bool=false, host::String="0.0.0.0", port::Int=8088, localmode::Bool=true)
+function simpleserve(runtime::AppRuntime;
+        is_async::Bool=false,
+        host::String="0.0.0.0",
+        port::Int=8088,
+        localurl::Bool=false,
+        )
     # release demo
-    r = get_router(localmode ? LocalRoute() : RemoteRoute(), runtime)
+    r = get_router(localurl ? LocalRoute() : RemoteRoute(), runtime)
     if is_async
         @async HTTP.serve(r, host, port)
     else

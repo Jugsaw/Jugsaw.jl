@@ -79,12 +79,12 @@ function _new_request(context::ClientContext, ::Val{:job}, job_id::String, fcall
         ]
     data = JSON3.write(ir)
     return ("POST", joinpath(context.endpoint,
-        context.localmode ? "events/jobs/" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/func/$(context.fname)"
+        context.localurl ? "events/jobs/" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/func/$(context.fname)"
     ), header, data)
 end
 function _new_request(context::ClientContext, ::Val{:healthz})
     return ("GET", joinpath(context.endpoint, 
-        context.localmode ? "healthz" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/healthz"
+        context.localurl ? "healthz" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/healthz"
     ))
 end
 function _new_request(context::ClientContext, ::Val{:subscribe})
@@ -93,12 +93,12 @@ end
 function _new_request(context::ClientContext, ::Val{:demos})
     @info context
     return ("GET", joinpath(context.endpoint,
-        context.localmode ? "demos" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/func"
+        context.localurl ? "demos" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/func"
     ))
 end
 function _new_request(context::ClientContext, ::Val{:fetch}, job_id::String)
     return ("POST", joinpath(context.endpoint,
-        context.localmode ? "events/jobs/fetch" : "v1/job/$job_id/result"
+        context.localurl ? "events/jobs/fetch" : "v1/job/$job_id/result"
     ), ["Content-Type" => "application/json"], JSON3.write((; job_id=job_id)))
 end
 function _new_request(context::ClientContext, ::Val{:api}, fcall::JugsawIR.Call, lang::String)
@@ -107,7 +107,7 @@ end
 function _new_request(context::ClientContext, ::Val{:api}, fcall::JugsawADT, lang::String)
     ir = JugsawIR.adt2ir(JugsawADT.Object("Core.Tuple{Core.String, JugsawIR.Call}", [context.endpoint, fcall]))
     return ("GET", joinpath(context.endpoint,
-        context.localmode ? "api/$lang" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/func/$(context.fname)/api/$lang"
+        context.localurl ? "api/$lang" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/func/$(context.fname)/api/$lang"
     ), ["Content-Type" => "application/json"], ir)
 end
 new_request(context, args...; kwargs...) = HTTP.request(_new_request(context, args...; kwargs...)...)

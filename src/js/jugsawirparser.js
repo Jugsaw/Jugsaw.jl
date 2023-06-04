@@ -5895,7 +5895,6 @@ var MEMO={
 const jugsaw_parser = get_parser();
 
 function ir2adt(ir){
-    console.log(ir)
     const tree = jugsaw_parser.parse(ir);
     return tree2adt(tree);
 }
@@ -5986,7 +5985,7 @@ function render_app(app_and_method){
     const function_list = demofnames.map((name, i) => (
         {"function_name":name, "demo_list":demolists[i].map(demo=>render_demo(demo, typemap))}
     ));
-    return {"appname":appname, "funciton_list":function_list};
+    return {"appname":appname, "function_list":function_list};
 }
 
 // render a demo as an object
