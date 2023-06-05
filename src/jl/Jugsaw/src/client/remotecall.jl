@@ -60,7 +60,10 @@ function fetch(context::ClientContext, job_id::String, demo_result)
     return ir2julia(String(ret.body), demo_result)
 end
 
-healthz(context::ClientContext) = JSON3.read(HTTP.get(joinpath(context.endpoint, "healthz")).body)
+function healthz(context::ClientContext)
+    path = context.localurl ? "healthz" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/healthz"
+    JSON3.read(HTTP.get(joinpath(context.endpoint, path)).body)
+end
 
 
 function _new_request(context::ClientContext, ::Val{:job}, job_id::String, fcall::JugsawIR.Call; maxtime=10.0, created_by="jugsaw")

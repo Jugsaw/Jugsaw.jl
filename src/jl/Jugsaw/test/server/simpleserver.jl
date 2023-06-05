@@ -5,7 +5,7 @@ using Jugsaw.Server
 using Jugsaw.Client
 
 @testset "routes" begin
-    context = Client.ClientContext()
+    context = Client.ClientContext(; localurl=true)
     app = AppSpecification(:testapp)
     dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
     @register app sin(cos(0.5))::Float64

@@ -4,6 +4,6 @@ using Test
     include("jobhandler.jl")
 end
 
-@testset "liveserve.jl" begin
+@testset "simpleserver.jl" begin
     include("simpleserver.jl")
 end
