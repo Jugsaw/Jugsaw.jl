@@ -5,7 +5,7 @@ using Jugsaw.Server
 @testset "error" begin
     e = NoDemoException("sin", ["cos"])
     @test Jugsaw._error_msg(e) == "method does not exist, got: sin, available functions are: [\"cos\"]"
-    @test Jugsaw._error_response(e).status == 400
+    @test Jugsaw.Server._error_response(e).status == 400
 end
 
 @testset "error handling" begin

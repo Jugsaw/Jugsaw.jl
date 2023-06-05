@@ -1,13 +1,13 @@
 Base.@kwdef mutable struct ClientContext
     endpoint::String = "http://localhost:8088/"
-    localmode::Bool = true
+    localurl::Bool = false
 
     project::String = "unspecified"
     appname::Symbol = :unspecified
     version::String = "1.0"
     fname::Symbol = :unspecified
 end
-Base.copy(c::ClientContext) = ClientContext(c.endpoint, c.localmode, c.project, c.appname, c.version, c.fname)
+Base.copy(c::ClientContext) = ClientContext(c.endpoint, c.localurl, c.project, c.appname, c.version, c.fname)
 
 struct Demo
     fcall::Call
@@ -30,7 +30,7 @@ function Base.show(io::IO, ref::DemoRef)
     println(io, demo)
     print(io, "context = $context")
 end
-#Base.Docs.doc(d::DemoRef) = Base.Docs.doc(d.demo)
+Base.Docs.doc(d::DemoRef) = Base.Docs.doc(d.demo)
 function (demo::DemoRef)(args...; kwargs...)
     call(demo, args...; kwargs...)()
 end

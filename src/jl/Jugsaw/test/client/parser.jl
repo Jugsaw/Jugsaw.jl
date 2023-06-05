@@ -12,7 +12,7 @@ end
 
 @testset "parse" begin
     context = Client.ClientContext()
-    app = Client.load_app(context, read(joinpath(dirname(@__DIR__), "testapp", "demos.json"), String))
+    app = Client.load_app(context, read(joinpath(dirname(@__DIR__), "server", "testapp", "demos.json"), String))
     println(app)
     @test app.cos[1] isa Client.DemoRef
     print(app.cos[1].demo.meta["docstring"])

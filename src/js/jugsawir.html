@@ -19,5 +19,98 @@
     </pre>
 </code>
 
+<div id="jugsaw-demos"></div>
+<div id="jugsaw-result"></div>
+<div id="jugsaw-errors"></div>
+
+<script>
+
+const app_and_method = request_app("http://0.0.0.0:8088", "unspecified", "helloworld");
+const app = app_and_method.then(render_app);
+
+obj = document.getElementById("jugsaw-demos");
+
+function create_textblock(tag, text){
+    const header = document.createElement(tag);
+    const header_text = document.createTextNode(text);
+    header.appendChild(header_text);
+    return header;
+}
+
+function disp_app(app){
+    const toplevel = document.createElement('div');
+
+    // show header
+    toplevel.appendChild(create_textblock('h2', `Application: ${app.appname}`));
+
+    // append 
+    const ul = document.createElement('ul');
+    for (let i=0; i < app.function_list.length; i++){
+        fi = app.function_list[i]
+        const demo_list = fi.demo_list
+        const li = document.createElement('li')
+        const ul2 = document.createElement('ul');
+        for (let i=0; i < demo_list.length; i++){
+            const li2 = document.createElement('li')
+            li2.appendChild(create_textblock('strong', `Demo ${i+1}`));
+            li2.appendChild(disp_demo(demo_list[i]));
+            ul2.appendChild(li2)
+        }
+        li.appendChild(create_textblock('h3', fi.function_name));
+        li.appendChild(ul2);
+        ul.appendChild(li);
+    }
+    toplevel.appendChild(ul);
+    return toplevel
+}
+function disp_demo(demo){
+    const div = document.createElement('div')
+    // render args
+    div.appendChild(create_textblock('strong', 'Args:'));
+    const ul1 = document.createElement('ul');
+    const args = demo.args
+    for (let i=0; i<args.length; i++){
+        li1 = document.createElement('li');
+        li1.appendChild(document.createTextNode(`#${i+1} = `));
+        li1.appendChild(disp_value(args[i].data))
+        ul1.appendChild(li1)
+    }
+    div.appendChild(ul1)
+
+    // render kwargs
+    div.appendChild(create_textblock('strong', 'Kwargs:'));
+    const kwargs = demo.kwargs
+    const ul2 = document.createElement('ul');
+    for (let i=0; i<kwargs.length; i++){
+        li2 = document.createElement('li');
+        li2.appendChild(document.createTextNode(`${kwargs[i].arg_name} = `));
+        li2.appendChild(disp_value(kwargs[i].data))
+        ul2.appendChild(li2)
+    }
+    div.appendChild(ul2)
+    // render result
+    div.appendChild(create_textblock('strong', 'Result:'));
+    const divr = document.createElement('div');
+    divr.appendChild(disp_value(demo.result))
+    div.appendChild(divr)
+    return div
+}
+
+function disp_value(value){
+    if (value instanceof Object){
+        const ul = document.createElement()
+        for (var fieldname in value){
+            const li = disp_value(value[fieldname]);
+            ul.appendChild(li);
+        }
+        return ul
+    } else {
+        return document.createTextNode(JSON.stringify(value))
+    }
+}
+
+app.then(app => obj.appendChild(disp_app(app)));
+</script>
+
 </body>
 </html>

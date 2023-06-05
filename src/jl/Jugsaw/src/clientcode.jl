@@ -43,6 +43,12 @@ function generate_code(::JuliaLang, endpoint::String, appname::Symbol, fcall::Ju
             ]), "\n")
     return string(code)
 end
+function generate_code(::Javascript, endpoint::String, appname::Symbol, fcall::JugsawADT, democall::JugsawIR.Call)
+    return "Not implemented yet!"
+end
+function generate_code(::Python, endpoint::String, appname::Symbol, fcall::JugsawADT, democall::JugsawIR.Call)
+    return "Not implemented yet!"
+end
 
 function fexpr(::JuliaLang, fcall, democall)
     fname, args, kwargs = fcall.fields

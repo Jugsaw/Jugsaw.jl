@@ -1,18 +1,15 @@
-module Server
-using HTTP
-using JugsawIR
-using Dates: now, datetime2unix
-using JugsawIR.JSON3
-import CloudEvents
-import DaprClients
-import UUIDs
-import ..AppSpecification, ..NoDemoException, .._error_response, ..generate_code, .._error_msg, ..TimedOutException
-
-export Job, JobStatus, JobSpec
-export AbstractEventService, DaprService, FileEventService, InMemoryEventService, publish_status, fetch_status, save_object, load_object, load_object_as_ir, get_timeout
-export AppRuntime, addjob!
-
 @enum JobStatusEnum starting processing pending succeeded failed canceled
+
+const JSON_HEADER = ["Content-Type" => "application/json", "Access-Control-Allow-Origin" => "*",
+                        "Access-Control-Allow-Headers" => "*",
+                        "Access-Control-Allow-Methods" => "GET,POST,OPTIONS"]
+const SIMPLE_HEADER = ["Access-Control-Allow-Origin" => "*",
+                        "Access-Control-Allow-Headers" => "*",
+                        "Access-Control-Allow-Methods" => "GET,POST,OPTIONS"]
+
+function _error_response(e::Exception)
+    HTTP.Response(400, JSON_HEADER, JSON3.write((; error=_error_msg(e))))
+end
 
 """
     JobSpec
@@ -421,151 +418,4 @@ function object_getter(dapr::AbstractEventService, object_id::String, resdemo; t
         return res
     end
     Call(getter, (dapr, object_id, resdemo), (;))
-end
-
-################### Server #################
-
-function job_handler(r::AppRuntime, req::HTTP.Request)
-    # top level must be a function call
-    # add jobs recursively to the queue
-    try
-        evt = CloudEvents.from_http(req.headers, req.body)
-        # CloudEvent
-        jobadt = JugsawIR.ir2adt(String(evt.data))
-        job_id, created_at, created_by, maxtime, fname, args, kwargs = jobadt.fields
-        jobspec = JobSpec(job_id, created_at, created_by, maxtime, fname, args, kwargs)
-        @info "get job: $jobspec"
-        addjob!(r, jobspec)
-        return HTTP.Response(200, "Job submitted!")
-    catch e
-        @info e
-        return _error_response(e)
-    end
-end
-
-function fetch_handler(r::AppRuntime, req::HTTP.Request)
-    # NOTE: JSON3 errors
-    s = String(req.body)
-    @info "fetching: $s"
-    job_id = JSON3.read(s)["job_id"]
-    timeout = get_timeout(r.dapr)
-    status, ir = load_object_as_ir(r.dapr, job_id; timeout=timeout)
-    if status != :ok
-        return _error_response(ErrorException("object not ready yet!"))
-    elseif status == :timed_out
-        return _error_response(TimedOutException(job_id, timeout))
-    else
-        return HTTP.Response(200, ["Content-Type" => "application/json"], ir)
-    end
-end
-
-function demos_handler(app::AppSpecification)
-    (demos, types) = JugsawIR.julia2ir(app)
-    ir = "[$demos, $types]"
-    return HTTP.Response(200, ["Content-Type" => "application/json"], ir)
-end
-
-function code_handler(req::HTTP.Request, app::AppSpecification)
-    # get language
-    params = HTTP.getparams(req)
-    lang = params["lang"]
-    # get request
-    adt = JugsawIR.ir2adt(String(req.body))
-    endpoint, fcall = adt.fields
-    fname, args, kwargs = fcall.fields
-    demo = match_demo(fname, args.typename, kwargs.typename, app)
-    if demo === nothing
-        return _error_response(NoDemoException(fcall, app))
-    else
-        try
-            code = generate_code(lang, endpoint, app.name, fcall, demo.fcall)
-            return HTTP.Response(200, ["Content-Type" => "application/json"], JSON3.write((; code=code)))
-        catch e
-            return _error_response(e)
-        end
-    end
-end
-
-struct RemoteRoute end
-struct LocalRoute end
-
-function get_router(::LocalRoute, runtime::AppRuntime)
-    r = HTTP.Router()
-
-    HTTP.register!(r, "GET", "/healthz", _ -> JSON3.write((; status="OK")))
-    HTTP.register!(r, "POST", "/events/jobs", req->job_handler(runtime, req))
-    HTTP.register!(r, "GET", "/events/jobs/fetch", req -> fetch_handler(runtime, req))
-    HTTP.register!(r, "GET", "/demos", _ -> demos_handler(runtime.app))
-    # TODO: we need context about endpoint here!
-    HTTP.register!(r, "GET", "/api/{lang}", req -> code_handler(req, runtime.app))
-    # TODO: complete subscribe
-    HTTP.register!(r, "GET", "/dapr/subscribe",
-        _ -> JSON3.write([(pubsubname="jobs", topic="$(runtime.app.created_by).$(runtime.app.name).$(rumtime.app.ver)", route="/events/jobs")])
-    )
-    return r
-end
-
-function get_router(::RemoteRoute, runtime::AppRuntime)
-    r = HTTP.Router()
-    # job
-    HTTP.register!(r, "POST", "/v1/proj/{project}/app/{appname}/ver/{version}/func/{fname}",
-        req->job_handler(runtime, req)
-    )
-    # fetch
-    HTTP.register!(r, "GET", "/v1/job/{job_id}/result",
-        req -> fetch_handler(runtime, req)
-    )
-    # demos
-    HTTP.register!(r, "GET", "/v1/proj/{project}/app/{appname}/ver/{version}/func",
-        req -> demos_handler(runtime.app)
-    )
-    # api, NOTE: this is new!!!!
-    HTTP.register!(r, "GET", "/v1/proj/{project}/app/{appname}/ver/{version}/func/{fname}/api/{lang}",
-        req -> code_handler(req, runtime.app)
-    )
-    # healthz
-    HTTP.register!(r, "GET", "/v1/proj/{project}/app/{appname}/ver/{version}/healthz",
-        req -> JSON3.write((; status="OK"))
-    )
-    # subscribe
-    HTTP.register!(r, "GET", "/dapr/subscribe",
-         req-> JSON3.write([(pubsubname="jobs", topic="$(runtime.app.created_by).$(runtime.app.name).$(rumtime.app.ver)", route="/events/jobs")])
-    )
-    return r
-end
-
-"""
-    serve(runtime::AppRuntime; is_async::Bool=false, port::Int=8088, localmode::Bool=true)
-
-Make this application online.
-
-### Arguments
-* `runtime` is an [`AppRuntime`](@ref) instance.
-
-### Keyword arguments
-* `is_async` is a switch to turn on the asynchronous mode for debugging.
-* `port` is the port to serve the application.
-* `localmode` is a switch to serve in local mode with a simplified routing table.
-In the local mode, the project name and application name are not required in the request url.
-"""
-function serve(runtime::AppRuntime; is_async::Bool=false, port::Int=8088, localmode::Bool=true)
-    # release demo
-    r = get_router(localmode ? LocalRoute() : RemoteRoute(), runtime)
-    if is_async
-        @async HTTP.serve(r, "0.0.0.0", port)
-    else
-        HTTP.serve(r, "0.0.0.0", port)
-    end
-end
-
-#####
-# # TODO: use register instead
-# greet(x::String="World") = "Hello, $(x)!"
-# greet(x::JSON3.Object) = "(JSON) Hello, $(x.name)!"
-
-
-# runtime = AppRuntime()
-# dapr = FileEventService(".jugsaw_workspace")
-# register!(runtime, dapr, "greet", greet)
-
 end
