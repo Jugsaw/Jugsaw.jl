@@ -5,30 +5,22 @@
 <script type="text/javascript" src="jugsawirparser.js"></script>
 </head>
 <body>
-
-<h1>JugsawIR Test Page</h1>
-
-<p>
-    Please type the following code in a google chrome console.
-</p>
-
-<code>
-    <pre>
-        const parser = get_parser();
-        parser.parse('{"type":"Array", "fields":[[2,3], [1,2]]}')
-    </pre>
-</code>
-
+<div>
+<span> Endpoint </span><input id="input-endpoint" value="http://0.0.0.0" type="text" disabled>
+</div>
+<div>
+<span> Port </span><input id="input-port" value=8088 type="number" disabled>
+</div>
 <div id="jugsaw-demos"></div>
-<div id="jugsaw-result"></div>
-<div id="jugsaw-errors"></div>
 
 <script>
 
-const app_and_method = request_app("http://0.0.0.0:8088", "unspecified", "helloworld");
+const host = document.getElementById("input-endpoint").value;
+const port = document.getElementById("input-port").value;
+const app_and_method = request_app(`${host}:${port}`, "unspecified", "helloworld");
 const app = app_and_method.then(render_app);
 
-obj = document.getElementById("jugsaw-demos");
+const obj = document.getElementById("jugsaw-demos");
 
 function create_textblock(tag, text){
     const header = document.createElement(tag);
@@ -41,7 +33,7 @@ function disp_app(app){
     const toplevel = document.createElement('div');
 
     // show header
-    toplevel.appendChild(create_textblock('h2', `Application: ${app.appname}`));
+    toplevel.appendChild(create_textblock('h1', `Jugsaw Application: ${app.appname}`));
 
     // append 
     const ul = document.createElement('ul');
@@ -53,7 +45,7 @@ function disp_app(app){
         for (let i=0; i < demo_list.length; i++){
             const li2 = document.createElement('li')
             li2.appendChild(create_textblock('strong', `Demo ${i+1}`));
-            li2.appendChild(disp_demo(demo_list[i]));
+            li2.appendChild(disp_demo(`${fi.function_name}-${i+1}`, demo_list[i]));
             ul2.appendChild(li2)
         }
         li.appendChild(create_textblock('h3', fi.function_name));
@@ -63,37 +55,113 @@ function disp_app(app){
     toplevel.appendChild(ul);
     return toplevel
 }
-function disp_demo(demo){
-    const div = document.createElement('div')
+function disp_demo(id, demo){
     // render args
-    div.appendChild(create_textblock('strong', 'Args:'));
     const ul1 = document.createElement('ul');
     const args = demo.args
+    obj_args = [];
     for (let i=0; i<args.length; i++){
         li1 = document.createElement('li');
         li1.appendChild(document.createTextNode(`#${i+1} = `));
-        li1.appendChild(disp_value(args[i].data))
-        ul1.appendChild(li1)
+        const [html, obj] = disp_input(args[i].data);
+        li1.appendChild(html);
+        obj_args.push(obj);
+        ul1.appendChild(li1);
     }
-    div.appendChild(ul1)
 
     // render kwargs
-    div.appendChild(create_textblock('strong', 'Kwargs:'));
     const kwargs = demo.kwargs
     const ul2 = document.createElement('ul');
+    obj_kwargs = [];
     for (let i=0; i<kwargs.length; i++){
         li2 = document.createElement('li');
         li2.appendChild(document.createTextNode(`${kwargs[i].arg_name} = `));
-        li2.appendChild(disp_value(kwargs[i].data))
+        const [html, obj] = disp_input(kwargs[i].data);
+        li2.appendChild(html);
+        obj_kwargs.push(obj);
         ul2.appendChild(li2)
     }
-    div.appendChild(ul2)
+
     // render result
-    div.appendChild(create_textblock('strong', 'Result:'));
     const divr = document.createElement('div');
-    divr.appendChild(disp_value(demo.result))
-    div.appendChild(divr)
+    divr.appendChild(disp_value(demo.result));
+    const divsub = document.createElement('div');
+    divsub.appendChild(create_textblock('strong', 'Expected Result:'));
+    divsub.appendChild(divr)
+    const btn = create_textblock('button', 'submit');
+    divsub.appendChild(btn);
+
+    // form for launching a function call
+    const form = document.createElement('form')
+    form.setAttribute('id', `${id}-call`);
+    form.appendChild(create_textblock('strong', 'Args:'));
+    form.appendChild(ul1);
+    form.appendChild(create_textblock('strong', 'Kwargs:'));
+    form.appendChild(ul2);
+    form.appendChild(divsub);
+
+    // form for fetching the result
+    const formr = document.createElement('form')
+    formr.setAttribute('id', `${id}-fetch`);
+    const divfet = document.createElement('div');
+
+    const job_id = document.createElement('input');
+    job_id.setAttribute('value', '<job id>')
+    job_id.setAttribute('type', 'text')
+    divfet.appendChild(job_id)
+    const fbtn = create_textblock('button', 'fetch');
+    divfet.appendChild(fbtn);
+    formr.appendChild(divfet);
+
+    // add forms to main div
+    const div = document.createElement('div')
+    div.appendChild(form)
+    div.appendChild(formr)
+    div.appendChild(create_textblock('strong', 'Got Result:'));
+    output = create_textblock('div', 'output not ready yet')
+    div.appendChild(output);
+
+    // bind events
+    btn.addEventListener('click', event=>handle_fcall_form(event, demo.type_args, obj_args, demo.type_kwargs, obj_kwargs, job_id));
+    fbtn.addEventListener('click', event=>handle_fetch_form(event, job_id, output));
+
     return div
+}
+
+function handle_fcall_form(event, type_args, obj_args, type_kwargs, obj_kwargs, job_id){
+    event.preventDefault();
+    args = extract_data(obj_args);
+    kwargs = extract_data(obj_kwargs);
+    console.log(args);
+    console.log(kwargs);
+    res = call(`${host}:${port}`, "unspecified", app.appname, "greet",
+        {"type":type_args, "fields":args},
+        {"type":type_kwargs, "fields":kwargs});
+    console.log(res);
+    job_id.setAttribute('value', res);
+}
+function extract_data(obj){
+    if (obj instanceof Array){
+        return obj.map(extract_data);
+    } else {
+        return obj.value;
+    }
+}
+
+function handle_fetch_form(event, job_id, output){
+    event.preventDefault();
+    id = job_id.value;
+    res = fetch_result(`${host}:${port}`, id);
+    res.then(x=>output.replaceChildren(x));
+}
+
+// Array and primitive types are allowed.
+function list2adt(obj){
+    if (obj instanceof Array){
+        return {'fields' : obj.map(item=>object2adt)}
+    } else {
+        return obj
+    }
 }
 
 function disp_value(value){
@@ -106,6 +174,38 @@ function disp_value(value){
         return ul
     } else {
         return document.createTextNode(JSON.stringify(value))
+    }
+}
+
+function disp_input(value){
+    if (value instanceof Object){
+        const ul = document.createElement('ul');
+        const lst = [];
+        for (var fieldname in value){
+            const [li, obj_li] = disp_input(value[fieldname]);
+            ul.appendChild(li);
+            lst.push(obj_li)
+        }
+        return [ul, lst]
+    } else if (typeof value === 'string'){
+        const obj = document.createElement('input');
+        obj.setAttribute('value', value)
+        obj.setAttribute('type', 'text')
+        return [obj, obj]
+    } else if (typeof value === 'number'){
+        const obj = document.createElement('input');
+        obj.setAttribute('value', value)
+        obj.setAttribute('type', 'number')
+        return [obj, obj]
+    } else if (value === null) {
+        const obj = document.createElement('input');
+        obj.setAttribute('value', value)
+        obj.setAttribute('disabled', true)
+        return [obj, obj]
+    } else {
+        const obj = document.createElement('input');
+        obj.setAttribute('value',`got unsupported type ${typeof(value)}`)
+        return [obj, obj]
     }
 }
 
