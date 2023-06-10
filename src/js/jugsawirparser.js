@@ -5941,7 +5941,6 @@ function request_app(endpoint, project, appname, version="latest") {
     return fetch(url, {
         method: 'GET',
     })
-   .then(response=>response.text()).then(ir2adt)
 }
 
 // Launch a function call and return a job_id as string.
@@ -5972,7 +5971,21 @@ function fetch_result(endpoint, job_id) {
         },
         body : JSON.stringify({"job_id" : job_id})
     })
-   .then(response=>response.text()).then(ir2adt)
+}
+
+function response2adt(response){
+    if (response.status != 200){
+        console.log(response);
+        msg = JSON.parse(response.text()).error
+        throw new Error(`${response.code}: ${msg}`);
+    } else {
+        return ir2adt(response.text())
+    }
+}
+function error_message(txt){
+    const obj = create_textblock('p', JSON.parse(txt).error);
+    obj.style.color = "red";
+    return obj
 }
 
 function render_app(app_and_method){
@@ -5988,6 +6001,7 @@ function render_app(app_and_method){
     return {"appname":appname, "function_list":function_list};
 }
 
+// TODO: render like Pluto
 // render a demo as an object
 function render_demo(demo, typemap){
     const [fcall, result, meta] = demo.fields;
@@ -5998,7 +6012,7 @@ function render_demo(demo, typemap){
         {"arg_name":`${i+1}`, "data": render_value(arg, typemap), "type":get_type(arg)}
     ))
     // keyword arguments
-    const kws = typemap[kwargs.type];
+    const kws = typemap[kwargs.type].fields[1];
     const newkwargs = kwargs.fields.map((arg, i)=>(
         {"arg_name":kws[i], "data": render_value(arg, typemap), "type":get_type(arg)}
     ))
@@ -6016,7 +6030,9 @@ function get_type(value){
 }
 // render the value as a normal JSON object
 function render_value(value, typemap){
-    if (value instanceof Object){
+    if (value instanceof Array){
+        return value.map(v=>render_value(v, typemap))
+    } else if (value instanceof Object){
         const [typename, fieldnames, fieldtypes] = typemap[value.type].fields;
         const obj = render_dict(fieldnames, value.fields.map(v=>render_value(v, typemap)));
         obj.__type__ = value.type;
@@ -6030,5 +6046,12 @@ function render_dict(keys, values){
     var result = {};
     keys.forEach((key, i) => result[key] = values[i]);
     return result;
+}
+
+function create_textblock(tag, text){
+    const header = document.createElement(tag);
+    const header_text = document.createTextNode(text);
+    header.appendChild(header_text);
+    return header;
 }
 

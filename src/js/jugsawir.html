@@ -12,22 +12,17 @@
 <span> Port </span><input id="input-port" value=8088 type="number" disabled>
 </div>
 <div id="jugsaw-demos"></div>
+<div id="jugsaw-demos-error"></div>
 
 <script>
 
 const host = document.getElementById("input-endpoint").value;
 const port = document.getElementById("input-port").value;
-const app_and_method = request_app(`${host}:${port}`, "unspecified", "helloworld");
+const app_and_method = request_app(`${host}:${port}`, "unspecified", "helloworld").then(r=>r.text()).then(ir2adt);
 const app = app_and_method.then(render_app);
 
-const obj = document.getElementById("jugsaw-demos");
-
-function create_textblock(tag, text){
-    const header = document.createElement(tag);
-    const header_text = document.createTextNode(text);
-    header.appendChild(header_text);
-    return header;
-}
+const appbox = document.getElementById("jugsaw-demos");
+const errorbox = document.createElement('jugsaw-demos-error');
 
 function disp_app(app){
     const toplevel = document.createElement('div');
@@ -118,12 +113,12 @@ function disp_demo(id, demo){
     div.appendChild(form)
     div.appendChild(formr)
     div.appendChild(create_textblock('strong', 'Got Result:'));
-    output = create_textblock('div', 'output not ready yet')
+    output = create_textblock('div', '<output>')
     div.appendChild(output);
 
     // bind events
     btn.addEventListener('click', event=>handle_fcall_form(event, demo.type_args, obj_args, demo.type_kwargs, obj_kwargs, job_id));
-    fbtn.addEventListener('click', event=>handle_fetch_form(event, job_id, output));
+    fbtn.addEventListener('click', event=>handle_fetch_form(event, job_id, output, output));
 
     return div
 }
@@ -148,10 +143,10 @@ function extract_data(obj){
     }
 }
 
-function handle_fetch_form(event, job_id, output){
+function handle_fetch_form(event, job_id, output, errorbox){
     event.preventDefault();
     id = job_id.value;
-    res = fetch_result(`${host}:${port}`, id);
+    const res = fetch_result(`${host}:${port}`, id).then(r=>r.text()).then(ir2adt).catch(error => errorbox.innerHTML=error.message);
     res.then(x=>output.replaceChildren(x));
 }
 
@@ -166,9 +161,10 @@ function list2adt(obj){
 
 function disp_value(value){
     if (value instanceof Object){
-        const ul = document.createElement()
+        const ul = document.createElement('ul');
         for (var fieldname in value){
-            const li = disp_value(value[fieldname]);
+            const li = document.createElement('li');
+            li.appendChild(disp_value(value[fieldname]));
             ul.appendChild(li);
         }
         return ul
@@ -209,7 +205,7 @@ function disp_input(value){
     }
 }
 
-app.then(app => obj.appendChild(disp_app(app)));
+app.then(app => appbox.appendChild(disp_app(app)));
 </script>
 
 </body>

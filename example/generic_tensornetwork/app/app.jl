@@ -75,5 +75,5 @@ end
 
 #####
 
-r= Jugsaw.AppRuntime(app)
-serve(r, @__DIR__; is_async=false)
+#r= Jugsaw.AppRuntime(app)
+#serve(r, @__DIR__; is_async=false)
