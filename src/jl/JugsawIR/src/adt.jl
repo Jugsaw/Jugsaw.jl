@@ -64,7 +64,13 @@ function julia2adt!(@nospecialize(_x::T), tt::TypeTable) where T
         ###################### Basic Types ######################
         ::UndefInitializer => nothing
         ::DirectlyRepresentableTypes => x
-        ::Vector => JugsawADT.Vector(julia2adt!.(x, Ref(tt)))
+        ::Array => begin
+            # NOTE: array must be special treated.
+            JugsawADT.Object(type2str(Tx),
+                Any[JugsawADT.Vector(collect(size(x))),  # size
+                    JugsawADT.Vector(julia2adt!.(vec(x), Ref(tt)))]  # storage
+            )
+        end
         ::Function => string(x)
         ::UnionAll => type2str(x)
         ###################### Generic Compsite Types ######################
@@ -83,7 +89,10 @@ function adt2julia(t, demo::T) where T
         ::Nothing || ::Missing || ::UndefInitializer || ::Type || ::Function => demo
         ::Char => T(t[1])
         ::DirectlyRepresentableTypes => T(t)
-        ::Vector => T(adt2julia.(t.storage, Ref(demoofelement(demo))))
+        ::Array => begin
+            size, data = t.fields
+            T(reshape(adt2julia.(data.storage, Ref(demoofelement(demo))), size.storage...))
+        end
         ::JugsawADT => t
         ###################### Generic Compsite Types ######################
         _ => begin

@@ -73,8 +73,7 @@ obj_demos = [
 
     @testset "datatype" begin
         type, tt = julia2adt(ComplexF64)
-        @test type == JugsawADT.Object("JugsawIR.JDataType", ["Base.Complex{Core.Float64}",
-            JugsawADT.Vector(["re", "im"]), JugsawADT.Vector(["Core.Float64", "Core.Float64"])])
+        @test type == JugsawADT.Object(typename="JugsawIR.JDataType", fields=Any["Base.Complex{Core.Float64}", JugsawADT.Object(typename="Core.Array{Core.String, 1}", fields=Any[JugsawADT.Vector(storage=[2]), JugsawADT.Vector(storage=["re", "im"])]), JugsawADT.Object(typename="Core.Array{Core.String, 1}", fields=Any[JugsawADT.Vector(storage=[2]), JugsawADT.Vector(storage=["Core.Float64", "Core.Float64"])])])
         println(tt)
     end
 end

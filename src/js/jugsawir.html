@@ -31,21 +31,21 @@ function disp_app(app){
     toplevel.appendChild(create_textblock('h1', `Jugsaw Application: ${app.appname}`));
 
     // append 
-    const ul = document.createElement('ul');
+    const ul = document.createElement('div');
     for (let i=0; i < app.function_list.length; i++){
         fi = app.function_list[i]
-        const demo_list = fi.demo_list
-        const li = document.createElement('li')
+        const demo_list = fi.demo_list;
         const ul2 = document.createElement('ul');
         for (let i=0; i < demo_list.length; i++){
-            const li2 = document.createElement('li')
+            const li2 = document.createElement('li');
             li2.appendChild(create_textblock('strong', `Demo ${i+1}`));
             li2.appendChild(disp_demo(fi.function_name, i, demo_list[i]));
             ul2.appendChild(li2)
         }
-        li.appendChild(create_textblock('h3', fi.function_name));
-        li.appendChild(ul2);
-        ul.appendChild(li);
+        const details = document.createElement('details');
+        details.appendChild(create_textblock('summary', fi.function_name));
+        details.appendChild(ul2);
+        ul.appendChild(details);
     }
     toplevel.appendChild(ul);
     return toplevel
@@ -154,24 +154,6 @@ function handle_fcall_form(event, fname, type_args, obj_args, demo_args, type_kw
     )
 }
 
-function extract_data(obj, demo_obj){
-    if (demo_obj instanceof Array){
-        return obj.map((v, i) => extract_data(v, demo_obj[i]));
-    } else if (demo_obj instanceof Object){
-        return {'fields':obj.map((v, i)=>extract_data(v, demo_obj.fields[i]))}
-    } else {
-        if (obj.type == 'number'){
-            return obj.valueAsNumber;
-        } else if (obj.type == 'checkbox'){
-            return obj.checked;
-        } else if (obj.type == 'null'){
-            return null
-        } else {
-            return obj.value;
-        }
-    }
-}
-
 function handle_fetch_form(event, job_id, output_demo, output, err){
     event.preventDefault();
     const id = job_id.value;
@@ -244,6 +226,7 @@ function foldable(name, obj){
     return div
 }
 
+// display input gadgets
 function disp_input(value){
     if (value instanceof Array){
         const ul = document.createElement('ul');
@@ -255,14 +238,24 @@ function disp_input(value){
         }
         return [ul, lst]
     } else if (value instanceof Object){
+        const [primary, params] = decompose_type(value.type);
         const ul = document.createElement('ul');
-        const lst = [];
-        for (var i=0; i<value.fieldnames.length; i++){
-            const [li, obj_li] = disp_input(value.fields[i]);
-            ul.appendChild(li);
-            lst.push(obj_li)
+        // special case: JArray
+        if (primary == 'JugsawIR.JArray' && (isbooltype(params) || isfloattype(params) || isintegertype(params) || iscomplextype(params))){
+            const div = document.createElement('div');
+            const obj = document.createElement('textarea');
+            obj.placeholder = "Input an array in the CSV format. Elements are separated by ',', rows are separated by line breaks."
+            div.appendChild(obj);
+            return [div, obj]
+        } else {
+            const lst = [];
+            for (var i=0; i<value.fieldnames.length; i++){
+                const [li, obj_li] = disp_input(value.fields[i]);
+                ul.appendChild(li);
+                lst.push(obj_li)
+            }
+            return [foldable(value.type, ul), lst]
         }
-        return [foldable(value.type, ul), lst]
     } else if (typeof value === 'string'){
         const obj = document.createElement('input');
         obj.setAttribute('value', value)
@@ -290,6 +283,62 @@ function disp_input(value){
         return [obj, obj]
     }
 }
+
+function decompose_type(typename){
+    const re = /(^[a-zA-Z_][a-zA-Z_0-9\.]*!?)\{(.*)\}$/
+    const res = typename.match(re)
+    if (res !== null){
+        return [res[1], res[2]]
+    } else {
+        return [typename, '']
+    }
+}
+
+function isintegertype(typename){
+    return typename == "Core.Int128" ||
+        typename == "Core.Int64" ||
+        typename == "Core.Int32" ||
+        typename == "Core.Int16" ||
+        typename == "Core.Int8" ||
+        typename == "Core.UInt128" ||
+        typename == "Core.UInt64" ||
+        typename == "Core.UInt32" ||
+        typename == "Core.UInt16" ||
+        typename == "Core.UInt8"
+}
+function isfloattype(typename){
+    return typename == "Core.Float64" ||
+        typename == "Core.Float32" ||
+        typename == "Core.Float16"
+}
+function iscomplextype(typename){
+    return typename == "Base.Complex{Core.Float64}" ||
+        typename == "Base.Complex{Core.Float32}" ||
+        typename == "Base.Complex{Core.Float16}"
+}
+function isbooltype(typename){
+    return typename == "Core.Bool"
+}
+// extract data from inputs
+function extract_data(obj, demo_obj){
+    if (demo_obj instanceof Array){
+        return obj.map((v, i) => extract_data(v, demo_obj[i]));
+    } else if (demo_obj instanceof Object){
+        return {'fields':obj.map((v, i)=>extract_data(v, demo_obj.fields[i]))}
+    } else {
+        if (obj.type == 'number'){
+            return obj.valueAsNumber;
+        } else if (obj.type == 'checkbox'){
+            return obj.checked;
+        } else if (obj.type == 'null'){
+            return null
+        } else {
+            return obj.value;
+        }
+    }
+}
+
+
 
 app.then(app => appbox.appendChild(disp_app(app)));
 </script>

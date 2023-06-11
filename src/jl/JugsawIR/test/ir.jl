@@ -110,6 +110,6 @@ end
 
 @testset "datatype" begin
     type, tt = julia2ir(ComplexF64)
-    @test type == "{\"fields\":[\"Base.Complex{Core.Float64}\",[\"re\",\"im\"],[\"Core.Float64\",\"Core.Float64\"]],\"type\":\"JugsawIR.JDataType\"}"
+    @test type == "{\"fields\":[\"Base.Complex{Core.Float64}\",{\"fields\":[[2],[\"re\",\"im\"]],\"type\":\"Core.Array{Core.String, 1}\"},{\"fields\":[[2],[\"Core.Float64\",\"Core.Float64\"]],\"type\":\"Core.Array{Core.String, 1}\"}],\"type\":\"JugsawIR.JDataType\"}"
     println(tt)
 end
