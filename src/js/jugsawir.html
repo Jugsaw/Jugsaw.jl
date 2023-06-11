@@ -40,7 +40,7 @@ function disp_app(app){
         for (let i=0; i < demo_list.length; i++){
             const li2 = document.createElement('li')
             li2.appendChild(create_textblock('strong', `Demo ${i+1}`));
-            li2.appendChild(disp_demo(`${fi.function_name}-${i+1}`, demo_list[i]));
+            li2.appendChild(disp_demo(fi.function_name, i, demo_list[i]));
             ul2.appendChild(li2)
         }
         li.appendChild(create_textblock('h3', fi.function_name));
@@ -50,11 +50,12 @@ function disp_app(app){
     toplevel.appendChild(ul);
     return toplevel
 }
-function disp_demo(id, demo){
+function disp_demo(fname, index, demo){
+    id = `${fname}-${index+1}`
     // render args
     const ul1 = document.createElement('ul');
     const args = demo.args
-    obj_args = [];
+    const obj_args = [];
     for (let i=0; i<args.length; i++){
         li1 = document.createElement('li');
         li1.appendChild(document.createTextNode(`#${i+1} = `));
@@ -67,7 +68,7 @@ function disp_demo(id, demo){
     // render kwargs
     const kwargs = demo.kwargs
     const ul2 = document.createElement('ul');
-    obj_kwargs = [];
+    const obj_kwargs = [];
     for (let i=0; i<kwargs.length; i++){
         li2 = document.createElement('li');
         li2.appendChild(document.createTextNode(`${kwargs[i].arg_name} = `));
@@ -103,51 +104,102 @@ function disp_demo(id, demo){
     const job_id = document.createElement('input');
     job_id.setAttribute('value', '<job id>')
     job_id.setAttribute('type', 'text')
-    divfet.appendChild(job_id)
+    divfet.appendChild(job_id);
     const fbtn = create_textblock('button', 'fetch');
     divfet.appendChild(fbtn);
     formr.appendChild(divfet);
+    const callerr = adderrorbox(formr);
 
     // add forms to main div
     const div = document.createElement('div')
     div.appendChild(form)
     div.appendChild(formr)
     div.appendChild(create_textblock('strong', 'Got Result:'));
-    output = create_textblock('div', '<output>')
+    const output = create_textblock('div', '<output>')
     div.appendChild(output);
+    const fetcherr = adderrorbox(div);
 
     // bind events
-    btn.addEventListener('click', event=>handle_fcall_form(event, demo.type_args, obj_args, demo.type_kwargs, obj_kwargs, job_id));
-    fbtn.addEventListener('click', event=>handle_fetch_form(event, job_id, output, output));
+    btn.addEventListener('click', event=>handle_fcall_form(event, fname, demo.type_args, obj_args, demo.args, demo.type_kwargs, obj_kwargs, demo.kwargs, job_id, callerr));
+    fbtn.addEventListener('click', event=>handle_fetch_form(event, job_id, demo.result, output, fetcherr));
 
     return div
 }
 
-function handle_fcall_form(event, type_args, obj_args, type_kwargs, obj_kwargs, job_id){
+// add an error box to a parent
+function adderrorbox(parent){
+    const obj = create_textblock('span', "");
+    obj.style.color = "red";
+    parent.appendChild(obj);
+    return obj
+}
+
+function handle_fcall_form(event, fname, type_args, obj_args, demo_args, type_kwargs, obj_kwargs, demo_kwargs, job_id, err){
     event.preventDefault();
-    args = extract_data(obj_args);
-    kwargs = extract_data(obj_kwargs);
+    const args = demo_args.map((darg, i)=>extract_data(obj_args[i], darg.data));
+    const kwargs = demo_kwargs.map((darg,i)=>extract_data(obj_kwargs[i], darg.data));
     console.log(args);
     console.log(kwargs);
-    res = call(`${host}:${port}`, "unspecified", app.appname, "greet",
+    call(`${host}:${port}`, "unspecified", app.appname, fname,
         {"type":type_args, "fields":args},
-        {"type":type_kwargs, "fields":kwargs});
-    console.log(res);
-    job_id.setAttribute('value', res);
+        {"type":type_kwargs, "fields":kwargs}).then(resp=>resp.json()).then(obj=>{
+            if ("error" in obj){
+                err.innerHTML = obj.error;
+                job_id.setAttribute('value', "<job id>");
+            } else {
+                err.innerHTML = "";
+                job_id.setAttribute('value', obj.job_id);
+            }
+        }
+    )
 }
-function extract_data(obj){
-    if (obj instanceof Array){
-        return obj.map(extract_data);
+
+function extract_data(obj, demo_obj){
+    if (demo_obj instanceof Array){
+        return obj.map((v, i) => extract_data(v, demo_obj[i]));
+    } else if (demo_obj instanceof Object){
+        return {'fields':obj.map((v, i)=>extract_data(v, demo_obj.fields[i]))}
     } else {
-        return obj.value;
+        if (obj.type == 'number'){
+            return obj.valueAsNumber;
+        } else if (obj.type == 'checkbox'){
+            return obj.checked;
+        } else if (obj.type == 'null'){
+            return null
+        } else {
+            return obj.value;
+        }
     }
 }
 
-function handle_fetch_form(event, job_id, output, errorbox){
+function handle_fetch_form(event, job_id, output_demo, output, err){
     event.preventDefault();
-    id = job_id.value;
-    const res = fetch_result(`${host}:${port}`, id).then(r=>r.text()).then(ir2adt).catch(error => errorbox.innerHTML=error.message);
-    res.then(x=>output.replaceChildren(x));
+    const id = job_id.value;
+    const res = fetch_result(`${host}:${port}`, id).then(resp => {
+        if (resp.status == 200){
+            resp.text().then(ir=>{
+                // create type map
+                const jsonobj = add_fieldnames(ir2adt(ir), output_demo);
+                output.replaceChildren(disp_value(jsonobj));
+                err.innerHTML = "";
+            })
+        } else {
+            output.replaceChildren(document.createTextNode('<output>'));
+            err.innerHTML = resp.json().error;
+        }
+    })
+}
+// render the value as a normal JSON object
+function add_fieldnames(value, demo){
+    if (demo instanceof Array){
+        return value.map((v, i)=>add_fieldnames(v, demo[i]));
+    } else if (demo instanceof Object){
+        value.fieldnames = demo.fieldnames
+        value.fields = value.fields.map((v, i)=>add_fieldnames(v, demo.fields[i]))
+        return value
+    } else {
+        return value
+    }
 }
 
 // Array and primitive types are allowed.
@@ -160,29 +212,57 @@ function list2adt(obj){
 }
 
 function disp_value(value){
-    if (value instanceof Object){
+    if (value instanceof Array){
         const ul = document.createElement('ul');
-        for (var fieldname in value){
+        for (var i=0; i<value.length; i++){
             const li = document.createElement('li');
-            li.appendChild(disp_value(value[fieldname]));
+            li.appendChild(disp_value(value[i]));
             ul.appendChild(li);
         }
         return ul
+    } else if (value instanceof Object){
+        const ul = document.createElement('ul');
+        for (var i=0; i<value.fieldnames.length; i++){
+            const li = document.createElement('li');
+            li.appendChild(create_textblock('span', `${value.fieldnames[i]} = `));
+            li.appendChild(disp_value(value.fields[i]));
+            ul.appendChild(li);
+        }
+        return foldable(value.type, ul)
     } else {
         return document.createTextNode(JSON.stringify(value))
     }
 }
 
+function foldable(name, obj){
+    const div = document.createElement('div');
+    const typebegin = create_textblock('div', `${name}(`);
+    const typeend = create_textblock('div', `)`);
+    div.appendChild(typebegin);
+    div.appendChild(obj);
+    div.appendChild(typeend);
+    return div
+}
+
 function disp_input(value){
-    if (value instanceof Object){
+    if (value instanceof Array){
         const ul = document.createElement('ul');
         const lst = [];
-        for (var fieldname in value){
-            const [li, obj_li] = disp_input(value[fieldname]);
+        for (var i=0; i<value.length; i++){
+            const [li, obj_li] = disp_input(value[i]);
             ul.appendChild(li);
             lst.push(obj_li)
         }
         return [ul, lst]
+    } else if (value instanceof Object){
+        const ul = document.createElement('ul');
+        const lst = [];
+        for (var i=0; i<value.fieldnames.length; i++){
+            const [li, obj_li] = disp_input(value.fields[i]);
+            ul.appendChild(li);
+            lst.push(obj_li)
+        }
+        return [foldable(value.type, ul), lst]
     } else if (typeof value === 'string'){
         const obj = document.createElement('input');
         obj.setAttribute('value', value)
@@ -193,9 +273,15 @@ function disp_input(value){
         obj.setAttribute('value', value)
         obj.setAttribute('type', 'number')
         return [obj, obj]
+    } else if (typeof value === 'boolean'){
+        const obj = document.createElement('input');
+        obj.checked = value;
+        obj.setAttribute('type', 'checkbox');
+        return [obj, obj]
     } else if (value === null) {
         const obj = document.createElement('input');
         obj.setAttribute('value', value)
+        obj.setAttribute('type', 'null')
         obj.setAttribute('disabled', true)
         return [obj, obj]
     } else {

@@ -5949,7 +5949,8 @@ function call(endpoint, project, appname, fname, args, kwargs, maxtime=60, creat
     const job_id = uuid4();
     const jobspec = {"type" : "Jugsaw.JobSpec", "fields" : [job_id, Date.now(), created_by,
         maxtime, fname, args, kwargs]};
-    fetch(url, {
+    console.log(jobspec)
+    return fetch(url, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -5958,7 +5959,6 @@ function call(endpoint, project, appname, fname, args, kwargs, maxtime=60, creat
         },
         body: JSON.stringify(adt2ir(jobspec))
     })
-    return job_id
 }
 
 // fetch and return the result (as a Promise)
@@ -6033,13 +6033,16 @@ function render_value(value, typemap){
     if (value instanceof Array){
         return value.map(v=>render_value(v, typemap))
     } else if (value instanceof Object){
+        // add fieldnames
         const [typename, fieldnames, fieldtypes] = typemap[value.type].fields;
-        const obj = render_dict(fieldnames, value.fields.map(v=>render_value(v, typemap)));
-        obj.__type__ = value.type;
-        return obj
+        return render_object(value.type, fieldnames, value.fields.map(v=>render_value(v, typemap)));
     } else {
         return value
     }
+}
+// render an object
+function render_object(typename, fieldnames, fields){
+    return {"type":typename, "fieldnames":fieldnames, "fields": fields}
 }
 // create type dictionary from two arrays
 function render_dict(keys, values){
