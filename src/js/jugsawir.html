@@ -250,7 +250,10 @@ function disp_input(value){
         } else {
             const lst = [];
             for (var i=0; i<value.fieldnames.length; i++){
-                const [li, obj_li] = disp_input(value.fields[i]);
+                const li = document.createElement('li');
+                li.appendChild(create_textblock('span', `${value.fieldnames[i]} = `));
+                const [item, obj_li] = disp_input(value.fields[i]);
+                li.appendChild(item);
                 ul.appendChild(li);
                 lst.push(obj_li)
             }

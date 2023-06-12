@@ -23,7 +23,7 @@ function cast_to_problem(c::IndependentSetConfig, optimizer)
         Graphs.add_edge!(g, c.graph.edges[:, k]...)
     end
     # weights
-    weights = c.weights == ones(Int, Graphs.nv(g)) ? GenericTensorNetworks.NoWeight() : weights
+    weights = c.weights == ones(Int, Graphs.nv(g)) ? GenericTensorNetworks.NoWeight() : c.weights
     return IndependentSet(g; weights, optimizer)
 end
 struct ConfigsMaxSample{K} <: AbstractProperty
