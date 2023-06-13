@@ -46,7 +46,7 @@ function disp_app(app){
         ul2.appendChild(create_textblock('md-block', demo_list[0].docstring));
         for (let i=0; i < demo_list.length; i++){
             const li2 = document.createElement('li');
-            li2.appendChild(create_textblock('strong', `Demo ${i+1}`));
+            li2.appendChild(create_textblock('strong', `Input Pattern ${i+1}`));
             li2.appendChild(disp_demo(fi.function_name, i, demo_list[i]));
             ul2.appendChild(li2)
         }
@@ -59,9 +59,10 @@ function disp_app(app){
     return toplevel
 }
 function disp_demo(fname, index, demo){
-    id = `${fname}-${index+1}`
+    const id = `${fname}-${index+1}`
+
     // render args
-    const ul1 = document.createElement('ul');
+    const apis = document.createElement('div');
     const langs = ["julia", "python", "javascript"];
     for (var i=0; i<langs.length; i++){
         const details= document.createElement('details');
@@ -71,8 +72,11 @@ function disp_demo(fname, index, demo){
         code.classList.add(`language-${langs[i]}`);
         codeblock.appendChild(code);
         details.appendChild(codeblock);
-        ul1.appendChild(details);
+        apis.appendChild(details);
     }
+
+    // render args
+    const ul1 = document.createElement('ul');
     const args = demo.args
     const obj_args = [];
     for (let i=0; i<args.length; i++){
@@ -109,6 +113,7 @@ function disp_demo(fname, index, demo){
     // form for launching a function call
     const form = document.createElement('form')
     form.setAttribute('id', `${id}-call`);
+    form.appendChild(apis);
     form.appendChild(create_textblock('strong', 'Args:'));
     form.appendChild(ul1);
     form.appendChild(create_textblock('strong', 'Kwargs:'));
