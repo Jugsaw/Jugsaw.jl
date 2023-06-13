@@ -6017,7 +6017,13 @@ function render_demo(demo, typemap){
     const newkwargs = kwargs.fields.map((arg, i)=>(
         {"arg_name":kws[i], "data": render_value(arg, typemap), "type":get_type(arg)}
     ))
-    return {"args":newargs, "kwargs":newkwargs, "result":render_value(result, typemap), "type_args":args.type, "type_kwargs":kwargs.type};
+    console.log(metamap.api_julialang)
+    return {"args":newargs, "kwargs":newkwargs,
+        "result":render_value(result, typemap), "type_args":args.type,
+        "type_kwargs":kwargs.type, "docstring":metamap.docstring,
+        "api_julia":metamap.api_julialang, "api_javascript":metamap.api_javascript,
+        "api_python":metamap.api_python,
+    };
 }
 // get type of an argument safely
 function get_type(value){

@@ -4,6 +4,12 @@
 <head>
 <script type="text/javascript" src="jugsawirparser.js"></script>
 <script type="module" src="https://md-block.verou.me/md-block.js"></script>
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/10.0.0/styles/default.min.css">
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/10.0.0/highlight.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/10.0.0/languages/julia.min.js"></script>
+<script>
+hljs.initHighlightingOnLoad();
+</script>
 </head>
 <body>
 <div>
@@ -34,9 +40,10 @@ function disp_app(app){
     // append 
     const ul = document.createElement('div');
     for (let i=0; i < app.function_list.length; i++){
-        fi = app.function_list[i]
+        const fi = app.function_list[i];
         const demo_list = fi.demo_list;
         const ul2 = document.createElement('ul');
+        ul2.appendChild(create_textblock('md-block', demo_list[0].docstring));
         for (let i=0; i < demo_list.length; i++){
             const li2 = document.createElement('li');
             li2.appendChild(create_textblock('strong', `Demo ${i+1}`));
@@ -55,6 +62,17 @@ function disp_demo(fname, index, demo){
     id = `${fname}-${index+1}`
     // render args
     const ul1 = document.createElement('ul');
+    const langs = ["julia", "python", "javascript"];
+    for (var i=0; i<langs.length; i++){
+        const details= document.createElement('details');
+        details.appendChild(create_textblock('summary', langs[i]));
+        const codeblock = document.createElement('pre');
+        const code = create_textblock('code', demo[`api_${langs[i]}`]);
+        code.classList.add(`language-${langs[i]}`);
+        codeblock.appendChild(code);
+        details.appendChild(codeblock);
+        ul1.appendChild(details);
+    }
     const args = demo.args
     const obj_args = [];
     for (let i=0; i<args.length; i++){
@@ -365,9 +383,5 @@ function create_textblock(tag, text){
 app.then(app => appbox.appendChild(disp_app(app)));
 </script>
 
-<md-block>
-    # Heading
-    Some *embedded* Markdown which `md-block` can convert for you!
-</md-block>
 </body>
 </html>
