@@ -10,30 +10,10 @@ function native2jugsaw(x::Dict)
     JDict(collect(keys(x)), collect(values(x)))
 end
 function construct_object(t::JugsawADT, demo::Dict)
-    ks, vs = t.fields
-    kd, vd = demoofelement(demo)
-    typeof(demo)(zip([adt2julia(k, kd) for k in ks.storage],
-        [adt2julia(v, vd) for v in vs.storage]))
-end
-
-##### Array
-struct JArray{T}
-    size::Vector{Int}
-    storage::Vector{T}
-    function JArray(size, storage::Vector{T}) where T
-        if length(size) == 1
-            error("array of rank 1 is deliberately not supported.")
-        end
-        return new{T}(size, storage)
-    end
-end
-function native2jugsaw(x::Array)
-    JArray(collect(size(x)), vec(x))
-end
-function construct_object(t::JugsawADT, demo::Array{T}) where T
-    size, storage = t.fields
-    d = demoofelement(demo)
-    reshape(T[adt2julia(x, d) for x in storage.storage], Int[adt2julia(s, 0) for s in size.storage]...)
+    # TODO: fix this bad implementation
+    ks = adt2julia(t.fields[1], collect(keys(demo)))
+    vs = adt2julia(t.fields[2], collect(values(demo)))
+    typeof(demo)(zip(ks, vs))
 end
 
 ##### Enum
@@ -47,18 +27,24 @@ function native2jugsaw(x::Enum)
 end
 function construct_object(t::JugsawADT, demo::Enum)
     kind, value, options = t.fields
-    typeof(demo)(findfirst(==(value), options.storage)-1)
+    typeof(demo)(findfirst(==(value), options.fields[2].storage)-1)
+end
+
+##### JArray
+struct JArray{T}
+    size::Vector{Int}
+    storage::Vector{T}
 end
 
 ##### DataType
 struct JDataType
     name::String
-    fieldnames::Vector{String}
+    fieldnames::Vector{String}   # can not use tuple!
     fieldtypes::Vector{String}
 end
 function native2jugsaw(x::DataType)
     isconcretetype(x) || return JDataType(type2str(x), String[], String[])
-    JDataType(type2str(x), String[string(fi) for fi in fieldnames(x)], String[type2str(x) for x in x.types])
+    JDataType(type2str(x), String[string(x) for x in fieldnames(x)], String[type2str(x) for x in x.types])
 end
 
 ##### Tuple

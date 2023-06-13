@@ -5941,7 +5941,6 @@ function request_app(endpoint, project, appname, version="latest") {
     return fetch(url, {
         method: 'GET',
     })
-   .then(response=>response.text()).then(ir2adt)
 }
 
 // Launch a function call and return a job_id as string.
@@ -5950,7 +5949,7 @@ function call(endpoint, project, appname, fname, args, kwargs, maxtime=60, creat
     const job_id = uuid4();
     const jobspec = {"type" : "Jugsaw.JobSpec", "fields" : [job_id, Date.now(), created_by,
         maxtime, fname, args, kwargs]};
-    fetch(url, {
+    return fetch(url, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -5959,7 +5958,6 @@ function call(endpoint, project, appname, fname, args, kwargs, maxtime=60, creat
         },
         body: JSON.stringify(adt2ir(jobspec))
     })
-    return job_id
 }
 
 // fetch and return the result (as a Promise)
@@ -5972,22 +5970,39 @@ function fetch_result(endpoint, job_id) {
         },
         body : JSON.stringify({"job_id" : job_id})
     })
-   .then(response=>response.text()).then(ir2adt)
 }
 
+function response2adt(response){
+    if (response.status != 200){
+        msg = JSON.parse(response.text()).error
+        throw new Error(`${response.code}: ${msg}`);
+    } else {
+        return ir2adt(response.text())
+    }
+}
+function error_message(txt){
+    const obj = create_textblock('p', JSON.parse(txt).error);
+    obj.style.color = "red";
+    return obj
+}
+
+function aslist(adt){
+    return adt.fields[1];
+}
 function render_app(app_and_method){
     // get application specification and type table.
     const [app, typetable] = app_and_method;
     const [appname, method_names, method_demos] = app.fields;
     const [demofnames, demolists] = method_demos.fields;
-    const typemap = render_dict(...typetable.fields[1].fields);
+    const typemap = render_dict(...aslist(typetable).fields);
     // create result
-    const function_list = demofnames.map((name, i) => (
-        {"function_name":name, "demo_list":demolists[i].map(demo=>render_demo(demo, typemap))}
+    const function_list = aslist(demofnames).map((name, i) => (
+        {"function_name":name, "demo_list":aslist(aslist(demolists)[i]).map(demo=>render_demo(demo, typemap))}
     ));
     return {"appname":appname, "function_list":function_list};
 }
 
+// TODO: render like Pluto
 // render a demo as an object
 function render_demo(demo, typemap){
     const [fcall, result, meta] = demo.fields;
@@ -5998,11 +6013,17 @@ function render_demo(demo, typemap){
         {"arg_name":`${i+1}`, "data": render_value(arg, typemap), "type":get_type(arg)}
     ))
     // keyword arguments
-    const kws = typemap[kwargs.type];
+    const kws = aslist(typemap[kwargs.type].fields[1]);
     const newkwargs = kwargs.fields.map((arg, i)=>(
         {"arg_name":kws[i], "data": render_value(arg, typemap), "type":get_type(arg)}
     ))
-    return {"args":newargs, "kwargs":newkwargs, "result":render_value(result, typemap)};
+    console.log(metamap.api_julialang)
+    return {"args":newargs, "kwargs":newkwargs,
+        "result":render_value(result, typemap), "type_args":args.type,
+        "type_kwargs":kwargs.type, "docstring":metamap.docstring,
+        "api_julia":metamap.api_julialang, "api_javascript":metamap.api_javascript,
+        "api_python":metamap.api_python,
+    };
 }
 // get type of an argument safely
 function get_type(value){
@@ -6016,19 +6037,94 @@ function get_type(value){
 }
 // render the value as a normal JSON object
 function render_value(value, typemap){
-    if (value instanceof Object){
+    if (value instanceof Array){
+        return value.map(v=>render_value(v, typemap))
+    } else if (value instanceof Object){
+        // add fieldnames
         const [typename, fieldnames, fieldtypes] = typemap[value.type].fields;
-        const obj = render_dict(fieldnames, value.fields.map(v=>render_value(v, typemap)));
-        obj.__type__ = value.type;
-        return obj
+        return render_object(value.type, aslist(fieldnames), value.fields.map(v=>render_value(v, typemap)));
     } else {
         return value
     }
 }
+// render an object
+function render_object(typename, fieldnames, fields){
+    return {"type":typename, "fieldnames":fieldnames, "fields": fields}
+}
 // create type dictionary from two arrays
 function render_dict(keys, values){
-    var result = {};
-    keys.forEach((key, i) => result[key] = values[i]);
+    const _values = aslist(values);
+    const result = {};
+    aslist(keys).forEach((key, i) => result[key] = _values[i]);
     return result;
 }
 
+// source: https://stackoverflow.com/questions/8493195/how-can-i-parse-a-csv-string-with-javascript-which-contains-comma-in-data
+function csvToArray(text) {
+    let p = '', row = [''], ret = [row], i = 0, r = 0, s = !0, l;
+    for (l of text) {
+        if ('"' === l) {
+            if (s && l === p) row[i] += l;
+            s = !s;
+        } else if (',' === l && s) l = row[++i] = '';
+        else if ('\n' === l && s) {
+            if ('\r' === p) row[i] = row[i].slice(0, -1);
+            row = ret[++r] = [l = '']; i = 0;
+        } else row[i] += l;
+        p = l;
+    }
+    return ret;
+};
+
+function listfromstring(s){
+    return s.match(/[^,\s?]+/g)
+}
+
+// check types
+function isarraytype(typename){
+    const [primary, params] = decompose_type(typename);
+    return primary == 'JugsawIR.JArray'
+}
+function issimplearraytype(typename){
+    const [primary, params] = decompose_type(typename);
+    const T = params[0];
+    return primary == 'JugsawIR.JArray' && (isstringtype(T) || isbooltype(T) || isfloattype(T) || isintegertype(T) || iscomplextype(T))
+}
+function decompose_type(typename){
+    const re = /(^[a-zA-Z_][a-zA-Z_0-9\.]*!?)\{(.*)\}$/
+    const res = typename.match(re)
+    if (res !== null){
+        return [res[1], listfromstring(res[2])]
+    } else {
+        return [typename, '']
+    }
+}
+
+function isintegertype(typename){
+    return typename == "Core.Int128" ||
+        typename == "Core.Int64" ||
+        typename == "Core.Int32" ||
+        typename == "Core.Int16" ||
+        typename == "Core.Int8" ||
+        typename == "Core.UInt128" ||
+        typename == "Core.UInt64" ||
+        typename == "Core.UInt32" ||
+        typename == "Core.UInt16" ||
+        typename == "Core.UInt8"
+}
+function isfloattype(typename){
+    return typename == "Core.Float64" ||
+        typename == "Core.Float32" ||
+        typename == "Core.Float16"
+}
+function iscomplextype(typename){
+    return typename == "Base.Complex{Core.Float64}" ||
+        typename == "Base.Complex{Core.Float32}" ||
+        typename == "Base.Complex{Core.Float16}"
+}
+function isbooltype(typename){
+    return typename == "Core.Bool"
+}
+function isstringtype(typename){
+    return typename == "Core.String"
+}

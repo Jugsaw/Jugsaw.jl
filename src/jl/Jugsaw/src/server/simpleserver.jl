@@ -10,9 +10,9 @@ function job_handler(r::AppRuntime, req::HTTP.Request)
         jobspec = JobSpec(job_id, created_at, created_by, maxtime, fname, args, kwargs)
         @info "get job: $jobspec"
         addjob!(r, jobspec)
-        return HTTP.Response(200, SIMPLE_HEADER, "Job submitted!")
+        return HTTP.Response(200, JSON_HEADER, JSON3.write((; job_id=job_id)))
     catch e
-        @info e
+        showerror(stdout, e, catch_backtrace())
         return _error_response(e)
     end
 end

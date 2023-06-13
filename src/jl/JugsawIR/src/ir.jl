@@ -24,7 +24,7 @@ function tree2adt(t)
             "false" => false
             "null" => nothing
             "list" => JugsawADT.Vector(tree2adt.(t.children))
-            "genericobj1" => error("type name not specified!")
+            "genericobj1" => buildobj("Core.Any", tree2adt.(t.children[1].children))
             "genericobj2" => buildobj(tree2adt(t.children[1]), tree2adt.(t.children[2].children))
             "genericobj3" => buildobj(tree2adt(t.children[2]), tree2adt.(t.children[1].children))
         end

@@ -362,6 +362,8 @@ function addjob!(r::AppRuntime, jobspec::JobSpec)
 
     # IF tree is a function call, return an `object_id` for return value.
     #     recurse over args and kwargs to get `Call` parsed.
+    @show args.fields
+    @show thisdemo.fcall.args
     newargs = ntuple(i->renderobj!(r, created_at, created_by, maxtime, args.fields[i], thisdemo.fcall.args[i]), length(args.fields))
     newkwargs = typeof(thisdemo.fcall.kwargs)(ntuple(i->renderobj!(r, created_at, created_by, maxtime, kwargs.fields[i], thisdemo.fcall.kwargs[i]), length(kwargs.fields)))
 

@@ -8,16 +8,16 @@ end
 function _load_app(context::ClientContext, obj::JugsawADT, tt::TypeTable)
     name, method_names, _method_demos = obj.fields
     ks, vs = _method_demos.fields
-    method_demos = Dict(zip(ks.storage, vs.storage))
+    method_demos = Dict(zip(ks.fields[2].storage, vs.fields[2].storage))
     demos = OrderedDict{Symbol, Vector{Demo}}()
-    for _fname in method_names.storage
+    for _fname in method_names.fields[2].storage
         fname = Symbol(_fname)
         demos[fname] = Demo[]
-        for demo in method_demos[_fname].storage
+        for demo in method_demos[_fname].fields[2].storage
             (_fcall, result, meta) = demo.fields
             _fname, args, kwargs = _fcall.fields
             jf = Call(fname, (args.fields...,), (; zip(Symbol.(JugsawIR.get_fieldnames(kwargs, tt)), kwargs.fields)...))
-            demo = Demo(jf, result, Dict(zip(meta.fields[1].storage, meta.fields[2].storage)))
+            demo = Demo(jf, result, Dict(zip(meta.fields[1].fields[2].storage, meta.fields[2].fields[2].storage)))
             push!(demos[fname], demo)
         end
     end
