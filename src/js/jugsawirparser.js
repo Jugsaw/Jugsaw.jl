@@ -5949,7 +5949,6 @@ function call(endpoint, project, appname, fname, args, kwargs, maxtime=60, creat
     const job_id = uuid4();
     const jobspec = {"type" : "Jugsaw.JobSpec", "fields" : [job_id, Date.now(), created_by,
         maxtime, fname, args, kwargs]};
-    console.log(jobspec)
     return fetch(url, {
         method: 'POST',
         headers: {
@@ -5975,7 +5974,6 @@ function fetch_result(endpoint, job_id) {
 
 function response2adt(response){
     if (response.status != 200){
-        console.log(response);
         msg = JSON.parse(response.text()).error
         throw new Error(`${response.code}: ${msg}`);
     } else {
@@ -5988,15 +5986,18 @@ function error_message(txt){
     return obj
 }
 
+function aslist(adt){
+    return adt.fields[1];
+}
 function render_app(app_and_method){
     // get application specification and type table.
     const [app, typetable] = app_and_method;
     const [appname, method_names, method_demos] = app.fields;
     const [demofnames, demolists] = method_demos.fields;
-    const typemap = render_dict(...typetable.fields[1].fields);
+    const typemap = render_dict(...aslist(typetable).fields);
     // create result
-    const function_list = demofnames.map((name, i) => (
-        {"function_name":name, "demo_list":demolists[i].map(demo=>render_demo(demo, typemap))}
+    const function_list = aslist(demofnames).map((name, i) => (
+        {"function_name":name, "demo_list":aslist(aslist(demolists)[i]).map(demo=>render_demo(demo, typemap))}
     ));
     return {"appname":appname, "function_list":function_list};
 }
@@ -6012,7 +6013,7 @@ function render_demo(demo, typemap){
         {"arg_name":`${i+1}`, "data": render_value(arg, typemap), "type":get_type(arg)}
     ))
     // keyword arguments
-    const kws = typemap[kwargs.type].fields[1];
+    const kws = aslist(typemap[kwargs.type].fields[1]);
     const newkwargs = kwargs.fields.map((arg, i)=>(
         {"arg_name":kws[i], "data": render_value(arg, typemap), "type":get_type(arg)}
     ))
@@ -6035,7 +6036,7 @@ function render_value(value, typemap){
     } else if (value instanceof Object){
         // add fieldnames
         const [typename, fieldnames, fieldtypes] = typemap[value.type].fields;
-        return render_object(value.type, fieldnames, value.fields.map(v=>render_value(v, typemap)));
+        return render_object(value.type, aslist(fieldnames), value.fields.map(v=>render_value(v, typemap)));
     } else {
         return value
     }
@@ -6046,8 +6047,9 @@ function render_object(typename, fieldnames, fields){
 }
 // create type dictionary from two arrays
 function render_dict(keys, values){
-    var result = {};
-    keys.forEach((key, i) => result[key] = values[i]);
+    const _values = aslist(values);
+    const result = {};
+    aslist(keys).forEach((key, i) => result[key] = _values[i]);
     return result;
 }
 
@@ -6074,3 +6076,7 @@ function csvToArray(text) {
     }
     return ret;
 };
+
+function listfromstring(s){
+    return s.match(/[^,\s?]+/g)
+}

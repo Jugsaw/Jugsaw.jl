@@ -30,6 +30,12 @@ function construct_object(t::JugsawADT, demo::Enum)
     typeof(demo)(findfirst(==(value), options.fields[2].storage)-1)
 end
 
+##### JArray
+struct JArray{T}
+    size::Vector{Int}
+    storage::Vector{T}
+end
+
 ##### DataType
 struct JDataType
     name::String

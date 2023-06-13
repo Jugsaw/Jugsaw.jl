@@ -3,6 +3,7 @@
 
 <head>
 <script type="text/javascript" src="jugsawirparser.js"></script>
+<script type="module" src="https://md-block.verou.me/md-block.js"></script>
 </head>
 <body>
 <div>
@@ -138,8 +139,6 @@ function handle_fcall_form(event, fname, type_args, obj_args, demo_args, type_kw
     event.preventDefault();
     const args = demo_args.map((darg, i)=>extract_data(obj_args[i], darg.data));
     const kwargs = demo_kwargs.map((darg,i)=>extract_data(obj_kwargs[i], darg.data));
-    console.log(args);
-    console.log(kwargs);
     call(`${host}:${port}`, "unspecified", app.appname, fname,
         {"type":type_args, "fields":args},
         {"type":type_kwargs, "fields":kwargs}).then(resp=>resp.json()).then(obj=>{
@@ -203,6 +202,16 @@ function disp_value(value){
         }
         return ul
     } else if (value instanceof Object){
+        if (isarraytype(value.type)){
+            const [size, vec] = value.fields;
+            if (size.length == 1){
+                const obj =string_vec(vec)
+                return foldable(value.type, obj);
+            } else if (size.length == 2){
+                const obj =string_matrix(vec, ...size)
+                return foldable(value.type, obj);
+            }
+        }
         const ul = document.createElement('ul');
         for (var i=0; i<value.fieldnames.length; i++){
             const li = document.createElement('li');
@@ -214,6 +223,22 @@ function disp_value(value){
     } else {
         return document.createTextNode(JSON.stringify(value))
     }
+}
+
+function string_matrix(vec, m, n){
+    var s = '';
+    for (var i=0; i<m; i++){
+        for (var j=0; j<n; j++){
+            s += vec[i + j*m];
+            if (j < n-1){s += ', ';}
+        }
+        if (i < m-1){s += '\n';}
+    }
+    console.log(s)
+    return s
+}
+function string_vec(vec){
+    return vec.join(', ')
 }
 
 function foldable(name, obj){
@@ -238,10 +263,10 @@ function disp_input(value){
         }
         return [ul, lst]
     } else if (value instanceof Object){
-        const [primary, params] = decompose_type(value.type);
         const ul = document.createElement('ul');
-        // special case: JArray
-        if (primary == 'JugsawIR.JArray' && (isbooltype(params) || isfloattype(params) || isintegertype(params) || iscomplextype(params))){
+        // special case: Array
+        //console.log(primary, params, "array")
+        if (false && isarraytype(value.type)){
             const div = document.createElement('div');
             const obj = document.createElement('textarea');
             obj.placeholder = "Input an array in the CSV format. Elements are separated by ',', rows are separated by line breaks."
@@ -287,11 +312,20 @@ function disp_input(value){
     }
 }
 
+function isarraytype(typename){
+    const [primary, params] = decompose_type(typename);
+    return primary == 'JugsawIR.JArray'
+}
+function issimplearraytype(typename){
+    const [primary, params] = decompose_type(typename);
+    const T = params[0];
+    return primary == 'JugsawIR.JArray' && (isstringtype(T) || isbooltype(T) || isfloattype(T) || isintegertype(T) || iscomplextype(T))
+}
 function decompose_type(typename){
     const re = /(^[a-zA-Z_][a-zA-Z_0-9\.]*!?)\{(.*)\}$/
     const res = typename.match(re)
     if (res !== null){
-        return [res[1], res[2]]
+        return [res[1], listfromstring(res[2])]
     } else {
         return [typename, '']
     }
@@ -322,6 +356,9 @@ function iscomplextype(typename){
 function isbooltype(typename){
     return typename == "Core.Bool"
 }
+function isstringtype(typename){
+    return typename == "Core.String"
+}
 // extract data from inputs
 function extract_data(obj, demo_obj){
     if (demo_obj instanceof Array){
@@ -346,5 +383,9 @@ function extract_data(obj, demo_obj){
 app.then(app => appbox.appendChild(disp_app(app)));
 </script>
 
+<md-block>
+    # Heading
+    Some *embedded* Markdown which `md-block` can convert for you!
+</md-block>
 </body>
 </html>

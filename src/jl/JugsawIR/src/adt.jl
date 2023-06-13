@@ -56,15 +56,14 @@ function julia2adt(@nospecialize(x::T)) where T
 end
 
 # data are dumped to (name, value[, fieldnames])
-function julia2adt!(@nospecialize(_x::T), tt::TypeTable) where T
-    x = native2jugsaw(_x)
-    Tx = typeof(x)
-    (x isa UndefInitializer || x isa DirectlyRepresentableTypes) || pushtype!(tt, Tx)
+function julia2adt!(@nospecialize(x::T), tt::TypeTable) where T
     @match x begin
         ###################### Basic Types ######################
         ::UndefInitializer => nothing
         ::DirectlyRepresentableTypes => x
         ::Array => begin
+            Tx = JArray{eltype(x)}
+            (x isa UndefInitializer || x isa DirectlyRepresentableTypes) || pushtype!(tt, Tx)
             # NOTE: array must be special treated.
             JugsawADT.Object(type2str(Tx),
                 Any[JugsawADT.Vector(collect(size(x))),  # size
@@ -75,8 +74,11 @@ function julia2adt!(@nospecialize(_x::T), tt::TypeTable) where T
         ::UnionAll => type2str(x)
         ###################### Generic Compsite Types ######################
         _ => begin
+            _x = native2jugsaw(x)
+            Tx = typeof(_x)
+            (_x isa UndefInitializer || _x isa DirectlyRepresentableTypes) || pushtype!(tt, Tx)
             JugsawADT.Object(type2str(Tx), 
-                Any[isdefined(x, fn) ? julia2adt!(getfield(x, fn), tt) : undef for fn in fieldnames(Tx)]
+                Any[isdefined(_x, fn) ? julia2adt!(getfield(_x, fn), tt) : undef for fn in fieldnames(Tx)]
             )
         end
     end
