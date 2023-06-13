@@ -183,15 +183,6 @@ function add_fieldnames(value, demo){
     }
 }
 
-// Array and primitive types are allowed.
-function list2adt(obj){
-    if (obj instanceof Array){
-        return {'fields' : obj.map(item=>object2adt)}
-    } else {
-        return obj
-    }
-}
-
 function disp_value(value){
     if (value instanceof Array){
         const ul = document.createElement('ul');
@@ -204,13 +195,18 @@ function disp_value(value){
     } else if (value instanceof Object){
         if (isarraytype(value.type)){
             const [size, vec] = value.fields;
-            if (size.length == 1){
-                const obj =string_vec(vec)
-                return foldable(value.type, obj);
-            } else if (size.length == 2){
-                const obj =string_matrix(vec, ...size)
-                return foldable(value.type, obj);
-            }
+            const ul = document.createElement('ul');
+            const li = document.createElement('li');
+            li.appendChild(create_textblock('span', `size = `));
+            li.appendChild(create_textblock('span', `[${size.join(', ')}]`));
+            const li2 = document.createElement('li');
+            const div = document.createElement('div');
+            li2.appendChild(create_textblock('span', `storage = `));
+            html_array(div, vec.map(v=>document.createTextNode(v)), size);
+            li2.appendChild(div);
+            ul.appendChild(li)
+            ul.appendChild(li2)
+            return foldable(value.type, ul);
         }
         const ul = document.createElement('ul');
         for (var i=0; i<value.fieldnames.length; i++){
@@ -225,22 +221,28 @@ function disp_value(value){
     }
 }
 
-function string_matrix(vec, m, n){
-    var s = '';
-    for (var i=0; i<m; i++){
-        for (var j=0; j<n; j++){
-            s += vec[i + j*m];
-            if (j < n-1){s += ', ';}
+function html_array(parent, vec, size){
+    const strides = size.map((s, i)=>size.slice(0, i).reduce((acc, val) => acc * val, 1))
+    const items = vec.map((v, i)=>{
+        const div = document.createElement('div');
+        ci = cartesian_index(i, strides);
+        div.appendChild(create_textblock('span', `[${ci.join(', ')}] = `));
+        div.appendChild(v);
+        return div;
+    })
+    parent.replaceChildren(...items);
+}
+function cartesian_index(idx, strides){
+    const v = [];
+    for (var i=0; i<strides.length; i++){
+        if (i < strides.length-1){
+            v.push(Math.floor((idx % strides[i+1]) / strides[i]))
+        } else {
+            v.push(Math.floor(idx / strides[i]))
         }
-        if (i < m-1){s += '\n';}
     }
-    console.log(s)
-    return s
+    return v
 }
-function string_vec(vec){
-    return vec.join(', ')
-}
-
 function foldable(name, obj){
     const div = document.createElement('div');
     const typebegin = create_textblock('div', `${name}(`);
@@ -266,12 +268,33 @@ function disp_input(value){
         const ul = document.createElement('ul');
         // special case: Array
         //console.log(primary, params, "array")
-        if (false && isarraytype(value.type)){
+        if (isarraytype(value.type)){
+            // const div = document.createElement('div');
+            // const obj = document.createElement('textarea');
+            // obj.placeholder = "Input an array in the CSV format. Elements are separated by ',', rows are separated by line breaks."
+            // div.appendChild(obj);
+            // return [div, obj]
+            const [size, vec] = value.fields;
+            const ul = document.createElement('ul');
+            const li = document.createElement('li');
+            li.appendChild(create_textblock('span', `size = `));
+            const [size_item, size_obj] = disp_input(size);
+            li.appendChild(size_item);
+            const li2 = document.createElement('li');
             const div = document.createElement('div');
-            const obj = document.createElement('textarea');
-            obj.placeholder = "Input an array in the CSV format. Elements are separated by ',', rows are separated by line breaks."
-            div.appendChild(obj);
-            return [div, obj]
+            li2.appendChild(create_textblock('span', `storage = `));
+            const htmls = [];
+            const inputs = [];
+            vec.map(v=>{
+                const [item, obj_li] = disp_input(v);
+                htmls.push(item);
+                inputs.push(obj_li);
+            })
+            html_array(div, htmls, size);
+            li2.appendChild(div);
+            ul.appendChild(li)
+            ul.appendChild(li2)
+            return [foldable(value.type, ul), [size_obj, inputs]];
         } else {
             const lst = [];
             for (var i=0; i<value.fieldnames.length; i++){
@@ -312,53 +335,6 @@ function disp_input(value){
     }
 }
 
-function isarraytype(typename){
-    const [primary, params] = decompose_type(typename);
-    return primary == 'JugsawIR.JArray'
-}
-function issimplearraytype(typename){
-    const [primary, params] = decompose_type(typename);
-    const T = params[0];
-    return primary == 'JugsawIR.JArray' && (isstringtype(T) || isbooltype(T) || isfloattype(T) || isintegertype(T) || iscomplextype(T))
-}
-function decompose_type(typename){
-    const re = /(^[a-zA-Z_][a-zA-Z_0-9\.]*!?)\{(.*)\}$/
-    const res = typename.match(re)
-    if (res !== null){
-        return [res[1], listfromstring(res[2])]
-    } else {
-        return [typename, '']
-    }
-}
-
-function isintegertype(typename){
-    return typename == "Core.Int128" ||
-        typename == "Core.Int64" ||
-        typename == "Core.Int32" ||
-        typename == "Core.Int16" ||
-        typename == "Core.Int8" ||
-        typename == "Core.UInt128" ||
-        typename == "Core.UInt64" ||
-        typename == "Core.UInt32" ||
-        typename == "Core.UInt16" ||
-        typename == "Core.UInt8"
-}
-function isfloattype(typename){
-    return typename == "Core.Float64" ||
-        typename == "Core.Float32" ||
-        typename == "Core.Float16"
-}
-function iscomplextype(typename){
-    return typename == "Base.Complex{Core.Float64}" ||
-        typename == "Base.Complex{Core.Float32}" ||
-        typename == "Base.Complex{Core.Float16}"
-}
-function isbooltype(typename){
-    return typename == "Core.Bool"
-}
-function isstringtype(typename){
-    return typename == "Core.String"
-}
 // extract data from inputs
 function extract_data(obj, demo_obj){
     if (demo_obj instanceof Array){
@@ -378,7 +354,13 @@ function extract_data(obj, demo_obj){
     }
 }
 
-
+// create a simple text block
+function create_textblock(tag, text){
+    const header = document.createElement(tag);
+    const header_text = document.createTextNode(text);
+    header.appendChild(header_text);
+    return header;
+}
 
 app.then(app => appbox.appendChild(disp_app(app)));
 </script>

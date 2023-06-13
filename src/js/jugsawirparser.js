@@ -6053,13 +6053,6 @@ function render_dict(keys, values){
     return result;
 }
 
-function create_textblock(tag, text){
-    const header = document.createElement(tag);
-    const header_text = document.createTextNode(text);
-    header.appendChild(header_text);
-    return header;
-}
-
 // source: https://stackoverflow.com/questions/8493195/how-can-i-parse-a-csv-string-with-javascript-which-contains-comma-in-data
 function csvToArray(text) {
     let p = '', row = [''], ret = [row], i = 0, r = 0, s = !0, l;
@@ -6079,4 +6072,53 @@ function csvToArray(text) {
 
 function listfromstring(s){
     return s.match(/[^,\s?]+/g)
+}
+
+// check types
+function isarraytype(typename){
+    const [primary, params] = decompose_type(typename);
+    return primary == 'JugsawIR.JArray'
+}
+function issimplearraytype(typename){
+    const [primary, params] = decompose_type(typename);
+    const T = params[0];
+    return primary == 'JugsawIR.JArray' && (isstringtype(T) || isbooltype(T) || isfloattype(T) || isintegertype(T) || iscomplextype(T))
+}
+function decompose_type(typename){
+    const re = /(^[a-zA-Z_][a-zA-Z_0-9\.]*!?)\{(.*)\}$/
+    const res = typename.match(re)
+    if (res !== null){
+        return [res[1], listfromstring(res[2])]
+    } else {
+        return [typename, '']
+    }
+}
+
+function isintegertype(typename){
+    return typename == "Core.Int128" ||
+        typename == "Core.Int64" ||
+        typename == "Core.Int32" ||
+        typename == "Core.Int16" ||
+        typename == "Core.Int8" ||
+        typename == "Core.UInt128" ||
+        typename == "Core.UInt64" ||
+        typename == "Core.UInt32" ||
+        typename == "Core.UInt16" ||
+        typename == "Core.UInt8"
+}
+function isfloattype(typename){
+    return typename == "Core.Float64" ||
+        typename == "Core.Float32" ||
+        typename == "Core.Float16"
+}
+function iscomplextype(typename){
+    return typename == "Base.Complex{Core.Float64}" ||
+        typename == "Base.Complex{Core.Float32}" ||
+        typename == "Base.Complex{Core.Float16}"
+}
+function isbooltype(typename){
+    return typename == "Core.Bool"
+}
+function isstringtype(typename){
+    return typename == "Core.String"
 }
