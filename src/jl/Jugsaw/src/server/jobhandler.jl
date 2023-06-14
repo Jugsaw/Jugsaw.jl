@@ -68,7 +68,6 @@ The abstract type for event service. Its concrete subtypes include
 * [`InMemoryEventService`](@ref)
 
 ### Required Interfaces
-* [`get_timeout`](@ref)
 * [`publish_event`](@ref)
 * [`fetch_status`](@ref)
 * [`save_object`](@ref)
@@ -76,20 +75,6 @@ The abstract type for event service. Its concrete subtypes include
 * [`load_object_as_ir`](@ref)
 """
 abstract type AbstractEventService end
-
-"""
-    get_timeout(dapr::AbstractEventService) -> Float64
-
-Returns the timeout of the event service in seconds.
-"""
-function get_timeout end
-
-"""
-    get_query_interval(dapr::AbstractEventService)::Float64
-
-Returns the query time interval of the event service in seconds.
-"""
-function get_query_interval end
 
 """
     save_object(dapr::AbstractEventService, job_id::AbstractString, res) -> nothing
@@ -132,7 +117,7 @@ The published event can be accessed with [`fetch_status`](@ref) function.
 function publish_status end
 
 """
-    fetch_status(dapr::AbstractEventService, job_id::String; timeout::Real=get_timeout(dapr)) -> (status_code, status)
+    fetch_status(dapr::AbstractEventService, job_id::String; timeout::Real=get_timeout()) -> (status_code, status)
 
 Get the status of a job. The return value is a tuple with the following two elements
 * `status_code` is a symbol to indicate the status query result, which can be `:ok` or `:timed_out`
@@ -147,17 +132,14 @@ Dapr event service for storing and fetching events and results.
 Please check [`AbstractEventService`](@ref) for implemented interfaces.
 """
 Base.@kwdef struct DaprService <: AbstractEventService
-    timeout::Float64 = 15.0
     query_interval::Float64 = 0.1
-    pub_sub::String = "jobs"
-    result_store::String = "job-result-store"
+    pub_sub::String = "jobs"                    # TODO: change to environment variable.
+    result_store::String = "job-result-store"   # TODO: change to environment variable.
 end
-get_timeout(dapr::DaprService) = dapr.timeout
-get_query_interval(dapr::DaprService) = dapr.query_interval
 function publish_status(dapr::DaprService, job_status::JobStatus)
     return DaprClients.publish_event(dapr.pub_sub, string(job_status.status), job_status; headers=Pair{SubString{String},SubString{String}}["Content-Type"=>"application/json"])
 end
-function fetch_status(dapr::DaprService, job_id::String; timeout::Real=get_timeout(dapr))
+function fetch_status(dapr::DaprService, job_id::String; timeout::Real=get_timeout())
     error("Not implemented")
 end
 function save_object(dapr::DaprService, job_id::AbstractString, res)
@@ -184,8 +166,6 @@ end
 function FileEventService(save_dir::String; print_event::Bool=true, timeout=1.0, query_interval=0.1)
     return FileEventService(print_event, save_dir, timeout, query_interval)
 end
-get_timeout(dapr::FileEventService) = dapr.timeout
-get_query_interval(dapr::FileEventService) = dapr.query_interval
 # update job status to Dapr
 function publish_status(dapr::FileEventService, job_status::JobStatus)
     dapr.print_event && @info "[PUBLISH STATUS] $job_status"
@@ -205,13 +185,13 @@ function publish_status(dapr::FileEventService, job_status::JobStatus)
     end
     return nothing
 end
-function fetch_status(dapr::FileEventService, job_id::String; timeout::Real=get_timeout(dapr))
+function fetch_status(dapr::FileEventService, job_id::String; timeout::Real=get_timeout())
     dapr.print_event && @info "[FETCH STATUS] $job_id"
     filename = joinpath(dapr.save_dir, job_id, "status.log")
 
     # load last line
     s = Ref{JobStatus}()
-    status = timedwait(timeout; pollint=get_query_interval(dapr)) do
+    status = timedwait(timeout; pollint=get_query_interval()) do
         if isfile(filename)
             s[] = JSON3.read(last(eachline(filename)), JobStatus)
             return true
@@ -243,7 +223,7 @@ function load_object_as_ir(dapr::FileEventService, job_id::AbstractString; timeo
     filename = joinpath(dapr.save_dir, job_id, "result.jug")
 
     s = Ref("")
-    status = timedwait(timeout; pollint=get_query_interval(dapr)) do
+    status = timedwait(timeout; pollint=get_query_interval()) do
         if isfile(filename)
             s[] = open(filename, "r") do f
                 read(f, String)
@@ -271,8 +251,6 @@ end
 function InMemoryEventService(; print_event::Bool=true)
     return InMemoryEventService(print_event, Dict{String, Any}(), Dict{String, JobStatus}())
 end
-get_timeout(dapr::InMemoryEventService) = 0.0
-get_query_interval(dapr::InMemoryEventService) = 0.1
 # update job status to Dapr
 function publish_status(dapr::InMemoryEventService, job_status::JobStatus)
     dapr.print_event && @info "[PUBLISH STATUS] $job_status"
@@ -280,7 +258,7 @@ function publish_status(dapr::InMemoryEventService, job_status::JobStatus)
     dapr.status_store[job_status.id] = job_status
     return nothing
 end
-function fetch_status(dapr::InMemoryEventService, job_id::String; timeout::Real=get_timeout(dapr))
+function fetch_status(dapr::InMemoryEventService, job_id::String; timeout::Real=get_timeout())
     dapr.print_event && @info "[FETCH STATUS] $job_id"
     if haskey(dapr.status_store, job_id)
         return :ok, dapr.status_store[job_id]
@@ -300,7 +278,7 @@ function load_object(dapr::InMemoryEventService, job_id::AbstractString, resdemo
     dapr.print_event && @info "Fetching [$key]"
     s = Ref{Any}(nothing)
     # this is because jobs are handled asynchronously
-    status = timedwait(timeout; pollint=get_query_interval(dapr)) do
+    status = timedwait(timeout; pollint=get_query_interval()) do
         if haskey(dapr.object_store, job_id)
             s[] = dapr.object_store[job_id]
             return true
@@ -372,7 +350,7 @@ function addjob!(r::AppRuntime, jobspec::JobSpec)
     @info "adding job to the queue: $job"
 
     # submit job
-    res = timedwait(get_timeout(r.dapr)) do
+    res = timedwait(get_timeout()) do
         put!(r.channel, job)
         publish_status(r.dapr, JobStatus(id=job.id, status=processing))
         true
@@ -403,7 +381,7 @@ function renderobj!(r::AppRuntime, created_at, created_by, maxtime, adt, thisdem
         object_id = string(UUIDs.uuid4())
         addjob!(r, JobSpec(object_id, created_at, created_by, maxtime, adt.fields...))
         # Return an object getter, which is a `Call` instance that fetches objects from the event service.
-        return object_getter(r.dapr, object_id, thisdemo; timeout=get_timeout(r.dapr)+maxtime)
+        return object_getter(r.dapr, object_id, thisdemo; timeout=get_timeout()+maxtime)
     else
         return JugsawIR.adt2julia(adt, thisdemo)
     end

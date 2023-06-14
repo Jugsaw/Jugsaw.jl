@@ -86,9 +86,9 @@ function get_router(::RemoteRoute, runtime::AppRuntime)
     HTTP.register!(r, "GET", "/",
         req->HTTP.Response(200,SIMPLE_HEADER,read(joinpath(js_folder, "jugsawir.html")))
     )
-    HTTP.register!(r, "GET", "/jugsawirparser.js",
-        req->HTTP.Response(200,SIMPLE_HEADER,read(joinpath(js_folder, "jugsawirparser.js")))
-    )
+    # HTTP.register!(r, "GET", "/jugsawirparser.js",
+    #     req->HTTP.Response(200,SIMPLE_HEADER,read(joinpath(js_folder, "jugsawirparser.js")))
+    # )
     # job
     HTTP.register!(r, "POST", "/v1/proj/{project}/app/{appname}/ver/{version}/func/{fname}",
         req->job_handler(runtime, req)
@@ -101,7 +101,7 @@ function get_router(::RemoteRoute, runtime::AppRuntime)
     HTTP.register!(r, "GET", "/v1/proj/{project}/app/{appname}/ver/{version}/func",
         req -> demos_handler(runtime.app)
     )
-    # api, NOTE: this is new!!!!
+    # api
     HTTP.register!(r, "GET", "/v1/proj/{project}/app/{appname}/ver/{version}/func/{fname}/api/{lang}",
         req -> code_handler(req, runtime.app)
     )
@@ -110,9 +110,9 @@ function get_router(::RemoteRoute, runtime::AppRuntime)
         req -> JSON3.write((; status="OK"))
     )
     # subscribe
-    HTTP.register!(r, "GET", "/dapr/subscribe",
-         req-> JSON3.write([(pubsubname="jobs", topic="$(runtime.app.created_by).$(runtime.app.name).$(rumtime.app.ver)", route="/events/jobs")])
-    )
+    # HTTP.register!(r, "GET", "/dapr/subscribe",
+    #      req-> JSON3.write([(pubsubname="jobs", topic="$(runtime.app.created_by).$(runtime.app.name).$(rumtime.app.ver)", route="/events/jobs")])
+    # )
     return r
 end
 
