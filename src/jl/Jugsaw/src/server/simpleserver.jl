@@ -22,7 +22,7 @@ function fetch_handler(r::AppRuntime, req::HTTP.Request)
     s = String(req.body)
     @info "fetching: $s"
     job_id = JSON3.read(s)["job_id"]
-    timeout = get_timeout(r.dapr)
+    timeout = get_timeout()
     status, ir = load_object_as_ir(r.dapr, job_id; timeout=timeout)
     if status != :ok
         return _error_response(ErrorException("object not ready yet!"))
