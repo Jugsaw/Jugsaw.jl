@@ -1,14 +1,14 @@
 """
-    job_handler(r::AppRuntime, req::HTTP.Request)
+$TYPEDSIGNATURES
 
-Handle a function call request and returns a response with job id.
+Handle the request of function call and returns a response with job id.
 
 ### Request
 A Jugsaw IR that corresponds to a [`JobSpec`](@ref) instance.
 
-### Returns
-* [SUCCESS]: a JSON object `{"job_id" : ...}`.
-* [ERROR]: a JSON object `{"error" : ...}`.
+### Response
+* [Success]: a JSON object `{"job_id" : ...}`.
+* [NoDemoException]: a JSON object `{"error" : ...}`.
 """
 function job_handler(r::AppRuntime, req::HTTP.Request)
     @info "call!"
@@ -29,6 +29,19 @@ function job_handler(r::AppRuntime, req::HTTP.Request)
     end
 end
 
+"""
+$TYPEDSIGNATURES
+
+Handle the request of fetching computed results and return a response with job id.
+
+### Request
+A JSON payload that specifies the job id as `{"job_id" : ...}`.
+
+### Response
+* [Success]: Jugsaw IR in the form of JSON payload.
+* [TimedOutException]: a JSON object `{"error" : ...}`.
+* [ErrorException]: a JSON object `{"error" : ...}`.
+"""
 function fetch_handler(r::AppRuntime, req::HTTP.Request)
     # NOTE: JSON3 errors
     s = String(req.body)
@@ -45,12 +58,30 @@ function fetch_handler(r::AppRuntime, req::HTTP.Request)
     end
 end
 
+"""
+$TYPEDSIGNATURES
+
+Handle the request of getting application specification, including registered function demos and type definitions.
+
+### Response
+* [Success]: Jugsaw IR in the form of a JSON object.
+"""
 function demos_handler(app::AppSpecification)
     (demos, types) = JugsawIR.julia2ir(app)
     ir = "[$demos, $types]"
     return HTTP.Response(200, JSON_HEADER, ir)
 end
 
+"""
+$TYPEDSIGNATURES
+
+Handle the request of generating the API for calling from a specific client language.
+
+### Response
+* [Success]: a JSON object with requested API code `{"code" : ...}`.
+* [NoDemoException]: a JSON object `{"error" : ...}`.
+* [ErrorException]: a JSON object `{"error" : ...}`.
+"""
 function code_handler(req::HTTP.Request, app::AppSpecification)
     # get language
     params = HTTP.getparams(req)

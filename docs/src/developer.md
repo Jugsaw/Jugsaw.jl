@@ -26,7 +26,7 @@ Step 2. To develop the application, please switch to the application folder, and
 julia --project server.jl
 ```
 It will *live serve* the application locally at `0.0.0.0:8088`.
-The edits to the application file `app.jl` will be reflected immediately to the service, which is powered by [Revise](https://github.com/timholy/Revise.jl).
+Any edit to the application file `app.jl` will be reflected immediately to the service, which is powered by [Revise](https://github.com/timholy/Revise.jl).
 The `app.jl` in the template is printed as the following.
 
 ~~~julia
@@ -54,9 +54,10 @@ app = Jugsaw.AppSpecification(:Test)
 end
 ~~~
 
-`Jugsaw` is already included as your project dependency, you can add more dependencies to your project [in the standard Julian way](https://pkgdocs.julialang.org/v1/environments/).
+`Jugsaw` is already included as your project dependency in `Project.toml`, you can add more dependencies to your project file [in the standard Julian way](https://pkgdocs.julialang.org/v1/environments/).
 A Jugsaw app is specified as a [`Jugsaw.AppSpecification`](@ref) instance, in which you can register functions.
-A function or an API can be registered as a demo with the [`@register`](@ref) macro.
+A function or an API can be registered as a *demo* with the [`@register`](@ref) macro, where a *demo* is a using case of a function with concrete input values.
+It can be either a function call or a test case.
 In the above example, the functions registered in application `:Test` are `greet`, `sin`, `cos`, `^` and `+`.
 
 ## Deploy on the Jugsaw cloud (TODO)

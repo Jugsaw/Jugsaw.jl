@@ -32,7 +32,7 @@ for fmt in formats
             "Get Started" => ["get-started.md"],
             "Application Builder Guide" => "developer.md",
             "Clients" => ["client-julia.md", "client-python.md", "client-javascript.md"],
-            "Package Manuals" => ["man/JugsawIR.md", "man/Jugsaw.md", "man/JugsawServer.md", "man/JugsawClient.md", "design.md"],
+            "Package Manuals" => ["man/JugsawIR.md", "man/Jugsaw.md", "man/JugsawServer.md", "man/JugsawClient.md", "design.md", "framework.md"],
         ],
     )
 end
