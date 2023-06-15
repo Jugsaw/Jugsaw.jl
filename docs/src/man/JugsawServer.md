@@ -4,11 +4,9 @@ DocTestSetup = quote
 end 
 ```
 
-# Jugsaw
-
-## APIs
+# Jugsaw.Server
 
 ```@autodocs
-Modules = [Jugsaw]
+Modules = [Jugsaw.Server]
 Order = [:function, :macro, :type, :module]
 ```

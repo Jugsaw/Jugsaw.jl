@@ -39,6 +39,12 @@ pretype(::ConfigsAllSample) = ConfigsAll(; tree_storage=true)
 pretype(::ConfigsMaxSample{K}) where K = ConfigsMax(K; tree_storage=true)
 pretype(::ConfigsMinSample{K}) where K = ConfigsMin(K; tree_storage=true)
 # TODO: support optimizer picker.
+
+"""
+```math
+x^2
+```
+"""
 function solve(probconfig::GraphProblemConfig,
                 property::AbstractProperty;
                 usecuda::Bool=false,

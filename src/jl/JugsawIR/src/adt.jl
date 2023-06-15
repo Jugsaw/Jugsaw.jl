@@ -3,6 +3,16 @@
 #       <-----------------------------
 
 ############ TypeTable
+"""
+$(TYPEDEF)
+
+The type definitions.
+
+### Fields
+$(TYPEDFIELDS)
+
+The `defs` defines a mapping from the type name to a [`JDataType`](@ref) instance.
+"""
 struct TypeTable
     names::Vector{String}
     defs::Dict{String, JDataType}

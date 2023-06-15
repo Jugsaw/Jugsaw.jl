@@ -1,4 +1,11 @@
-# the application specification
+"""
+$(TYPEDEF)
+
+The application specification.
+
+### Fields
+$(TYPEDFIELDS)
+"""
 struct AppSpecification
     name::Symbol
     # `method_demos` is a maps function names to demos,
@@ -7,6 +14,8 @@ struct AppSpecification
     method_demos::Dict{String, Vector{JugsawDemo}}
 end
 AppSpecification(name) = AppSpecification(name, String[], Dict{String,JugsawDemo}())
+
+# number of functions in the application
 function nfunctions(app::AppSpecification)
     @assert length(app.method_names) == length(app.method_demos)
     return length(app.method_names)
@@ -97,6 +106,23 @@ function safe_f2str(f)
     return sf
 end
 
+"""
+    @register app expression
+
+Register a function to the application.
+A function can be registered as a demo, which can take the following forms.
+
+```julia
+@register app f(args...; kwargs...) == result    # a function call + a test
+@register app f(args...; kwargs...) ≈ result     # similar to the above
+@register app f(args...; kwargs...)::T           # a function call with assertion of the return type
+@register app f(args...; kwargs...)              # a function call
+@register app begin ... end                      # a sequence of function
+```
+
+The [`@register`](@ref) macro checks and executes the expression. If the tests and type asserts in the expression does not hold, an error will be thrown.
+Otherwise, both the top level function call and those appear in the input arguments will be registered.
+"""
 macro register(app, ex)
     reg_statements = []
     register_by_expr(app, ex, reg_statements)

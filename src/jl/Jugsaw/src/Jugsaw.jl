@@ -1,7 +1,7 @@
 module Jugsaw
 
 using JugsawIR
-using JugsawIR.JSON3
+using JugsawIR.JSON3, JugsawIR.DocStringExtensions
 using JugsawIR: @match, Tree, Call
 using UUIDs
 using UUIDs: uuid4

@@ -6,7 +6,6 @@ using Jugsaw.Server, Jugsaw.Client
 @testset "file event service" begin
     dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
     mkpath(dapr.save_dir)
-    @test get_timeout(dapr) == 1.0
 
     job_id = string(Jugsaw.uuid4())
 
@@ -31,8 +30,9 @@ end
 
 @testset "in memory event" begin
     dapr = InMemoryEventService()
-    @test get_timeout(dapr) == 0.0
     job_id = string(Jugsaw.uuid4())
+    @test get_timeout() == 15.0
+    @test Server.get_query_interval() == 0.1
 
     # status updated
     status = JobStatus(id=job_id, status=Jugsaw.Server.succeeded)

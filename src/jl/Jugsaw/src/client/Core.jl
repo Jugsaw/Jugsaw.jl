@@ -1,3 +1,9 @@
+"""
+$(TYPEDEF)
+
+### Fields
+$(TYPEDFIELDS)
+"""
 Base.@kwdef mutable struct ClientContext
     endpoint::String = "http://localhost:8088/"
     localurl::Bool = false
@@ -9,6 +15,12 @@ Base.@kwdef mutable struct ClientContext
 end
 Base.copy(c::ClientContext) = ClientContext(c.endpoint, c.localurl, c.project, c.appname, c.version, c.fname)
 
+"""
+$(TYPEDEF)
+
+### Fields
+$(TYPEDFIELDS)
+"""
 struct Demo
     fcall::Call
     result
@@ -20,6 +32,12 @@ function Base.show(io::IO, d::Demo)
 end
 Base.Docs.doc(d::Demo) = Markdown.parse(get(d.meta, "docstring", ""))
 
+"""
+$(TYPEDEF)
+
+### Fields
+$(TYPEDFIELDS)
+"""
 struct DemoRef
     demo::Demo
     context::ClientContext
@@ -42,6 +60,12 @@ function test_demo(demo::DemoRef)
     return expect === result || result == expect || result ≈ expect
 end
 
+"""
+$(TYPEDEF)
+
+### Fields
+$(TYPEDFIELDS)
+"""
 struct DemoRefs
     name::Symbol
     demos::Vector{Demo}
@@ -80,7 +104,18 @@ end
 test_demo(demos::DemoRefs) = all(test_demo, demos)
 #Base.Docs.doc(d::DemoRefs) = Base.Docs.doc(d.demos |> first)
 
-# the application instance, potential issues: function names __name, __endpoint and __method_demos, __type_table may cause conflict.
+"""
+$(TYPEDEF)
+
+The Jugsaw application instance.
+
+!!! note
+    The `Base.getproperty` function has been overloaded to favor fetching demos. To get fields, please use `app[fieldname]`.
+    For example, to get the application name, one should use `app[:name]`.
+
+### Fields
+$(TYPEDFIELDS)
+"""
 struct App
     name::Symbol
     method_demos::OrderedDict{Symbol, Vector{Demo}}

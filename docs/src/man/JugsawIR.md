@@ -4,7 +4,7 @@ DocTestSetup = quote
 end 
 ```
 
-# Jugsaw IR
+# JugsawIR
 
 [JugsawIR](@ref) is an intermediate representation (IR) for exposing and using cloud scientific applications.
 Its grammar is compatible with JSON at the time of writing, however, it might undergo a refactor to support richer features.

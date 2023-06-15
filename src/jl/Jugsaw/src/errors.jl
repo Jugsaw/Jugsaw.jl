@@ -1,3 +1,11 @@
+"""
+$TYPEDEF
+
+This error was thrown when a demo matching the target type signature is not found.
+
+### Fields
+$TYPEDFIELDS
+"""
 struct NoDemoException <: Exception
     func_sig
     methods

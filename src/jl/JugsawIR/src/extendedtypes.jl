@@ -2,6 +2,14 @@ native2jugsaw(x) = x
 native2jugsaw(x::Vector) = x
 
 ##### Dict
+"""
+$TYPEDEF
+
+The dictionary type in Jugsaw.
+
+### Fields
+$TYPEDFIELDS
+"""
 struct JDict{K, V}
     keys::Vector{K}
     vals::Vector{V}
@@ -17,6 +25,14 @@ function construct_object(t::JugsawADT, demo::Dict)
 end
 
 ##### Enum
+"""
+$TYPEDEF
+
+The enum type in Jugsaw.
+
+### Fields
+$TYPEDFIELDS
+"""
 struct JEnum
     kind::String
     value::String
@@ -31,12 +47,28 @@ function construct_object(t::JugsawADT, demo::Enum)
 end
 
 ##### JArray
+"""
+$TYPEDEF
+
+The data type for arrays in Jugsaw.
+
+### Fields
+$TYPEDFIELDS
+"""
 struct JArray{T}
     size::Vector{Int}
     storage::Vector{T}
 end
 
 ##### DataType
+"""
+$TYPEDEF
+
+The type for specifying data type in Jugsaw.
+
+### Fields
+$TYPEDFIELDS
+"""
 struct JDataType
     name::String
     fieldnames::Vector{String}   # can not use tuple!

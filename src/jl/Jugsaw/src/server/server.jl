@@ -2,7 +2,7 @@ module Server
 using HTTP
 using JugsawIR
 using Dates: now, datetime2unix
-using JugsawIR.JSON3
+using JugsawIR.JSON3, JugsawIR.DocStringExtensions
 import CloudEvents
 import Revise
 import DaprClients
@@ -12,23 +12,38 @@ import ..AppSpecification, ..NoDemoException, ..generate_code, .._error_msg, ..T
 export Job, JobStatus, JobSpec
 export AbstractEventService, DaprService, FileEventService, InMemoryEventService, publish_status, fetch_status, save_object, load_object, load_object_as_ir, get_timeout
 export AppRuntime, addjob!
+export demos_handler, code_handler, fetch_handler, job_handler
 
 include("jobhandler.jl")
 include("simpleserver.jl")
 include("liveserver.jl")
 
-running_locally() = get(ENV, "JUGSAW_SERVER", "LOCAL") == "LOCAL"
+const GLOBAL_CONFIG = Dict{String, Any}(
+    "network-timeout" => 15.0,
+    "query-interval" => 0.1,
+    "jugsaw-server" => get(ENV, "JUGSAW_SERVER", "LOCAL"),
+)
+
+# Return true if the service is running on a local machine.
+# When running in a docker image, the "JUGSAW_SERVER" environment variable should be "DOCKER".
+running_locally() = get(GLOBAL_CONFIG, "jugsaw-server", "LOCAL") == "LOCAL"
 
 """
-    serve(app::AppSpecification;
-            eventservice = ...,
-            liveupdate::Bool = ...,
-            host="0.0.0.0",
-            port=8088,
-            localurl=false,
-            launch_browser=true,
-            watched_files=String[]
-            )
+$(TYPEDSIGNATURES)
+
+Returns the network timeout of the event service access in seconds.
+"""
+get_timeout() = get(GLOBAL_CONFIG, "network-timeout", 15.0)
+
+"""
+$(TYPEDSIGNATURES)
+
+Returns the query time interval of the event service in seconds.
+"""
+get_query_interval() = get(GLOBAL_CONFIG, "query-interval", 0.1)
+
+"""
+$(TYPEDSIGNATURES)
 
 Serve this application on specified host and port.
 
@@ -50,6 +65,14 @@ Otherwise if the server runs on a docker container, then the value of "JUGSAW_SE
 * `launch_browser` is boolean variable. If both this variable and `liveserve` are true, the default browser will open an html page for end-to-end testing.
 * `localurl` is a switch to serve in local mode with a simplified routing table.
 In the local mode, the project name and application name are not required in the request url.
+
+### The route table
+* ("GET", "/") -> get the index page (for local debugging).
+* ("POST", "/v1/proj/{project}/app/{appname}/ver/{version}/func/{fname}") -> call a function and return a job id, please check [`job_handler`](@ref).
+* ("POST", "/v1/job/{job_id}/result") -> fetch results with a job id, please check [`fetch_handler`](@ref).
+* ("GET", "/v1/proj/{project}/app/{appname}/ver/{version}/func") -> get application information, please check [`demos_handler`](@ref).
+* ("GET", "/v1/proj/{project}/app/{appname}/ver/{version}/func/{fname}/api/{lang}") -> get the API call for a client language, please check [`code_handler`](@ref).
+* ("GET", "/v1/proj/{project}/app/{appname}/ver/{version}/healthz") -> get the status of current application.
 """
 function serve(app::AppSpecification;
         eventservice = running_locally() ? InMemoryEventService() : DaprService(),

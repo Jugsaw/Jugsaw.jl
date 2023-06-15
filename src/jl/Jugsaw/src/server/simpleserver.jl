@@ -1,3 +1,15 @@
+"""
+$TYPEDSIGNATURES
+
+Handle the request of function call and returns a response with job id.
+
+### Request
+A Jugsaw IR that corresponds to a [`JobSpec`](@ref) instance.
+
+### Response
+* [Success]: a JSON object `{"job_id" : ...}`.
+* [NoDemoException]: a JSON object `{"error" : ...}`.
+"""
 function job_handler(r::AppRuntime, req::HTTP.Request)
     @info "call!"
     # top level must be a function call
@@ -17,12 +29,25 @@ function job_handler(r::AppRuntime, req::HTTP.Request)
     end
 end
 
+"""
+$TYPEDSIGNATURES
+
+Handle the request of fetching computed results and return a response with job id.
+
+### Request
+A JSON payload that specifies the job id as `{"job_id" : ...}`.
+
+### Response
+* [Success]: Jugsaw IR in the form of JSON payload.
+* [TimedOutException]: a JSON object `{"error" : ...}`.
+* [ErrorException]: a JSON object `{"error" : ...}`.
+"""
 function fetch_handler(r::AppRuntime, req::HTTP.Request)
     # NOTE: JSON3 errors
     s = String(req.body)
     @info "fetching: $s"
     job_id = JSON3.read(s)["job_id"]
-    timeout = get_timeout(r.dapr)
+    timeout = get_timeout()
     status, ir = load_object_as_ir(r.dapr, job_id; timeout=timeout)
     if status != :ok
         return _error_response(ErrorException("object not ready yet!"))
@@ -33,12 +58,30 @@ function fetch_handler(r::AppRuntime, req::HTTP.Request)
     end
 end
 
+"""
+$TYPEDSIGNATURES
+
+Handle the request of getting application specification, including registered function demos and type definitions.
+
+### Response
+* [Success]: Jugsaw IR in the form of a JSON object.
+"""
 function demos_handler(app::AppSpecification)
     (demos, types) = JugsawIR.julia2ir(app)
     ir = "[$demos, $types]"
     return HTTP.Response(200, JSON_HEADER, ir)
 end
 
+"""
+$TYPEDSIGNATURES
+
+Handle the request of generating the API for calling from a specific client language.
+
+### Response
+* [Success]: a JSON object with requested API code `{"code" : ...}`.
+* [NoDemoException]: a JSON object `{"error" : ...}`.
+* [ErrorException]: a JSON object `{"error" : ...}`.
+"""
 function code_handler(req::HTTP.Request, app::AppSpecification)
     # get language
     params = HTTP.getparams(req)
@@ -86,9 +129,9 @@ function get_router(::RemoteRoute, runtime::AppRuntime)
     HTTP.register!(r, "GET", "/",
         req->HTTP.Response(200,SIMPLE_HEADER,read(joinpath(js_folder, "jugsawir.html")))
     )
-    HTTP.register!(r, "GET", "/jugsawirparser.js",
-        req->HTTP.Response(200,SIMPLE_HEADER,read(joinpath(js_folder, "jugsawirparser.js")))
-    )
+    # HTTP.register!(r, "GET", "/jugsawirparser.js",
+    #     req->HTTP.Response(200,SIMPLE_HEADER,read(joinpath(js_folder, "jugsawirparser.js")))
+    # )
     # job
     HTTP.register!(r, "POST", "/v1/proj/{project}/app/{appname}/ver/{version}/func/{fname}",
         req->job_handler(runtime, req)
@@ -101,7 +144,7 @@ function get_router(::RemoteRoute, runtime::AppRuntime)
     HTTP.register!(r, "GET", "/v1/proj/{project}/app/{appname}/ver/{version}/func",
         req -> demos_handler(runtime.app)
     )
-    # api, NOTE: this is new!!!!
+    # api
     HTTP.register!(r, "GET", "/v1/proj/{project}/app/{appname}/ver/{version}/func/{fname}/api/{lang}",
         req -> code_handler(req, runtime.app)
     )
@@ -110,9 +153,9 @@ function get_router(::RemoteRoute, runtime::AppRuntime)
         req -> JSON3.write((; status="OK"))
     )
     # subscribe
-    HTTP.register!(r, "GET", "/dapr/subscribe",
-         req-> JSON3.write([(pubsubname="jobs", topic="$(runtime.app.created_by).$(runtime.app.name).$(rumtime.app.ver)", route="/events/jobs")])
-    )
+    # HTTP.register!(r, "GET", "/dapr/subscribe",
+    #      req-> JSON3.write([(pubsubname="jobs", topic="$(runtime.app.created_by).$(runtime.app.name).$(rumtime.app.ver)", route="/events/jobs")])
+    # )
     return r
 end
 
