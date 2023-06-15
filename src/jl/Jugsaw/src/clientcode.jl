@@ -38,7 +38,7 @@ function generate_code(::JuliaLang, endpoint::String, appname::Symbol, fcall::Ju
     callexpr.args[1] = :(app.$(callexpr.args[1]))
     code = join(string.([
         :(using Jugsaw.Client),
-        :(app = request_app(RemoteHandler($endpoint), $(QuoteNode(appname)))),
+        :(app = request_app(ClientContext(; endpoint=$endpoint), $(QuoteNode(appname)))),
         callexpr
             ]), "\n")
     return string(code)

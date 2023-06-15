@@ -7,7 +7,7 @@ using JugsawIR
     code = generate_code(Jugsaw.JuliaLang(), "jugsaw.co", :testapp, adt, democall)
     @test Jugsaw.fexpr(Jugsaw.JuliaLang(), adt, democall) == :(isapprox(1.0, 2.0; atol = 1.0e-8))
     @test code == """using Jugsaw.Client
-app = request_app(RemoteHandler("jugsaw.co"), :testapp)
+app = request_app(ClientContext(; endpoint="jugsaw.co"), :testapp)
 app.isapprox(1.0, 2.0; atol = 1.0e-8)"""
 
     adt, = JugsawIR.julia2adt(JugsawIR.Call(:+, (1.0+2im, 2.0-1im), (;)))

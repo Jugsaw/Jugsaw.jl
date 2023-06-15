@@ -1,6 +1,16 @@
 ###################### IR 2 Tree
-const jp = Lark(read(joinpath(@__DIR__, "jugsawir.lark"), String),parser="lalr",lexer="contextual", start="object")
 ir2tree(str::String) = Lerche.parse(jp, str)
+"""
+$(TYPEDSIGNATURES)
+
+Convert Jugsaw IR to julia object, given a demo object as a reference. Please check [`julia2ir`](@ref) for the inverse map.
+
+### Examples
+```jldoctest; setup=:(using JugsawIR)
+julia> JugsawIR.ir2julia("{\\"fields\\" : [3, 4]}", 1+2im)
+3 + 4im
+```
+"""
 function ir2julia(str::String, demo)
     tree = ir2tree(str)
     adt = tree2adt(tree)
@@ -61,6 +71,20 @@ function _makedict(type::String, fields::Vector{Any})
 end
 
 ##################### Interfaces
+"""
+$(TYPEDSIGNATURES)
+
+Convert julia object to Jugsaw IR and a type table, where the type table is a special Jugsaw IR that stores the type definitions.
+Please check [`ir2julia`](@ref) for the inverse map.
+
+### Examples
+```jldoctest; setup=:(using JugsawIR)
+julia> ir, typetable = JugsawIR.julia2ir(1+2im);
+
+julia> ir
+"{\\"fields\\":[1,2],\\"type\\":\\"Base.Complex{Core.Int64}\\"}"
+```
+"""
 function julia2ir(obj)
     obj, tt = julia2adt(obj)
     # TODO: remove json!

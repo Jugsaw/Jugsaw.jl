@@ -28,12 +28,19 @@ hljs.initHighlightingOnLoad();
 </script>
 </head>
 <body>
+    <h1>Jugsaw Debugger</h1>
 <div>
 <span> Endpoint </span><input id="input-endpoint" value="http://0.0.0.0" type="text" disabled>
 </div>
 <div>
 <span> Port </span><input id="input-port" value=8088 type="number" disabled>
 </div>
+<p>
+    Please toggle a function name to get started.
+    You can edit the fields and click the "submit" button to launch a function call.
+    A <strong>job id</strong> will show up below the "submit" button.
+    With this <strong>job id</strong>, you then click "fetch" to get the computed result.
+</p>
 <div id="jugsaw-demos"></div>
 <div id="jugsaw-demos-error"></div>
 

@@ -1,4 +1,12 @@
 # NOTE: demo_result is not the return value!
+"""
+$(TYPEDEF)
+
+A callable lazy result. To fetch the result value, please use `lazyresult()`.
+
+### Fields
+$(TYPEDFIELDS)
+"""
 struct LazyReturn
     context::ClientContext
     job_id::String
@@ -8,6 +16,15 @@ function (r::LazyReturn)()
     return fetch(r.context, r.job_id, r.demo_result)
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Request an application from an endpoint.
+
+###  Arguments
+* `context` is a [`ClientContext`](@ref) instance, which contains contextual information like the endpoint.
+* `appname` specificies the application to be fetched.
+"""
 function request_app(context::ClientContext, appname::Symbol)
     context = copy(context)
     context.appname = appname
@@ -18,11 +35,17 @@ end
 
 function test_demo(endpoint::String, app::App, fname::Symbol)
     for (i, demo) in enumerate(getproperty(app, fname))
-        got = call(endpoint, app, fname, i, demo.fcall.args...; demo.fcall.kwargs...)()
+        got = call(ClientContext(; endpoint), app, fname, i, demo.fcall.args...; demo.fcall.kwargs...)()
         got == demo.result || got ≈ demo.result || return false
     end
     return true
 end
+
+"""
+$TYPEDSIGNATURES
+
+Launch a function call.
+"""
 call(demo::DemoRef, args...; kwargs...) = call(demo.context, demo.demo, args...; kwargs...)
 function call(context::ClientContext, demo::Demo, args...; kwargs...)
     args_adt = adt_norecur(demo.meta["args_type"], args)
@@ -54,12 +77,22 @@ function adt_norecur(typename::String, x::T) where T
     return JugsawADT.Object(typename, fields)
 end
 
+"""
+$TYPEDSIGNATURES
+
+Fetch results from the endpoint with job id.
+"""
 # can we access the object without knowing the appname and function name?
 function fetch(context::ClientContext, job_id::String, demo_result)
     ret = safe_request(()->new_request(context, Val(:fetch), job_id))
     return ir2julia(String(ret.body), demo_result)
 end
 
+"""
+$TYPEDSIGNATURES
+
+Check the status of the application.
+"""
 function healthz(context::ClientContext)
     path = context.localurl ? "healthz" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/healthz"
     JSON3.read(HTTP.get(joinpath(context.endpoint, path)).body)

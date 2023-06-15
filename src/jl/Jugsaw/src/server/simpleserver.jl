@@ -1,3 +1,15 @@
+"""
+    job_handler(r::AppRuntime, req::HTTP.Request)
+
+Handle a function call request and returns a response with job id.
+
+### Request
+A Jugsaw IR that corresponds to a [`JobSpec`](@ref) instance.
+
+### Returns
+* [SUCCESS]: a JSON object `{"job_id" : ...}`.
+* [ERROR]: a JSON object `{"error" : ...}`.
+"""
 function job_handler(r::AppRuntime, req::HTTP.Request)
     @info "call!"
     # top level must be a function call

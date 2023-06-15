@@ -12,9 +12,14 @@ function _error_response(e::Exception)
 end
 
 """
-    JobSpec
+$(TYPEDEF)
 
-A job specified as a Jugsaw ADT.
+A job with function payload specified as a [`JugsawADT`](@ref).
+
+### Fields
+$(TYPEDFIELDS)
+
+Here `id` is the job id that used to store and fetch computed results.
 """
 struct JobSpec
     # meta information
@@ -30,9 +35,12 @@ struct JobSpec
 end
 
 """
-    Job
+$(TYPEDEF)
 
 A resolved job can be queued and executed in a `AppRuntime`.
+
+### Fields
+$(TYPEDFIELDS)
 """
 struct Job
     # meta information
@@ -48,9 +56,12 @@ struct Job
 end
 
 """
-    JobStatus
+$(TYPEDEF)
 
-A job status.
+A job status that can be pubished to [`AbstractEventService`](@ref).
+
+### Fields
+$(TYPEDFIELDS)
 """
 Base.@kwdef struct JobStatus
     id::String
@@ -68,7 +79,7 @@ The abstract type for event service. Its concrete subtypes include
 * [`InMemoryEventService`](@ref)
 
 ### Required Interfaces
-* [`publish_event`](@ref)
+* [`publish_status`](@ref)
 * [`fetch_status`](@ref)
 * [`save_object`](@ref)
 * [`load_object`](@ref)
@@ -236,12 +247,13 @@ function load_object_as_ir(dapr::FileEventService, job_id::AbstractString; timeo
 end
 
 """
-    InMemoryEventService <: AbstractEventService
+$(TYPEDEF)
 
 An event service for storing and fetching events and results from the the main memory.
 Please check [`AbstractEventService`](@ref) for implemented interfaces.
 
-When deploying Jugsaw locally, read-write through local storage might be too slow.
+### Fields
+$(TYPEDFIELDS)
 """
 struct InMemoryEventService <: AbstractEventService
     print_event::Bool
@@ -294,7 +306,7 @@ end
 
 ########################## Application Runtime
 """
-    AppRuntime{ES<:AbstractEventService}
+$(TYPEDEF)
 
 The application instance wrapped with run time information.
 
