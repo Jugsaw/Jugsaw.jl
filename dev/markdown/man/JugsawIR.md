@@ -1,14 +1,14 @@
 
 
 
-<a id='Jugsaw-IR'></a>
+<a id='JugsawIR'></a>
 
-<a id='Jugsaw-IR-1'></a>
+<a id='JugsawIR-1'></a>
 
-# Jugsaw IR
+# JugsawIR
 
 
-[JugsawIR](@ref) is an intermediate representation (IR) for exposing and using cloud scientific applications. Its grammar is compatible with JSON at the time of writing, however, it might undergo a refactor to support richer features. The final form should be a real programming language for Web Virtual Machine.
+[JugsawIR](JugsawIR.md#JugsawIR) is an intermediate representation (IR) for exposing and using cloud scientific applications. Its grammar is compatible with JSON at the time of writing, however, it might undergo a refactor to support richer features. The final form should be a real programming language for Web Virtual Machine.
 
 
 Jugsaw IR can represent data, data types, and function calls. The basic rule is representing a Jugsaw object as a JSON object with extra constaints,
@@ -49,7 +49,7 @@ Or when calling a remote function, one can ommit the `"type"` specification, sin
 
 
 !!! note
-    The `julia2ir` function returns a two element tuple, a representation of object, and a [`TypeTable`](@ref) to delare types.
+    The `julia2ir` function returns a two element tuple, a representation of object, and a [`TypeTable`](JugsawIR.md#JugsawIR.TypeTable) to delare types.
 
 
 
@@ -69,7 +69,7 @@ julia> julia2ir(ComplexF64)[1] |> println
 ```
 
 
-For convenience, JugsawIR returns a [`TypeTable`](@ref) instance to represent the types used in parsing.
+For convenience, JugsawIR returns a [`TypeTable`](JugsawIR.md#JugsawIR.TypeTable) instance to represent the types used in parsing.
 
 
 <a id='Examples-3:-Representing-Funcation-Call'></a>
@@ -138,4 +138,177 @@ null : "null"
 <a id='APIs-1'></a>
 
 ## APIs
+
+<a id='JugsawIR.ir2julia-Tuple{String, Any}' href='#JugsawIR.ir2julia-Tuple{String, Any}'>#</a>
+**`JugsawIR.ir2julia`** &mdash; *Method*.
+
+
+
+```julia
+ir2julia(str::String, demo) -> Any
+
+```
+
+Convert Jugsaw IR to julia object, given a demo object as a reference. Please check [`julia2ir`](JugsawIR.md#JugsawIR.julia2ir-Tuple{Any}) for the inverse map.
+
+**Examples**
+
+```julia-repl
+julia> JugsawIR.ir2julia("{\"fields\" : [3, 4]}", 1+2im)
+3 + 4im
+```
+
+
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/6015de0a47fd0e1fa3315929fbf489183839d5ea/src/jl/JugsawIR/src/ir.jl#L3' class='documenter-source'>source</a><br>
+
+<a id='JugsawIR.julia2ir-Tuple{Any}' href='#JugsawIR.julia2ir-Tuple{Any}'>#</a>
+**`JugsawIR.julia2ir`** &mdash; *Method*.
+
+
+
+```julia
+julia2ir(obj) -> Tuple{Any, Any}
+
+```
+
+Convert julia object to Jugsaw IR and a type table, where the type table is a special Jugsaw IR that stores the type definitions. Please check [`ir2julia`](JugsawIR.md#JugsawIR.ir2julia-Tuple{String, Any}) for the inverse map.
+
+**Examples**
+
+```julia-repl
+julia> ir, typetable = JugsawIR.julia2ir(1+2im);
+
+julia> ir
+"{\"fields\":[1,2],\"type\":\"Base.Complex{Core.Int64}\"}"
+```
+
+
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/6015de0a47fd0e1fa3315929fbf489183839d5ea/src/jl/JugsawIR/src/ir.jl#L74' class='documenter-source'>source</a><br>
+
+<a id='JugsawIR.Call' href='#JugsawIR.Call'>#</a>
+**`JugsawIR.Call`** &mdash; *Type*.
+
+
+
+```julia
+struct Call
+```
+
+**Fields**
+
+  * `fname::Any`
+  * `args::Tuple`
+  * `kwargs::NamedTuple`
+
+
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/6015de0a47fd0e1fa3315929fbf489183839d5ea/src/jl/JugsawIR/src/Core.jl#L63' class='documenter-source'>source</a><br>
+
+<a id='JugsawIR.JArray' href='#JugsawIR.JArray'>#</a>
+**`JugsawIR.JArray`** &mdash; *Type*.
+
+
+
+```julia
+struct JArray{T}
+```
+
+The data type for arrays in Jugsaw.
+
+**Fields**
+
+  * `size::Vector{Int64}`
+  * `storage::Vector`
+
+
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/6015de0a47fd0e1fa3315929fbf489183839d5ea/src/jl/JugsawIR/src/extendedtypes.jl#L50' class='documenter-source'>source</a><br>
+
+<a id='JugsawIR.JDataType' href='#JugsawIR.JDataType'>#</a>
+**`JugsawIR.JDataType`** &mdash; *Type*.
+
+
+
+```julia
+struct JDataType
+```
+
+The type for specifying data type in Jugsaw.
+
+**Fields**
+
+  * `name::String`
+  * `fieldnames::Vector{String}`
+  * `fieldtypes::Vector{String}`
+
+
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/6015de0a47fd0e1fa3315929fbf489183839d5ea/src/jl/JugsawIR/src/extendedtypes.jl#L64' class='documenter-source'>source</a><br>
+
+<a id='JugsawIR.JDict' href='#JugsawIR.JDict'>#</a>
+**`JugsawIR.JDict`** &mdash; *Type*.
+
+
+
+```julia
+struct JDict{K, V}
+```
+
+The dictionary type in Jugsaw.
+
+**Fields**
+
+  * `keys::Vector`
+  * `vals::Vector`
+
+
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/6015de0a47fd0e1fa3315929fbf489183839d5ea/src/jl/JugsawIR/src/extendedtypes.jl#L5' class='documenter-source'>source</a><br>
+
+<a id='JugsawIR.JEnum' href='#JugsawIR.JEnum'>#</a>
+**`JugsawIR.JEnum`** &mdash; *Type*.
+
+
+
+```julia
+struct JEnum
+```
+
+The enum type in Jugsaw.
+
+**Fields**
+
+  * `kind::String`
+  * `value::String`
+  * `options::Vector{String}`
+
+
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/6015de0a47fd0e1fa3315929fbf489183839d5ea/src/jl/JugsawIR/src/extendedtypes.jl#L28' class='documenter-source'>source</a><br>
+
+<a id='JugsawIR.JugsawADT' href='#JugsawIR.JugsawADT'>#</a>
+**`JugsawIR.JugsawADT`** &mdash; *Type*.
+
+
+
+`JugsawADT` is an intermediate representation between Jugsaw IR and Julia language.
+
+
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/6015de0a47fd0e1fa3315929fbf489183839d5ea/src/jl/JugsawIR/src/Core.jl#L134' class='documenter-source'>source</a><br>
+
+<a id='JugsawIR.TypeTable' href='#JugsawIR.TypeTable'>#</a>
+**`JugsawIR.TypeTable`** &mdash; *Type*.
+
+
+
+```julia
+struct TypeTable
+```
+
+The type definitions.
+
+**Fields**
+
+  * `names::Vector{String}`
+  * `defs::Dict{String, JDataType}`
+
+The `defs` defines a mapping from the type name to a [`JDataType`](JugsawIR.md#JugsawIR.JDataType) instance.
+
+
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/6015de0a47fd0e1fa3315929fbf489183839d5ea/src/jl/JugsawIR/src/adt.jl#L6' class='documenter-source'>source</a><br>
 

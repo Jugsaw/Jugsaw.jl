@@ -8,44 +8,6 @@
 # Jugsaw
 
 
-<a id='Chained-function-call'></a>
-
-<a id='Chained-function-call-1'></a>
-
-## Chained function call
-
-
-When Jugsaw server gets a chained function call, like `sin(cos(0.5))`. The following two tasks will be added to the task queue.
-
-
-```julia
-Call(cos, (0.5,), (;)) -> id1
-Call(sin, (object_getter(state_store, id1),), (;))
-```
-
-
-where `->` points to the id of the returned object in the `state_store`. The `state_store` is a dictionary mapping an object id to its value. When querying an object from the `state_store`, the program waits for the corresponding task to complete.
-
-
-`object_getter(id)` returns a `Call` instance with the following definition
-
-
-```julia
-function object_getter(state_store::StateStore, object_id::String)
-    Call((s, id)->Meta.parse(Base.getindex(s, id)), (state_store, object_id), (;))
-end
-```
-
-
-The nested `Call` is then executed by the `JugsawIR.fevalself` with the following steps
-
-
-1. `sin` function is triggered,
-2. while rendering the arguments of `sin`, the object getter(`Call`) will trigger the `state_store[id1]`,
-3. wait for the `cos` function to complete,
-4. with the returned object, execute the `sin` function.
-
-
 <a id='APIs'></a>
 
 <a id='APIs-1'></a>
@@ -71,9 +33,72 @@ Please use `subtypes(AbstractLang)` for supported client languages.
 
   * `endpoint` is the url for service provider, e.g. it can be [https://www.jugsaw.co](https://www.jugsaw.co).
   * `appname` is the application name.
-  * `fcall` is a [`JugsawADT`](@ref) that specifies the function call.
+  * `fcall` is a [`JugsawADT`](JugsawIR.md#JugsawIR.JugsawADT) that specifies the function call.
   * `democall` is the demo instance of that function call.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5e14be7cd21816dcb4c2f619c372a009971ea910/src/jl/Jugsaw/src/clientcode.jl#L6-L18' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/6015de0a47fd0e1fa3315929fbf489183839d5ea/src/jl/Jugsaw/src/clientcode.jl#L6-L18' class='documenter-source'>source</a><br>
+
+<a id='Jugsaw.@register-Tuple{Any, Any}' href='#Jugsaw.@register-Tuple{Any, Any}'>#</a>
+**`Jugsaw.@register`** &mdash; *Macro*.
+
+
+
+```julia
+@register app expression
+```
+
+Register a function to the application. A function can be registered as a demo, which can take the following forms.
+
+```julia
+@register app f(args...; kwargs...) == result    # a function call + a test
+@register app f(args...; kwargs...) ≈ result     # similar to the above
+@register app f(args...; kwargs...)::T           # a function call with assertion of the return type
+@register app f(args...; kwargs...)              # a function call
+@register app begin ... end                      # a sequence of function
+```
+
+The [`@register`](Jugsaw.md#Jugsaw.@register-Tuple{Any, Any}) macro checks and executes the expression. If the tests and type asserts in the expression does not hold, an error will be thrown. Otherwise, both the top level function call and those appear in the input arguments will be registered.
+
+
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/6015de0a47fd0e1fa3315929fbf489183839d5ea/src/jl/Jugsaw/src/register.jl#L109-L125' class='documenter-source'>source</a><br>
+
+<a id='Jugsaw.AppSpecification' href='#Jugsaw.AppSpecification'>#</a>
+**`Jugsaw.AppSpecification`** &mdash; *Type*.
+
+
+
+```julia
+struct AppSpecification
+```
+
+The application specification.
+
+**Fields**
+
+  * `name::Symbol`
+  * `method_names::Vector{String}`
+  * `method_demos::Dict{String, Vector{JugsawDemo}}`
+
+
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/6015de0a47fd0e1fa3315929fbf489183839d5ea/src/jl/Jugsaw/src/register.jl#L1' class='documenter-source'>source</a><br>
+
+<a id='Jugsaw.NoDemoException' href='#Jugsaw.NoDemoException'>#</a>
+**`Jugsaw.NoDemoException`** &mdash; *Type*.
+
+
+
+```julia
+struct NoDemoException <: Exception
+```
+
+This error was thrown when a demo matching the target type signature is not found.
+
+**Fields**
+
+  * `func_sig::Any`
+  * `methods::Any`
+
+
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/6015de0a47fd0e1fa3315929fbf489183839d5ea/src/jl/Jugsaw/src/errors.jl#L1' class='documenter-source'>source</a><br>
 
