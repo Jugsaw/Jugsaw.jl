@@ -1,0 +1,72 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "appId": "helloworld",
+            "logLevel": "debug",
+            "appPort": 8088,
+            "httpPort": 3500,
+            "grpcPort": 5000,
+            "componentsPath": "./dapr-components",
+            "label": "dapr-jugsaw-hello-world-debug",
+            "type": "dapr",
+            "presentation": {
+                "reveal": "silent",
+                "close": true
+            }
+        },
+        {
+            "appId": "helloworld",
+            "label": "dapr-jugsaw-hello-world-down",
+            "type": "daprd-down",
+            "presentation": {
+                "reveal": "silent",
+                "close": true
+            }
+        },
+        {
+            "appId": "api",
+            "appPort": 7035,
+            "httpPort": 3535,
+            "grpcPort": 5035,
+            "componentsPath": "./dapr-components",
+            "label": "dapr-api-debug",
+            "type": "dapr",
+            "presentation": {
+                "reveal": "silent",
+                "close": true
+            }
+        },
+        {
+            "appId": "api",
+            "label": "dapr-api-down",
+            "type": "daprd-down",
+            "presentation": {
+                "reveal": "silent",
+                "close": true
+            }
+        },
+        {
+            "appId": "jobmanager",
+            "appPort": 7036,
+            "httpPort": 3536,
+            "grpcPort": 5036,
+            "componentsPath": "./dapr-components",
+            "label": "dapr-job-manager-debug",
+            "type": "dapr",
+            "presentation": {
+                "reveal": "silent",
+                "close": true
+            }
+        },
+        {
+            "appId": "jobmanager",
+            "label": "dapr-job-manager-down",
+            "type": "daprd-down",
+            "presentation": {
+                "reveal": "silent",
+                "close": true
+            }
+        }
+    ]
+}

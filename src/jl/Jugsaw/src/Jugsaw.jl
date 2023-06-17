@@ -13,6 +13,7 @@ export AppSpecification, AppRuntime
 export serve, @register
 export build
 export NoDemoException
+export generate_code
 
 include("typeuniverse.jl")
 include("errors.jl")
@@ -23,5 +24,6 @@ include("server.jl")
 include("client/Client.jl")
 include("template.jl")
 include("checkapp.jl")
+include("clientcode.jl")
 
 end # module

@@ -1,4 +1,9 @@
-.vscode
+!example/hello_world/app/Manifest.toml
+
+.vscode/
+!launch.json
+!tasks.json
+
 demos.json
 types.json
 # Byte-compiled / optimized / DLL files

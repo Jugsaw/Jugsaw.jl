@@ -16,3 +16,7 @@ end
 @testset "Core" begin
     include("Core.jl")
 end
+
+@testset "pressure test" begin
+    include("brutaltest.jl")
+end
