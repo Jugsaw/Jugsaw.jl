@@ -21,7 +21,8 @@ using JugsawIR.JSON3
         @test test_demo(app.sin)
 
         # call
-        obj = call(app.sin[1], 3.0)
+        f = app.sin[1]
+        obj = call(f.context, f.demo, 3.0)
         @test obj isa Client.LazyReturn
         @test obj() ≈ sin(3.0)
     catch e
