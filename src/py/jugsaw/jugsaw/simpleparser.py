@@ -99,22 +99,33 @@ def load_app(s:str):
         for demo in aslist(method_demos[fname]):
             (_fcall, result, meta) = demo.fields
             _fname, args, kwargs = _fcall.fields
-            jf = Call(fname, args.fields, dict(zip(aslist(tt.defs[kwargs.typename].fieldnames), kwargs.fields)))
+            jf = Call(fname, args.fields, OrderedDict(zip(aslist(tt.defs[kwargs.typename].fieldnames), kwargs.fields)))
             demo = Demo(jf, result, makedict(meta.fields[0], meta.fields[1]))
             demos[fname].append(demo)
     return (name, demos, tt)
+
+# showing demo python inputs
+def adt2py(adt):
+    if isinstance(adt, JugsawObject):
+        return tuple([adt2py(x) for x in adt.fields])
+    elif isinstance(adt, list):
+        return [adt2py(x) for x in adt]
+    elif isdirectrepresentable(adt):
+        return adt
+    else:
+        raise Exception(f"{type(adt)} can not be parsed to python object!")
 
 def aslist(obj):
     return obj.fields[1]
 
 def makedict(ks, vs):
-    return dict(zip(aslist(ks), aslist(vs)))
+    return OrderedDict(zip(aslist(ks), aslist(vs)))
 
 def load_typetable(ast:JugsawObject):
     #for obj in ast
     types, typedefs = ast.fields
     ks, vs = typedefs.fields
-    defs = dict(zip(aslist(ks), aslist(vs)))
+    defs = OrderedDict(zip(aslist(ks), aslist(vs)))
     d = {}
     for type in aslist(types):
         elem = defs[type]
@@ -123,28 +134,31 @@ def load_typetable(ast:JugsawObject):
     return TypeTable(d)
 
 # convert a Jugsaw tree to a dict
-def py2dict(obj):
-    if (obj is None) or any([isinstance(obj, tp) for tp in (int, str, float, bool, np.number)]):
-        return obj
-    elif isinstance(obj, dict):
-        return {"fields" : [py2dict([k for k in obj.keys()]), py2dict([v for v in obj.values()])]}
-    elif isinstance(obj, list):
-        return [py2dict(x) for x in obj]
-    elif isinstance(obj, enum.Enum):
-        return {"fields":[type(obj).__name__, obj.name, [str(x.name) for x in type(obj)]]}
-    elif isinstance(obj, np.ndarray):
-        if np.ndim(obj) == 1:
-            return [py2dict(x) for x in obj]
-        else:
-            vec = np.reshape(obj, -1, order="F")
-            return {"fields": [list(obj.shape), py2dict(vec)]}
-    elif isinstance(obj, complex):
-        return {"fields": [obj.real, obj.imag]}
-    else:
-        return {"fields": [getattr(obj, x) for x in obj.__dict__.keys()]}
+def isdirectrepresentable(obj):
+    return (obj is None) or any([isinstance(obj, tp) for tp in (int, str, float, bool)])
 
-def py2ir(py):
-    return json.dumps(py2dict(py))
+def py2adt(obj):
+    if isdirectrepresentable(obj):
+        return obj
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, dict) or isinstance(obj, OrderedDict):
+        return JugsawObject("JugsawIR.JDict", [py2adt([k for k in obj.keys()]), py2adt([v for v in obj.values()])])
+    elif isinstance(obj, list):
+        return JugsawObject("Core.Array", [[len(obj)], [py2adt(x) for x in obj]])
+    elif isinstance(obj, np.ndarray):
+        vec = np.reshape(obj, -1, order="F")
+        return JugsawObject("Core.Array", [list(obj.shape), [py2adt(x) for x in vec]])
+    elif isinstance(obj, tuple):
+        return JugsawObject("Core.Tuple", [py2adt(x) for x in obj])
+    elif isinstance(obj, enum.Enum):
+        return JugsawObject("Base.Enum", [type(obj).__name__, obj.name, [str(x.name) for x in type(obj)]])
+    elif isinstance(obj, complex):
+        return JugsawObject("Base.Complex", [obj.real, obj.imag])
+    else:
+        return JugsawObject(str(type(obj)), [getattr(obj, x) for x in obj.__dict__.keys()])
 
 ###################### ADT to IR
 def adt2ir(x):
@@ -155,10 +169,13 @@ def _adt2ir(x):
         return _makedict(x.typename, [_adt2ir(v) for v in x.fields])
     elif isinstance(x, list):
         return [_adt2ir(v) for v in x]
-    elif isinstance(x, float) or x == None or isinstance(x, int) or isinstance(x, str):
+    elif isdirectrepresentable(x):
         return x
     else:
         raise Exception(f"type can not be casted to IR, got: {x} of type {type(x)}")
+
+def py2ir(py):
+    return adt2ir(py2adt(py))
 
 def _makedict(T:str, fields:list):
     return {"type" : T, "fields" : fields}

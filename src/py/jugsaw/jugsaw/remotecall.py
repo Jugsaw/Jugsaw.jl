@@ -2,7 +2,7 @@ import os
 import copy, uuid, time, json
 import requests
 from typing import Any, Optional
-from .simpleparser import load_app, Demo, JugsawObject, adt2ir, ir2adt
+from .simpleparser import load_app, Demo, JugsawObject, adt2ir, ir2adt, py2adt
 from urllib.parse import urljoin
 import pdb
 
@@ -38,8 +38,8 @@ def request_app_data(context:ClientContext, appname:str):
     return (name, demos, tt, context)
 
 def call(context:ClientContext, demo:Demo, *args, **kwargs):
-    args_adt = JugsawObject(demo.meta["args_type"], [*args])
-    kwargs_adt = JugsawObject(demo.meta["kwargs_type"], list(kwargs.values()))
+    args_adt = JugsawObject(demo.meta["args_type"], [py2adt(arg) for arg in args])
+    kwargs_adt = JugsawObject(demo.meta["kwargs_type"], [py2adt(arg) for arg in kwargs.values()])
     assert len(args_adt.fields) == len(demo.fcall.args)
     assert len(kwargs_adt.fields) == len(demo.fcall.kwargs)
     fcall = JugsawObject("JugsawIR.Call",
