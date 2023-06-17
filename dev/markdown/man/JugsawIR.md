@@ -159,7 +159,7 @@ julia> JugsawIR.ir2julia("{\"fields\" : [3, 4]}", 1+2im)
 ```
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/00bdfff3a6d5b973b0fd74fffb84bf35621b8ab9/src/jl/JugsawIR/src/ir.jl#L3' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5540be704545bfc349240e1c77ebcf3a9a6d1474/src/jl/JugsawIR/src/ir.jl#L3' class='documenter-source'>source</a><br>
 
 <a id='JugsawIR.julia2ir-Tuple{Any}' href='#JugsawIR.julia2ir-Tuple{Any}'>#</a>
 **`JugsawIR.julia2ir`** &mdash; *Method*.
@@ -183,7 +183,7 @@ julia> ir
 ```
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/00bdfff3a6d5b973b0fd74fffb84bf35621b8ab9/src/jl/JugsawIR/src/ir.jl#L74' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5540be704545bfc349240e1c77ebcf3a9a6d1474/src/jl/JugsawIR/src/ir.jl#L74' class='documenter-source'>source</a><br>
 
 <a id='JugsawIR.Call' href='#JugsawIR.Call'>#</a>
 **`JugsawIR.Call`** &mdash; *Type*.
@@ -201,7 +201,7 @@ struct Call
   * `kwargs::NamedTuple`
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/00bdfff3a6d5b973b0fd74fffb84bf35621b8ab9/src/jl/JugsawIR/src/Core.jl#L63' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5540be704545bfc349240e1c77ebcf3a9a6d1474/src/jl/JugsawIR/src/Core.jl#L63' class='documenter-source'>source</a><br>
 
 <a id='JugsawIR.JArray' href='#JugsawIR.JArray'>#</a>
 **`JugsawIR.JArray`** &mdash; *Type*.
@@ -220,7 +220,7 @@ The data type for arrays in Jugsaw.
   * `storage::Vector`
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/00bdfff3a6d5b973b0fd74fffb84bf35621b8ab9/src/jl/JugsawIR/src/extendedtypes.jl#L50' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5540be704545bfc349240e1c77ebcf3a9a6d1474/src/jl/JugsawIR/src/extendedtypes.jl#L50' class='documenter-source'>source</a><br>
 
 <a id='JugsawIR.JDataType' href='#JugsawIR.JDataType'>#</a>
 **`JugsawIR.JDataType`** &mdash; *Type*.
@@ -240,7 +240,7 @@ The type for specifying data type in Jugsaw.
   * `fieldtypes::Vector{String}`
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/00bdfff3a6d5b973b0fd74fffb84bf35621b8ab9/src/jl/JugsawIR/src/extendedtypes.jl#L64' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5540be704545bfc349240e1c77ebcf3a9a6d1474/src/jl/JugsawIR/src/extendedtypes.jl#L64' class='documenter-source'>source</a><br>
 
 <a id='JugsawIR.JDict' href='#JugsawIR.JDict'>#</a>
 **`JugsawIR.JDict`** &mdash; *Type*.
@@ -259,7 +259,7 @@ The dictionary type in Jugsaw.
   * `vals::Vector`
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/00bdfff3a6d5b973b0fd74fffb84bf35621b8ab9/src/jl/JugsawIR/src/extendedtypes.jl#L5' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5540be704545bfc349240e1c77ebcf3a9a6d1474/src/jl/JugsawIR/src/extendedtypes.jl#L5' class='documenter-source'>source</a><br>
 
 <a id='JugsawIR.JEnum' href='#JugsawIR.JEnum'>#</a>
 **`JugsawIR.JEnum`** &mdash; *Type*.
@@ -279,7 +279,7 @@ The enum type in Jugsaw.
   * `options::Vector{String}`
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/00bdfff3a6d5b973b0fd74fffb84bf35621b8ab9/src/jl/JugsawIR/src/extendedtypes.jl#L28' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5540be704545bfc349240e1c77ebcf3a9a6d1474/src/jl/JugsawIR/src/extendedtypes.jl#L28' class='documenter-source'>source</a><br>
 
 <a id='JugsawIR.JugsawADT' href='#JugsawIR.JugsawADT'>#</a>
 **`JugsawIR.JugsawADT`** &mdash; *Type*.
@@ -289,7 +289,7 @@ The enum type in Jugsaw.
 `JugsawADT` is an intermediate representation between Jugsaw IR and Julia language.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/00bdfff3a6d5b973b0fd74fffb84bf35621b8ab9/src/jl/JugsawIR/src/Core.jl#L134' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5540be704545bfc349240e1c77ebcf3a9a6d1474/src/jl/JugsawIR/src/Core.jl#L134' class='documenter-source'>source</a><br>
 
 <a id='JugsawIR.TypeTable' href='#JugsawIR.TypeTable'>#</a>
 **`JugsawIR.TypeTable`** &mdash; *Type*.
@@ -310,5 +310,5 @@ The type definitions.
 The `defs` defines a mapping from the type name to a [`JDataType`](JugsawIR.md#JugsawIR.JDataType) instance.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/00bdfff3a6d5b973b0fd74fffb84bf35621b8ab9/src/jl/JugsawIR/src/adt.jl#L6' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5540be704545bfc349240e1c77ebcf3a9a6d1474/src/jl/JugsawIR/src/adt.jl#L6' class='documenter-source'>source</a><br>
 

@@ -7,14 +7,15 @@
 
 # Jugsaw.Client
 
-<a id='Jugsaw.Client.call-Tuple{Jugsaw.Client.DemoRef, Vararg{Any}}' href='#Jugsaw.Client.call-Tuple{Jugsaw.Client.DemoRef, Vararg{Any}}'>#</a>
+<a id='Jugsaw.Client.call-Tuple{Jugsaw.Client.ClientContext, Jugsaw.Client.Demo, Vararg{Any}}' href='#Jugsaw.Client.call-Tuple{Jugsaw.Client.ClientContext, Jugsaw.Client.Demo, Vararg{Any}}'>#</a>
 **`Jugsaw.Client.call`** &mdash; *Method*.
 
 
 
 ```julia
 call(
-    demo::Jugsaw.Client.DemoRef,
+    context::Jugsaw.Client.ClientContext,
+    demo::Jugsaw.Client.Demo,
     args...;
     kwargs...
 ) -> Jugsaw.Client.LazyReturn
@@ -24,7 +25,7 @@ call(
 Launch a function call.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/00bdfff3a6d5b973b0fd74fffb84bf35621b8ab9/src/jl/Jugsaw/src/client/remotecall.jl#L44' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5540be704545bfc349240e1c77ebcf3a9a6d1474/src/jl/Jugsaw/src/client/remotecall.jl#L44' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.Client.healthz-Tuple{Jugsaw.Client.ClientContext}' href='#Jugsaw.Client.healthz-Tuple{Jugsaw.Client.ClientContext}'>#</a>
 **`Jugsaw.Client.healthz`** &mdash; *Method*.
@@ -39,7 +40,7 @@ healthz(context::Jugsaw.Client.ClientContext) -> Any
 Check the status of the application.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/00bdfff3a6d5b973b0fd74fffb84bf35621b8ab9/src/jl/Jugsaw/src/client/remotecall.jl#L91' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5540be704545bfc349240e1c77ebcf3a9a6d1474/src/jl/Jugsaw/src/client/remotecall.jl#L90' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.Client.request_app-Tuple{Jugsaw.Client.ClientContext, Symbol}' href='#Jugsaw.Client.request_app-Tuple{Jugsaw.Client.ClientContext, Symbol}'>#</a>
 **`Jugsaw.Client.request_app`** &mdash; *Method*.
@@ -62,7 +63,7 @@ Request an application from an endpoint.
   * `appname` specificies the application to be fetched.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/00bdfff3a6d5b973b0fd74fffb84bf35621b8ab9/src/jl/Jugsaw/src/client/remotecall.jl#L19' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5540be704545bfc349240e1c77ebcf3a9a6d1474/src/jl/Jugsaw/src/client/remotecall.jl#L19' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.Client.App' href='#Jugsaw.Client.App'>#</a>
 **`Jugsaw.Client.App`** &mdash; *Type*.
@@ -87,7 +88,7 @@ The Jugsaw application instance.
   * `context::Jugsaw.Client.ClientContext`
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/00bdfff3a6d5b973b0fd74fffb84bf35621b8ab9/src/jl/Jugsaw/src/client/Core.jl#L107' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5540be704545bfc349240e1c77ebcf3a9a6d1474/src/jl/Jugsaw/src/client/Core.jl#L107' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.Client.ClientContext' href='#Jugsaw.Client.ClientContext'>#</a>
 **`Jugsaw.Client.ClientContext`** &mdash; *Type*.
@@ -108,7 +109,7 @@ mutable struct ClientContext
   * `fname::Symbol`
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/00bdfff3a6d5b973b0fd74fffb84bf35621b8ab9/src/jl/Jugsaw/src/client/Core.jl#L1' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5540be704545bfc349240e1c77ebcf3a9a6d1474/src/jl/Jugsaw/src/client/Core.jl#L1' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.Client.Demo' href='#Jugsaw.Client.Demo'>#</a>
 **`Jugsaw.Client.Demo`** &mdash; *Type*.
@@ -126,7 +127,7 @@ struct Demo
   * `meta::Dict{String}`
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/00bdfff3a6d5b973b0fd74fffb84bf35621b8ab9/src/jl/Jugsaw/src/client/Core.jl#L18' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5540be704545bfc349240e1c77ebcf3a9a6d1474/src/jl/Jugsaw/src/client/Core.jl#L18' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.Client.DemoRef' href='#Jugsaw.Client.DemoRef'>#</a>
 **`Jugsaw.Client.DemoRef`** &mdash; *Type*.
@@ -143,7 +144,7 @@ struct DemoRef
   * `context::Jugsaw.Client.ClientContext`
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/00bdfff3a6d5b973b0fd74fffb84bf35621b8ab9/src/jl/Jugsaw/src/client/Core.jl#L35' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5540be704545bfc349240e1c77ebcf3a9a6d1474/src/jl/Jugsaw/src/client/Core.jl#L35' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.Client.DemoRefs' href='#Jugsaw.Client.DemoRefs'>#</a>
 **`Jugsaw.Client.DemoRefs`** &mdash; *Type*.
@@ -161,7 +162,7 @@ struct DemoRefs
   * `context::Jugsaw.Client.ClientContext`
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/00bdfff3a6d5b973b0fd74fffb84bf35621b8ab9/src/jl/Jugsaw/src/client/Core.jl#L63' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5540be704545bfc349240e1c77ebcf3a9a6d1474/src/jl/Jugsaw/src/client/Core.jl#L63' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.Client.LazyReturn' href='#Jugsaw.Client.LazyReturn'>#</a>
 **`Jugsaw.Client.LazyReturn`** &mdash; *Type*.
@@ -181,5 +182,5 @@ A callable lazy result. To fetch the result value, please use `lazyresult()`.
   * `demo_result::Any`
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/00bdfff3a6d5b973b0fd74fffb84bf35621b8ab9/src/jl/Jugsaw/src/client/remotecall.jl#L2' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5540be704545bfc349240e1c77ebcf3a9a6d1474/src/jl/Jugsaw/src/client/remotecall.jl#L2' class='documenter-source'>source</a><br>
 
