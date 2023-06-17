@@ -17,7 +17,7 @@ class App(object):
     def __getitem__(self, __name: str):
         return super(App, self).__getattribute__(__name)
 
-    def __getattribute__(self, fname: str):
+    def __getattr__(self, fname: str):
         context = copy.deepcopy(self["context"])
         context.appname = self["name"]
         context.fname = fname
@@ -25,7 +25,7 @@ class App(object):
 
     # this is for autocompletion!
     def __dir__(self):
-        return self["demos"].keys()
+        return list(self["method_demos"].keys())
 
 def request_app(context:ClientContext, appname:str):
     return App(*request_app_data(context, appname))
@@ -35,6 +35,7 @@ class DemoRefs(object):
         self.name = name
         self.demos = demos
         self.context = context
+        self.__doc__ = self.demos[0].meta["docstring"]
 
     def __getitem__(self, i:int):
         return DemoRef(self.demos[i], self.context)
@@ -57,22 +58,14 @@ class DemoRefs(object):
         else:
             raise ValueError("multiple demos found, please use choose a demo by indexing, e.g. `demos[0]`")
 
-    def __doc__(self):
-        return self.demos[0].meta["docstring"]
 
 class DemoRef(object):
     def __init__(self, demo:Demo, context:ClientContext) -> None:
         self.demo = demo
         self.context = context
+        self.__doc__ = self.demo.meta["docstring"]
 
     def __call__(self, *args, **kwargs):
-        #fcall = self.demo.fcall
-        #payload = {"type": "JugsawIR.Call", "values":[fcall.fname,
-                                                      #JugsawObject(fcall.args.typename, [py2adt(arg) for arg in args]),
-                                                      #JugsawObject(fcall.kwargs.typename, [py2adt(kw) for kw in kwargs])]}
-        #print(payload)
-        #r = requests.post(self.url, json=payload)
-        #return ObjectRef(self, r.json()["object_id"])
         return call(self.context, self.demo, *args, **kwargs)
 
     def input(self):
@@ -83,6 +76,3 @@ class DemoRef(object):
     def result(self):
         result = self.demo.result
         return adt2py(result)
-
-    def __doc__(self):
-        return self.demo.meta["docstring"]

@@ -38,7 +38,7 @@ class JugsawTransformer(lark.Transformer):
     def list(self, items):
         return [] if items[0] == None else list(items)
     def string(self, items):
-        return items[0][1:-1]
+        return json.loads(items[0])
     def number(self, items):
         return float(items[0])
     def true(self, items):
