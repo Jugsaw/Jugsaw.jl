@@ -1,7 +1,7 @@
 import lark
 from collections import OrderedDict
 import numpy as np
-import enum
+import enum, pdb
 
 ####################### Object
 # the JSON grammar in EBNF format
@@ -72,11 +72,19 @@ class Call(object):
         self.args = args
         self.kwargs = kwargs
 
+    def __str__(self):
+        args = ', '.join([str(arg) for arg in self.args])
+        kwargs = ', '.join([f'{k} = {self.kwargs[k]}' for k in self.kwargs])
+        return f"{self.fname}({args}, {kwargs})"
+
 class Demo(object):
     def __init__(self, fcall, result, meta):
         self.fcall = fcall
         self.result = result
         self.meta = meta
+
+    def __str__(self):
+        return f"{self.fcall} = {self.result}"
 
 def load_app(s:str):
     obj, typesadt = ir2adt(s)
@@ -84,25 +92,31 @@ def load_app(s:str):
     ############ load app
     name, method_names, _method_demos = obj.fields
     ks, vs = _method_demos.fields
-    method_demos = dict(zip(ks, vs))
+    method_demos = makedict(ks, vs)
     demos = OrderedDict()
-    for fname in method_names:
+    for fname in aslist(method_names):
         demos[fname] = []
-        for demo in method_demos[fname]:
+        for demo in aslist(method_demos[fname]):
             (_fcall, result, meta) = demo.fields
             _fname, args, kwargs = _fcall.fields
-            jf = Call(fname, args.fields, dict(zip(tt.defs[kwargs.typename].fieldnames, kwargs.fields)))
-            demo = Demo(jf, result, dict(zip(meta.fields[0], meta.fields[1])))
+            jf = Call(fname, args.fields, dict(zip(aslist(tt.defs[kwargs.typename].fieldnames), kwargs.fields)))
+            demo = Demo(jf, result, makedict(meta.fields[0], meta.fields[1]))
             demos[fname].append(demo)
-    return name, demos, tt
+    return (name, demos, tt)
+
+def aslist(obj):
+    return obj.fields[1]
+
+def makedict(ks, vs):
+    return dict(zip(aslist(ks), aslist(vs)))
 
 def load_typetable(ast:JugsawObject):
     #for obj in ast
     types, typedefs = ast.fields
     ks, vs = typedefs.fields
-    defs = dict(zip(ks, vs))
+    defs = dict(zip(aslist(ks), aslist(vs)))
     d = {}
-    for type in types:
+    for type in aslist(types):
         elem = defs[type]
         name, fieldnames, fieldtypes = elem.fields
         d[type] = JDataType(name, fieldnames, fieldtypes)

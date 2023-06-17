@@ -104,13 +104,13 @@ function _new_request(context::ClientContext, ::Val{:job}, job_id::String, fcall
 end
 function _new_request(context::ClientContext, ::Val{:job}, job_id::String, fcall::JugsawADT; maxtime=10.0, created_by="jugsaw")
     # create a job
-    jobspec = JugsawADT.Object("Jugsaw.JobSpec", [string(job_id), round(Int, time()), created_by,
+    jobspec = JugsawADT.Object("Jugsaw.JobSpec", [job_id, round(Int, time()), created_by,
         maxtime, fcall.fields...])
     ir = JugsawIR.adt2ir(jobspec)
     # NOTE: UGLY!
     # create a cloud event
     header = ["Content-Type" => "application/json",
-        "ce-id"=>"$(uuid4())", "ce-type"=>"any", "ce-source"=>"any",
+        "ce-id"=>"$(uuid4())", "ce-type"=>"any", "ce-source"=>"julia",
         "ce-specversion"=>"1.0"
         ]
     data = JSON3.write(ir)
@@ -122,9 +122,6 @@ function _new_request(context::ClientContext, ::Val{:healthz})
     return ("GET", joinpath(context.endpoint, 
         context.localurl ? "healthz" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/healthz"
     ))
-end
-function _new_request(context::ClientContext, ::Val{:subscribe})
-    return ("GET", joinpath(context.endpoint, "dapr/subscribe"))
 end
 function _new_request(context::ClientContext, ::Val{:demos})
     @info context

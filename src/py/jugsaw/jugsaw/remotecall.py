@@ -1,0 +1,103 @@
+import os
+import copy, uuid
+import requests
+from typing import Any, Optional
+from .simpleparser import load_app, Demo, JugsawObject
+from .app import ClientContext, App
+from urllib.parse import urljoin
+import pdb
+
+class LazyReturn(object):
+    def __init__(self, context, job_id, demo_result):
+        self.context = context
+        self.job_id = job_id
+        self.demo_result = demo_result
+
+    def __call__(self):
+        fetch(self.context, self.job_id, self.demo_result)
+
+def request_app(context:ClientContext, appname:str):
+    context = copy.deepcopy(context)
+    context.appname = appname
+    r = new_request_demos(context)
+    name, demos, tt = load_app(r.text)
+    return App(name, demos, tt, context)
+
+def call(context:ClientContext, demo:Demo, *args, **kwargs):
+    args_adt = adt_norecur(demo.meta["args_type"], args)
+    kwargs_adt = adt_norecur(demo.meta["kwargs_type"], kwargs)
+    assert len(args_adt.fields) == len(demo.fcall.args)
+    assert len(kwargs_adt.fields) == len(demo.fcall.kwargs)
+    print(demo.fcall.kwargs)
+    pdb.set_trace()
+    fcall = JugsawObject("JugsawIR.Call",
+            [demo.fcall.fname, args_adt, kwargs_adt])
+    job_id = str(uuid.uuid4())
+    safe_request(lambda : new_request_job(context, job_id, fcall, maxtime=60.0, created_by="jugsaw"))
+    return LazyReturn(context, job_id, demo.result)
+
+
+def adt_norecur(typename:str, x):
+    fields = [getfield(x, fn) if hasattr(x, fn) else None for fn in fieldnames(type(x))]
+    return JugsawObject(typename, fields)
+
+def safe_request(f):
+    try:
+        return f()
+    except e:
+        if isinstance(e, requests.Exceptions.StatusError) and e.status == 400:
+            res = json.read(e.response.body)
+            raise Exception(res.error)
+        else:
+            raise e
+
+def fetch(context:ClientContext, job_id:str, demo_result):
+    ret = safe_request(lambda : new_request_fetch(context, job_id))
+    return ir2py(str(ret.body), demo_result)
+
+def healthz(context:ClientContext):
+    path = f"v1/proj/{context.project}/app/{context.appname}/ver/{context.version}/healthz"
+    return json.read(requests.get(urljoin(context.endpoint, path)).body)
+
+
+def new_request_job(context:ClientContext, job_id:str, fcall:JugsawObject, maxtime=10.0, created_by="jugsaw"):
+    # create a job
+    jobspec = JugsawObject("Jugsaw.JobSpec", [job_id, round(time.time()), created_by,
+        maxtime, *fcall.fields])
+    ir = JugsawIR.adt2ir(jobspec)
+    # NOTE: UGLY!
+    # create a cloud event
+    header = {"Content-Type" : "application/json",
+            "ce-id":str(uuid.uuid4()), "ce-type":"any", "ce-source":"python",
+            "ce-specversion":"1.0"
+        }
+    data = json.dumps(ir)
+    method, body = ("POST", urljoin(context.endpoint,
+        f"v1/proj/{context.project}/app/{context.appname}/ver/{context.version}/func/{context.fname}"
+    ), header, data)
+    return requests.request(method, body)
+
+def new_request_healthz(context:ClientContext):
+    method, body = ("GET", urljoin(context.endpoint, 
+        f"v1/proj/{context.project}/app/{context.appname}/ver/{context.version}/healthz"
+    ))
+    return requests.request(method, body)
+
+def new_request_demos(context:ClientContext):
+    method, body = ("GET", urljoin(context.endpoint,
+        f"v1/proj/{context.project}/app/{context.appname}/ver/{context.version}/func"
+    ))
+    return requests.request(method, body)
+
+def new_request_fetch(context:ClientContext, job_id:str):
+    method, body = ("POST", urljoin(context.endpoint,
+        f"v1/job/{job_id}/result"
+        ), {"Content-Type": "application/json"}, json.dumps({'job_id':job_id}))
+    return requests.request(method, body)
+
+def new_request_api(context:ClientContext, fcall:JugsawObject, lang:str):
+    ir = adt2ir(JugsawObject("Core.Tuple{Core.String, JugsawIR.Call}", [context.endpoint, fcall]))
+    method, body = ("GET", urljoin(context.endpoint,
+        f"v1/proj/{context.project}/app/{context.appname}/ver/{context.version}/func/{context.fname}/api/{lang}"
+        ), {"Content-Type": "application/json"}, ir)
+    return requests.request(method, body)

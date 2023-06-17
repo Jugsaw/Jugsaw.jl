@@ -1,45 +1,50 @@
 import os
+import copy, uuid
 import requests
 from typing import Any, Optional
-from simpleparser import load_app, Demo, todict, JugsawObject
+from .simpleparser import load_app, Demo, JugsawObject
+
+class ClientContext(object):
+    def __init__(self,
+            endpoint:str = "http://localhost:8088/",
+            localurl:bool = False,
+            project:str = "unspecified",
+            appname:str = "unspecified",
+            version:str = "1.0",
+            fname:str = "unspecified"):
+        self.endpoint = endpoint
+        self.localurl = localurl
+        self.project = project
+        self.appname = appname
+        self.version = version
+        self.fname = fname
 
 class App(object):
-    def __init__(self, name: str, demos, typetable, uri: Optional[str] = None) -> None:
+    def __init__(self, name: str, method_demos:dict, type_table, context:ClientContext) -> None:
+        # TODO: fix the following code
         self._name = name
-        self._uri = uri or os.getenv(
-            "JUGSAW_ENDPOINT", "http://localhost:8081"
-        )
-        self._type_table = typetable
-        self._method_demos = demos
+        self._method_demos = method_demos
+        self._type_table = type_table
+        self._context = context
 
     def __getattribute__(self, __name: str):
         if __name.startswith("_"):
             return super(App, self).__getattribute__(__name)
         else:
-            return DemoRefs(f"{self._uri}/actors/{self.name}.{__name}", self._method_demos[__name])
+            context = copy.deepcopy(self.context)
+            context.appname = self._name
+            context.fname = __name
+            return DemoRefs(__name, self._method_demos[__name], context)
 
     # this is for autocompletion!
     def __dir__(self):
         return self.demos.keys()
 
-def request_app(uri:str, appname:str):
-    if uri[:4] != "http":
-        path = uri
-        with open(os.path.join(path, "demos.json"), "r") as f:
-            retstr = f.read()
-    else:
-        demo_url = os.path.join(uri, "apps", appname, "demos")
-        r = requests.get(demo_url) # Deserialize
-        retstr = r.body
-    print(retstr)
-    name, demos, tt = load_app(retstr, uri)
-    return App(name, demos, tt, uri)
-
 class DemoRefs(object):
-    def __init__(self, name: str, demos:list, uri:str) -> None:
+    def __init__(self, name: str, demos:list, context:ClientContext) -> None:
         self.name = name
         self.demos = demos
-        self.uri = uri
+        self.context = context
 
     def __getitem__(self, i:int):
         return DemoRef(self.demos[i])
@@ -73,13 +78,3 @@ class DemoRef(object):
     @property
     def url(self) -> str:
         return f"{self.uri}/method"
-
-class ObjectRef(object):
-    def __init__(self, actor:DemoRefs, object_id: str):
-        self.actor = actor
-        self.object_id = object_id
-
-    def __call__(self):
-        url = f"{self.actor.url}/fetch"
-        resp = requests.post(url, json={"object_id": self.object_id})
-        return resp.text
