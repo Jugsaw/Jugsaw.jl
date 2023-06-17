@@ -60,6 +60,12 @@ value_type(::AbstractDict{T, V}) where {T,V} = V
 key_type(::AbstractDict{T}) where {T} = T
 
 ################### Types ####################
+"""
+$(TYPEDEF)
+
+### Fields
+$(TYPEDFIELDS)
+"""
 struct Call
     fname
     args::Tuple
@@ -125,6 +131,7 @@ end
 
 
 ############ ADT
+"`JugsawADT` is an intermediate representation between Jugsaw IR and Julia language."
 @adt JugsawADT begin
     struct Object
         typename::String

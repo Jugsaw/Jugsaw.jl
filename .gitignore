@@ -196,3 +196,5 @@ Manifest.toml
 
 # codecov
 lcov.info
+
+.daprtest

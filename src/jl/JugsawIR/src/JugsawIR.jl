@@ -11,11 +11,15 @@ using AbstractTrees: print_tree
 using Expronicon
 using Expronicon
 using Expronicon.ADT: @adt
+using DocStringExtensions
 
-export julia2ir, ir2julia, print_tree, print_clean_tree, TypeTable, JugsawADT
-export Call, function_signature, feval, fevalself
-export ftest, JugsawDemo
+export julia2ir, ir2julia, TypeTable, JugsawADT
+export Call, feval, fevalself
+export JugsawDemo, ftest
 export TypeTooAbstract
+export JArray, JDataType, JDict, JEnum
+
+const jp = Lark(read(joinpath(@__DIR__, "jugsawir.lark"), String),parser="lalr",lexer="contextual", start="object")
 
 include("Core.jl")
 include("errors.jl")

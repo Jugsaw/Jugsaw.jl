@@ -1,3 +1,26 @@
+"""
+$(TYPEDEF)
+
+### Fields
+$(TYPEDFIELDS)
+"""
+Base.@kwdef mutable struct ClientContext
+    endpoint::String = "http://localhost:8088/"
+    localurl::Bool = false
+
+    project::String = "unspecified"
+    appname::Symbol = :unspecified
+    version::String = "1.0"
+    fname::Symbol = :unspecified
+end
+Base.copy(c::ClientContext) = ClientContext(c.endpoint, c.localurl, c.project, c.appname, c.version, c.fname)
+
+"""
+$(TYPEDEF)
+
+### Fields
+$(TYPEDFIELDS)
+"""
 struct Demo
     fcall::Call
     result
@@ -9,17 +32,23 @@ function Base.show(io::IO, d::Demo)
 end
 Base.Docs.doc(d::Demo) = Markdown.parse(get(d.meta, "docstring", ""))
 
+"""
+$(TYPEDEF)
+
+### Fields
+$(TYPEDFIELDS)
+"""
 struct DemoRef
     demo::Demo
-    uri::URI
+    context::ClientContext
 end
 Base.show(io::IO, ::MIME"text/plain", d::DemoRef) = Base.show(io, d)
 function Base.show(io::IO, ref::DemoRef)
-    demo, uri = ref.demo, ref.uri
+    demo, context = ref.demo, ref.context
     println(io, demo)
-    print(io, "remote = $uri")
+    print(io, "context = $context")
 end
-#Base.Docs.doc(d::DemoRef) = Base.Docs.doc(d.demo)
+Base.Docs.doc(d::DemoRef) = Base.Docs.doc(d.demo)
 function (demo::DemoRef)(args...; kwargs...)
     call(demo, args...; kwargs...)()
 end
@@ -31,17 +60,23 @@ function test_demo(demo::DemoRef)
     return expect === result || result == expect || result ≈ expect
 end
 
+"""
+$(TYPEDEF)
+
+### Fields
+$(TYPEDFIELDS)
+"""
 struct DemoRefs
     name::Symbol
     demos::Vector{Demo}
-    uri::URI
+    context::ClientContext
 end
 Base.show(io::IO, ::MIME"text/plain", d::DemoRefs) = Base.show(io, d)
 function Base.show(io::IO, ref::DemoRefs)
-    name, demos, uri = ref.name, ref.demos, ref.uri
+    name, demos, context = ref.name, ref.demos, ref.context
     print_demos(io, name, demos)
     println()
-    print(io, "remote = $uri")
+    print(io, "context = $context")
 end
 function print_demos(io::IO, name, demos::Vector{Demo}, prefix="")
     println(io, prefix, "- $name")
@@ -56,7 +91,7 @@ function print_demos(io::IO, name, demos::Vector{Demo}, prefix="")
         end
     end
 end
-Base.getindex(refs::DemoRefs, i::Int) = DemoRef(getindex(refs.demos, i), refs.uri)
+Base.getindex(refs::DemoRefs, i::Int) = DemoRef(getindex(refs.demos, i), refs.context)
 Base.length(refs::DemoRefs) = length(refs.demos)
 Base.iterate(refs::DemoRefs, state=1) = state <= length(refs.demos) ? (refs[state], state+1) : nothing
 function (refs::DemoRefs)(args...; kwargs...)
@@ -69,16 +104,29 @@ end
 test_demo(demos::DemoRefs) = all(test_demo, demos)
 #Base.Docs.doc(d::DemoRefs) = Base.Docs.doc(d.demos |> first)
 
-# the application instance, potential issues: function names __name, __endpoint and __method_demos, __type_table may cause conflict.
+"""
+$(TYPEDEF)
+
+The Jugsaw application instance.
+
+!!! note
+    The `Base.getproperty` function has been overloaded to favor fetching demos. To get fields, please use `app[fieldname]`.
+    For example, to get the application name, one should use `app[:name]`.
+
+### Fields
+$(TYPEDFIELDS)
+"""
 struct App
     name::Symbol
     method_demos::OrderedDict{Symbol, Vector{Demo}}
     type_table::TypeTable
-    uri::URI
+    context::ClientContext
 end
 function Base.getproperty(app::App, fname::Symbol)
-    uri = app[:uri].scheme == "file" ? app[:uri] : joinpath(app[:uri], "actors", "$(app[:name]).$(fname)")
-    res = DemoRefs(fname, app[:method_demos][fname], uri)
+    context = copy(app[:context])
+    context.appname = app[:name]
+    context.fname = fname
+    res = DemoRefs(fname, app[:method_demos][fname], context)
     return res
 end
 Base.getindex(a::App, f::Symbol) = getfield(a, f)

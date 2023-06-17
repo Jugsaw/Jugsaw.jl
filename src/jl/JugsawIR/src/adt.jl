@@ -3,6 +3,16 @@
 #       <-----------------------------
 
 ############ TypeTable
+"""
+$(TYPEDEF)
+
+The type definitions.
+
+### Fields
+$(TYPEDFIELDS)
+
+The `defs` defines a mapping from the type name to a [`JDataType`](@ref) instance.
+"""
 struct TypeTable
     names::Vector{String}
     defs::Dict{String, JDataType}
@@ -56,21 +66,29 @@ function julia2adt(@nospecialize(x::T)) where T
 end
 
 # data are dumped to (name, value[, fieldnames])
-function julia2adt!(@nospecialize(_x::T), tt::TypeTable) where T
-    x = native2jugsaw(_x)
-    Tx = typeof(x)
-    (x isa UndefInitializer || x isa DirectlyRepresentableTypes) || pushtype!(tt, Tx)
+function julia2adt!(@nospecialize(x::T), tt::TypeTable) where T
     @match x begin
         ###################### Basic Types ######################
         ::UndefInitializer => nothing
         ::DirectlyRepresentableTypes => x
-        ::Vector => JugsawADT.Vector(julia2adt!.(x, Ref(tt)))
+        ::Array => begin
+            Tx = JArray{eltype(x)}
+            (x isa UndefInitializer || x isa DirectlyRepresentableTypes) || pushtype!(tt, Tx)
+            # NOTE: array must be special treated.
+            JugsawADT.Object(type2str(Tx),
+                Any[JugsawADT.Vector(collect(size(x))),  # size
+                    JugsawADT.Vector(julia2adt!.(vec(x), Ref(tt)))]  # storage
+            )
+        end
         ::Function => string(x)
         ::UnionAll => type2str(x)
         ###################### Generic Compsite Types ######################
         _ => begin
+            _x = native2jugsaw(x)
+            Tx = typeof(_x)
+            (_x isa UndefInitializer || _x isa DirectlyRepresentableTypes) || pushtype!(tt, Tx)
             JugsawADT.Object(type2str(Tx), 
-                Any[isdefined(x, fn) ? julia2adt!(getfield(x, fn), tt) : undef for fn in fieldnames(Tx)]
+                Any[isdefined(_x, fn) ? julia2adt!(getfield(_x, fn), tt) : undef for fn in fieldnames(Tx)]
             )
         end
     end
@@ -83,7 +101,10 @@ function adt2julia(t, demo::T) where T
         ::Nothing || ::Missing || ::UndefInitializer || ::Type || ::Function => demo
         ::Char => T(t[1])
         ::DirectlyRepresentableTypes => T(t)
-        ::Vector => T(adt2julia.(t.storage, Ref(demoofelement(demo))))
+        ::Array => begin
+            size, data = t.fields
+            T(reshape(adt2julia.(data.storage, Ref(demoofelement(demo))), size.storage...))
+        end
         ::JugsawADT => t
         ###################### Generic Compsite Types ######################
         _ => begin

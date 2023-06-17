@@ -65,7 +65,7 @@ def submit_job(
         )
         client.publish_event(
             config.job_channel,
-            f"{proj}.{app}.{ver}",
+            f"{proj}-{app}-{ver}",
             job.json(),
             data_content_type="application/json",
         )

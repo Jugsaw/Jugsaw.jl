@@ -1,9 +1,5 @@
 using Jugsaw, Test
 
-@testset "template" begin
-    include("template.jl")
-end
-
 @testset "register" begin
     include("register.jl")
 end
@@ -13,7 +9,7 @@ end
 end
 
 @testset "server" begin
-    include("server.jl")
+    include("server/server.jl")
 end
 
 @testset "client" begin
@@ -24,6 +20,14 @@ end
     include("errors.jl")
 end
 
-@testset "checkapp" begin
-    include("checkapp.jl")
+@testset "clientcode" begin
+    include("clientcode.jl")
 end
+
+@testset "template" begin
+    include("template.jl")
+end
+
+# @testset "checkapp" begin
+#     include("checkapp.jl")
+# end

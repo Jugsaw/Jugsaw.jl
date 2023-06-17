@@ -1,14 +1,13 @@
 module Template
 # we copied some code from PkgTemplates
-using TOML, LibGit2
+using TOML, LibGit2, Pkg
 using UUIDs
 
 # TODO: sanity check for the input symbol
 
-function init(; version::VersionNumber=v"1.0.0-DEV",
+function init(appname::Symbol; version::VersionNumber=v"1.0.0-DEV",
         authors::AbstractString = default_authors(),
         basedir::AbstractString=pwd(),
-        appname::Symbol,
         juliaversion::VersionNumber=default_version(),
         dockerport::Int=8081)
     appdir = joinpath(basedir, String(appname))
@@ -27,6 +26,13 @@ function init(; version::VersionNumber=v"1.0.0-DEV",
     open(joinpath(appdir, "app.jl"), "w") do f
         println(f, app_demo(appname))
     end
+    open(joinpath(appdir, "server.jl"), "w") do f
+        println(f, server_demo())
+    end
+    Pkg.activate(appdir)
+    Pkg.instantiate()
+    @info("Success, please type `julia --project server.jl` to debug your application locally.
+To upload your application to Jugsaw website, please check https://jugsaw.github.io/Jugsaw/dev/developer")
 end
 
 function project_config(; version::VersionNumber,
@@ -40,7 +46,7 @@ function project_config(; version::VersionNumber,
             "authors" => authors,
             "version" => string(version)
         ),
-        "deps" => Dict(),
+        "deps" => Dict("Jugsaw"=>"506f6749-58fa-473a-ada6-eb0172fb6950"),
         "compat" => Dict("julia" => compat_version(juliaversion)),
     )
 end
@@ -83,7 +89,8 @@ FROM julia:\$JULIA_VERSION
 # FIXME: no need to develop Jugsaw once it is registered
 COPY . /$appname
 WORKDIR /$appname
-RUN julia --project=. -e "using Pkg; Pkg.instantiate()"
+# The environment varialbe `JUGSAW_SERVER=DOCKER` turns the local mode off
+RUN JUGSAW_SERVER=DOCKER julia --project=. -e "using Pkg; Pkg.instantiate()"
 
 EXPOSE $dockerport
 ENTRYPOINT ["julia", "--project=.", "app.jl"]
@@ -95,6 +102,15 @@ function app_demo(appname::Symbol)
 # Please check Jugsaw documentation: TBD
 using Jugsaw
 
+"
+    greet(x)
+
+This is the docstring, in which **markdown** grammar and math equations are supported
+
+```math
+x^2
+```
+"
 greet(x::String) = "Hello, \$(x)!"
 
 # create an application
@@ -106,8 +122,17 @@ app = Jugsaw.AppSpecification(:$appname)
     # register by test case, here four functions `sin`, `cos`, `^`, `+` are registered.
     sin(0.5) ^ 2 + cos(0.5) ^ 2 ≈ 1.0
 end
+"""
+end
 
-serve(app, @__DIR__)
+function server_demo()
+"""
+import Jugsaw, Revise
+
+Revise.includet("app.jl")
+
+# reload the application on change
+Jugsaw.Server.serve(app; watched_files=["app.jl"])
 """
 end
 end

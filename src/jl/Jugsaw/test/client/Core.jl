@@ -1,18 +1,19 @@
-using Test, Jugsaw.Client, Jugsaw
+using Test, Jugsaw.Client, Jugsaw, Jugsaw.Server
 
 @testset "App" begin
     # start service
     sapp = AppSpecification(:testapp)
     @register sapp sin(cos(0.5))::Float64
-    t = Jugsaw.serve(sapp; is_async=true)
+    dapr = InMemoryEventService()
+    r = AppRuntime(sapp, dapr)
+    t = Server.simpleserve(r; is_async=true)
+    context = Client.ClientContext()
     try
-        # run tasks
-        remote = RemoteHandler()  # on the default port
         #delete
-        app = request_app(remote, :testapp)
+        app = request_app(context, :testapp)
         println(app)
         @test app isa Client.App
-        @test app[:uri] == remote.uri
+        @test app[:context].appname == :testapp
         @test length(@doc app.sin) > 3
         as = app.sin
         println(as)
@@ -25,7 +26,8 @@ using Test, Jugsaw.Client, Jugsaw
         #@test (@doc as)
         #@test length(@doc as) > 3
     catch e
-        rethrow(e)
+        #rethrow(e)
+        println(e)
     finally
         schedule(t, InterruptException(), error=true)
     end

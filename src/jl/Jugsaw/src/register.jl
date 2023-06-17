@@ -1,4 +1,11 @@
-# the application specification
+"""
+$(TYPEDEF)
+
+The application specification.
+
+### Fields
+$(TYPEDFIELDS)
+"""
 struct AppSpecification
     name::Symbol
     # `method_demos` is a maps function names to demos,
@@ -7,6 +14,8 @@ struct AppSpecification
     method_demos::Dict{String, Vector{JugsawDemo}}
 end
 AppSpecification(name) = AppSpecification(name, String[], Dict{String,JugsawDemo}())
+
+# number of functions in the application
 function nfunctions(app::AppSpecification)
     @assert length(app.method_names) == length(app.method_demos)
     return length(app.method_names)
@@ -47,9 +56,10 @@ function selftest(demo::JugsawDemo)
     return res === demo.result || res == demo.result || res ≈ demo.result
 end
 
-function register!(app::AppSpecification, f, args::Tuple, kwargs::NamedTuple)
+function register!(app::AppSpecification, f, args::Tuple, kwargs::NamedTuple, endpoint = get(ENV, "endpoint", "http://localhost:8088"))
     #f = protect_type(_f)
     jf = Call(f, args, kwargs)
+    adt = JugsawIR.julia2adt(jf)[1]
     fname = safe_f2str(f)
     result = f(args...; kwargs...)
     # if the function is not yet registered, add a new method
@@ -62,9 +72,13 @@ function register!(app::AppSpecification, f, args::Tuple, kwargs::NamedTuple)
         # create a new demo
         doc = string(Base.Docs.doc(Base.Docs.Binding(module_and_symbol(f)...)))
         push!(app.method_demos[fname], JugsawDemo(jf, result,
-            Dict{String,Any}("docstring"=>doc,
-            "args_type"=>JugsawIR.type2str(typeof(args)),
-            "kwargs_type"=>JugsawIR.type2str(typeof(kwargs)),
+            Dict{String,String}(
+                "docstring"=>doc,
+                "args_type"=>JugsawIR.type2str(typeof(args)),
+                "kwargs_type"=>JugsawIR.type2str(typeof(kwargs)),
+                "api_julialang"=>generate_code(JuliaLang(), endpoint, app.name, adt, jf),
+                "api_python"=>generate_code(Python(), endpoint, app.name, adt, jf),
+                "api_javascript"=>generate_code(Javascript(), endpoint, app.name, adt, jf)
             )))
     end
     return result
@@ -92,6 +106,23 @@ function safe_f2str(f)
     return sf
 end
 
+"""
+    @register app expression
+
+Register a function to the application.
+A function can be registered as a demo, which can take the following forms.
+
+```julia
+@register app f(args...; kwargs...) == result    # a function call + a test
+@register app f(args...; kwargs...) ≈ result     # similar to the above
+@register app f(args...; kwargs...)::T           # a function call with assertion of the return type
+@register app f(args...; kwargs...)              # a function call
+@register app begin ... end                      # a sequence of function
+```
+
+The [`@register`](@ref) macro checks and executes the expression. If the tests and type asserts in the expression does not hold, an error will be thrown.
+Otherwise, both the top level function call and those appear in the input arguments will be registered.
+"""
 macro register(app, ex)
     reg_statements = []
     register_by_expr(app, ex, reg_statements)
@@ -129,7 +160,7 @@ function register_by_expr(app, ex, exs)
             register_by_expr.(Ref(app), body, Ref(exs))
         end 
         ::LineNumberNode => nothing
-        _ => (@warn("not handled expression: $ex"); ex)
+        _ => (@debug("not handled expression: $(repr(ex))"); ex)
     end
 end
 
@@ -158,3 +189,27 @@ getname(ex) = @match ex begin
     :($x::$T) => x
     _ => error("keyword argument must be a symbol!")
 end
+
+####################### Save load demos to disk
+# save demos to the disk
+function save_demos(dir::String, methods::AppSpecification)
+    mkpath(dir)
+    demos, types = JugsawIR.julia2ir(methods)
+    fdemos = joinpath(dir, "demos.json")
+    @info "dumping demos to: $fdemos"
+    open(fdemos, "w") do f
+        write(f, "[$demos, $types]")
+    end
+end
+
+# load demos from the disk
+function load_demos_from_dir(dir::String, demos)
+    sdemos = read(joinpath(dir, "demos.json"), String)
+    return load_demos(sdemos, demos)
+end
+function load_demos(sdemos::String, demos)
+    adt = JugsawIR.ir2adt(sdemos)
+    appadt, typesadt = adt.storage
+    return JugsawIR.adt2julia(appadt, demos), JugsawIR.adt2julia(typesadt, JugsawIR.demoof(JugsawIR.TypeTable))
+end
+

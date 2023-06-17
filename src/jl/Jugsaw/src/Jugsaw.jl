@@ -1,7 +1,7 @@
 module Jugsaw
 
 using JugsawIR
-using JugsawIR.JSON3
+using JugsawIR.JSON3, JugsawIR.DocStringExtensions
 using JugsawIR: @match, Tree, Call
 using UUIDs
 using UUIDs: uuid4
@@ -17,13 +17,11 @@ export generate_code
 
 include("typeuniverse.jl")
 include("errors.jl")
-include("config.jl")
-include("common.jl")
 include("register.jl")
-include("server.jl")
+include("clientcode.jl")
+include("server/server.jl")
 include("client/Client.jl")
 include("template.jl")
 include("checkapp.jl")
-include("clientcode.jl")
 
 end # module

@@ -23,7 +23,7 @@ function cast_to_problem(c::IndependentSetConfig, optimizer)
         Graphs.add_edge!(g, c.graph.edges[:, k]...)
     end
     # weights
-    weights = c.weights == ones(Int, Graphs.nv(g)) ? GenericTensorNetworks.NoWeight() : weights
+    weights = c.weights == ones(Int, Graphs.nv(g)) ? GenericTensorNetworks.NoWeight() : c.weights
     return IndependentSet(g; weights, optimizer)
 end
 struct ConfigsMaxSample{K} <: AbstractProperty
@@ -39,6 +39,12 @@ pretype(::ConfigsAllSample) = ConfigsAll(; tree_storage=true)
 pretype(::ConfigsMaxSample{K}) where K = ConfigsMax(K; tree_storage=true)
 pretype(::ConfigsMinSample{K}) where K = ConfigsMin(K; tree_storage=true)
 # TODO: support optimizer picker.
+
+"""
+```math
+x^2
+```
+"""
 function solve(probconfig::GraphProblemConfig,
                 property::AbstractProperty;
                 usecuda::Bool=false,
@@ -75,5 +81,5 @@ end
 
 #####
 
-r= Jugsaw.AppRuntime(app)
-serve(r, @__DIR__; is_async=false)
+#r= Jugsaw.AppRuntime(app)
+#serve(r, @__DIR__; is_async=false)

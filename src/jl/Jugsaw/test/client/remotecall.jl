@@ -1,41 +1,58 @@
-using Test, Jugsaw, JugsawIR, Jugsaw.Client
+using Test, Jugsaw, JugsawIR, Jugsaw.Client, Jugsaw.Server
 using JugsawIR.JSON3
-
-@testset "local call" begin
-    path = joinpath(dirname(@__DIR__), "testapp")
-    r = LocalHandler(path)
-    app = request_app(r, :testapp)
-    @test app isa Client.App
-    open(f->write(f, "2"), joinpath(path, "result.json"), "w")
-    @test 2 == app.sin(2.0)
-end
 
 @testset "server-client" begin
     # start service
     sapp = AppSpecification(:testapp)
+    r = AppRuntime(sapp, InMemoryEventService())
     @register sapp sin(cos(0.5))::Float64
-    t = Jugsaw.serve(sapp; is_async=true)
+    context = Client.ClientContext()
+    t = Jugsaw.Server.simpleserve(r; is_async=true)
 
-    # run tasks
-    remote = RemoteHandler()  # on the default port
-    @test healthz(remote).status == "OK"
-    @test dapr_config(remote) == []
+    try
+        # healthz
+        @test healthz(context).status == "OK"
 
-    app = request_app(remote, :testapp)
-    @test app isa Client.App
+        # run tasks
+        app = request_app(context, :testapp)
+        @test app isa Client.App
 
-    #fetch
-    @test test_demo(app.sin)
-    @test dapr_config(remote) == ["sin"]
+        #fetch
+        @test test_demo(app.sin)
 
-    # call
-    obj = call(app.sin[1], 3.0)
-    @test obj isa Client.LazyReturn
-    @test obj() ≈ sin(3.0)
+        # call
+        obj = call(app.sin[1], 3.0)
+        @test obj isa Client.LazyReturn
+        @test obj() ≈ sin(3.0)
+    catch e
+        Base.rethrow(e)
+    finally
+        # turn down service
+        schedule(t, InterruptException(), error=true)
+    end
+end
 
-    #delete
-    @test delete(remote, app, :sin)
+@testset "request in server mode" begin
+    # start the service
+    sapp = AppSpecification(:testapp)
+    @register sapp sin(cos(0.5))::Float64
+    r = AppRuntime(sapp, InMemoryEventService())
+    # request in remote mode
+    context = Client.ClientContext(; localurl=false, endpoint="http://localhost:8081")
+    t = Jugsaw.Server.simpleserve(r; is_async=true, localurl=false, port=8081)
 
-    # turn down service
-    schedule(t, InterruptException(), error=true)
+    try
+        @test Client.new_request(context, Val(:healthz)).status == 200
+        @test Client.new_request(context, Val(:demos)).status == 200
+        job_id = string(Jugsaw.uuid4())
+        fcall = Jugsaw.Call(:sin, (1.0,), (;))
+        @test Client.new_request(context, Val(:job), job_id, fcall).status == 200
+        @test Client.new_request(context, Val(:fetch), job_id).status == 200
+        @test Client.new_request(context, Val(:api), fcall, "JuliaLang").status == 200
+    catch e
+        Base.rethrow(e)
+    finally
+        # turn down service
+        schedule(t, InterruptException(), error=true)
+    end
 end

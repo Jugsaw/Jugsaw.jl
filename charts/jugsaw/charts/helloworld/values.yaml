@@ -1,9 +1,0 @@
-replicaCount: 1
-
-image:
-  project: test
-  pullPolicy: Always
-  tag: latest
-
-service:
-  port: 8088
