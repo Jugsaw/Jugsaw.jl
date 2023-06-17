@@ -50,10 +50,10 @@ function Base.show(io::IO, ref::DemoRef)
 end
 Base.Docs.doc(d::DemoRef) = Base.Docs.doc(d.demo)
 function (demo::DemoRef)(args...; kwargs...)
-    call(demo, args...; kwargs...)()
+    call(demo.context, demo.demo, args...; kwargs...)()
 end
 function run_demo(demo::DemoRef)
-    call(demo, demo.demo.fcall.args...; demo.demo.fcall.kwargs...)()
+    call(demo.context, demo.demo, demo.demo.fcall.args...; demo.demo.fcall.kwargs...)()
 end
 function test_demo(demo::DemoRef)
     result, expect = run_demo(demo), demo.demo.result

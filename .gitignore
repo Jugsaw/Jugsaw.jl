@@ -1,6 +1,7 @@
 !example/hello_world/app/Manifest.toml
 
 .vscode/
+*.swp
 !launch.json
 !tasks.json
 

@@ -46,7 +46,6 @@ $TYPEDSIGNATURES
 
 Launch a function call.
 """
-call(demo::DemoRef, args...; kwargs...) = call(demo.context, demo.demo, args...; kwargs...)
 function call(context::ClientContext, demo::Demo, args...; kwargs...)
     args_adt = adt_norecur(demo.meta["args_type"], args)
     kwargs_adt = adt_norecur(demo.meta["kwargs_type"], (; kwargs...))

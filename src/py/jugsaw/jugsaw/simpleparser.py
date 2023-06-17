@@ -1,4 +1,4 @@
-import lark
+import lark, json
 from collections import OrderedDict
 import numpy as np
 import enum, pdb
@@ -12,7 +12,7 @@ class JugsawObject(object):
         self.fields = fields
 
     def __str__(self):
-        fields = ", ".join([f"{val}" for val in self.fields])
+        fields = ", ".join([f"{repr(val)}" for val in self.fields])
         return f"{self.typename}({fields})"
 
     def __eq__(self, target):
@@ -73,8 +73,8 @@ class Call(object):
         self.kwargs = kwargs
 
     def __str__(self):
-        args = ', '.join([str(arg) for arg in self.args])
-        kwargs = ', '.join([f'{k} = {self.kwargs[k]}' for k in self.kwargs])
+        args = ', '.join([repr(arg) for arg in self.args])
+        kwargs = ', '.join([f'{k} = {repr(self.kwargs[k])}' for k in self.kwargs])
         return f"{self.fname}({args}, {kwargs})"
 
 class Demo(object):
@@ -84,7 +84,7 @@ class Demo(object):
         self.meta = meta
 
     def __str__(self):
-        return f"{self.fcall} = {self.result}"
+        return f"{self.fcall} = {repr(self.result)}"
 
 def load_app(s:str):
     obj, typesadt = ir2adt(s)
@@ -142,6 +142,26 @@ def py2dict(obj):
         return {"fields": [obj.real, obj.imag]}
     else:
         return {"fields": [getattr(obj, x) for x in obj.__dict__.keys()]}
+
+def py2ir(py):
+    return json.dumps(py2dict(py))
+
+###################### ADT to IR
+def adt2ir(x):
+    return json.dumps(_adt2ir(x))
+
+def _adt2ir(x):
+    if isinstance(x, JugsawObject):
+        return _makedict(x.typename, [_adt2ir(v) for v in x.fields])
+    elif isinstance(x, list):
+        return [_adt2ir(v) for v in x]
+    elif isinstance(x, float) or x == None or isinstance(x, int) or isinstance(x, str):
+        return x
+    else:
+        raise Exception(f"type can not be casted to IR, got: {x} of type {type(x)}")
+
+def _makedict(T:str, fields:list):
+    return {"type" : T, "fields" : fields}
 
 if __name__ == "__main__":
     import pdb
