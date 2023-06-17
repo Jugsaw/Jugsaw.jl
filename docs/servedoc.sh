@@ -10,7 +10,7 @@ JULIA_PROJECT=${parent_path} exec julia \
 
 using Pkg
 if !isfile(joinpath(@__DIR__, "Manifest.toml"))
-    Pkg.develop([Pkg.PackageSpec("../src/jl/JugsawIR"), Pkg.PackageSpec("../src/jl/Jugsaw")])
+    Pkg.develop([Pkg.PackageSpec(path="../src/jl/JugsawIR"), Pkg.PackageSpec(path="../src/jl/Jugsaw")])
     Pkg.instantiate()
 end
 
