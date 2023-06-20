@@ -76,7 +76,7 @@ function register!(app::AppSpecification, f, args::Tuple, kwargs::NamedTuple, en
                 "docstring"=>doc,
                 "args_type"=>JugsawIR.type2str(typeof(args)),
                 "kwargs_type"=>JugsawIR.type2str(typeof(kwargs)),
-                "api_julialang"=>generate_code(JuliaLang(), endpoint, app.name, adt, jf),
+                "api_julialang"=>generate_code(Julia(), endpoint, app.name, adt, jf),
                 "api_python"=>generate_code(Python(), endpoint, app.name, adt, jf),
                 "api_javascript"=>generate_code(Javascript(), endpoint, app.name, adt, jf)
             )))

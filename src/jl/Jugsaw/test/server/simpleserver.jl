@@ -18,7 +18,7 @@ using Jugsaw.Client
     @test r(Jugsaw.Client.new_request_obj(context, Val(:demos))).status == 200
 
     # api
-    req = Jugsaw.Client.new_request_obj(context, Val(:api), JugsawIR.Call("sin", (0.5,), (;)), "JuliaLang")
+    req = Jugsaw.Client.new_request_obj(context, Val(:api), JugsawIR.Call("sin", (0.5,), (;)), "Julia")
     @test r(req).status == 200
     # language not defined
     req = Jugsaw.Client.new_request_obj(context, Val(:api), JugsawIR.Call("sin", (0.5,), (;)), "Julia")

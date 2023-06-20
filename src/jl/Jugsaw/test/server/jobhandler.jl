@@ -74,8 +74,8 @@ end
     # nested call
     job_id = string(Jugsaw.uuid4())
     adt1, = JugsawIR.julia2adt(JugsawIR.Call(cos, (0.7,), (;)),)
-    adt = JugsawIR.JugsawADT.Object("JugsawIR.Call",
-        ["sin", JugsawIR.JugsawADT.Object(JugsawIR.type2str(Tuple{Float64}), [adt1]), JugsawIR.julia2adt((;))[1]])
+    adt = JugsawIR.JugsawObject("JugsawIR.Call",
+        ["sin", JugsawIR.JugsawObject(JugsawIR.type2str(Tuple{Float64}), [adt1]), JugsawIR.julia2adt((;))[1]])
     # fix adt
     jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, adt.fields...)
     job = addjob!(r, jobspec)
@@ -143,15 +143,15 @@ end
     dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
     @register app sin(cos(0.5))::Float64
 
-    req = Jugsaw.Client.new_request_obj(context, Val(:api), JugsawIR.Call("sin", (0.5,), (;)), "JuliaLang")
-    req.context[:params] = Dict("lang"=>"JuliaLang")
+    req = Jugsaw.Client.new_request_obj(context, Val(:api), JugsawIR.Call("sin", (0.5,), (;)), "Julia")
+    req.context[:params] = Dict("lang"=>"Julia")
     ret = Jugsaw.Server.code_handler(req, app)
     @test ret.status == 200
     @test JSON3.read(ret.body).code isa String
     @show JSON3.read(ret.body).code
 
-    req = Jugsaw.Client.new_request_obj(context, Val(:api), JugsawIR.Call("sinx", (0.5,), (;)), "JuliaLang")
-    req.context[:params] = Dict("lang"=>"JuliaLang")
+    req = Jugsaw.Client.new_request_obj(context, Val(:api), JugsawIR.Call("sinx", (0.5,), (;)), "Julia")
+    req.context[:params] = Dict("lang"=>"Julia")
     ret = Jugsaw.Server.code_handler(req, app)
     @test ret.status == 400
 end

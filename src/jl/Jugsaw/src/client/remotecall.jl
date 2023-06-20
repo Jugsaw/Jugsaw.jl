@@ -51,7 +51,7 @@ function call(context::ClientContext, demo::Demo, args...; kwargs...)
     kwargs_adt = adt_norecur(demo.meta["kwargs_type"], (; kwargs...))
     @assert length(args_adt.fields) == length(demo.fcall.args)
     @assert length(kwargs_adt.fields) == length(demo.fcall.kwargs)
-    fcall = JugsawADT.Object("JugsawIR.Call",
+    fcall = JugsawObject("JugsawIR.Call",
             [demo.fcall.fname, args_adt, kwargs_adt])
     job_id = string(uuid4())
     safe_request(()->new_request(context, Val(:job), job_id, fcall; maxtime=60.0, created_by="jugsaw"))
@@ -73,7 +73,7 @@ end
 
 function adt_norecur(typename::String, x::T) where T
     fields = Any[isdefined(x, fn) ? getfield(x, fn) : undef for fn in fieldnames(T)]
-    return JugsawADT.Object(typename, fields)
+    return JugsawObject(typename, fields)
 end
 
 """
@@ -103,7 +103,7 @@ function _new_request(context::ClientContext, ::Val{:job}, job_id::String, fcall
 end
 function _new_request(context::ClientContext, ::Val{:job}, job_id::String, fcall::JugsawADT; maxtime=10.0, created_by="jugsaw")
     # create a job
-    jobspec = JugsawADT.Object("Jugsaw.JobSpec", [job_id, round(Int, time()), created_by,
+    jobspec = JugsawObject("Jugsaw.JobSpec", [job_id, round(Int, time()), created_by,
         maxtime, fcall.fields...])
     ir = JugsawIR.adt2ir(jobspec)
     # NOTE: UGLY!
@@ -137,7 +137,7 @@ function _new_request(context::ClientContext, ::Val{:api}, fcall::JugsawIR.Call,
     return _new_request(context, Val(:api), JugsawIR.julia2adt(fcall)[1], lang)
 end
 function _new_request(context::ClientContext, ::Val{:api}, fcall::JugsawADT, lang::String)
-    ir = JugsawIR.adt2ir(JugsawADT.Object("Core.Tuple{Core.String, JugsawIR.Call}", [context.endpoint, fcall]))
+    ir = JugsawIR.adt2ir(JugsawObject("Core.Tuple{Core.String, JugsawIR.Call}", [context.endpoint, fcall]))
     return ("GET", joinpath(context.endpoint,
         context.localurl ? "api/$lang" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/func/$(context.fname)/api/$lang"
     ), ["Content-Type" => "application/json"], ir)
