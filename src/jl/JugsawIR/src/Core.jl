@@ -129,16 +129,27 @@ function demoofelement(demo::Dict{K,V}) where {K, V}
     return length(demo) > 0 ? first(demo) : (demoof(K) => demoof(V))
 end
 
-
 ############ ADT
 "`JugsawADT` is an intermediate representation between Jugsaw IR and Julia language."
-@adt JugsawADT begin
-    struct Object
-        typename::String
-        fields::Vector
-    end
-    struct Vector
-        storage::Vector
+struct JugsawADT
+    head::Symbol
+    typename::String
+    fields::Vector
+end
+JugsawObject(typename::String, fields::Vector) = JugsawADT(:Object, typename, fields)
+JugsawVector(storage::Vector) = JugsawADT(:Vector, "", storage)
+@inline function Base.getproperty(adt::JugsawADT, name::Symbol)
+    head = getfield(adt, :head)
+    if head == :Object
+        return getfield(adt, name)
+    elseif head == :Vector
+        if name == :storage
+            return getfield(adt, :fields)
+        else
+            return getfield(adt, name)
+        end
+    else
+        return getfield(adt, name)
     end
 end
 Base.:(==)(a::JugsawADT, b::JugsawADT) = all(fn->getfield(a, fn) == getfield(b, fn), fieldnames(JugsawADT))

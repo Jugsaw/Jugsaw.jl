@@ -8,12 +8,9 @@ import MLStyle
 using Lerche
 using AbstractTrees
 using AbstractTrees: print_tree
-using Expronicon
-using Expronicon
-using Expronicon.ADT: @adt
 using DocStringExtensions
 
-export julia2ir, ir2julia, TypeTable, JugsawADT
+export julia2ir, ir2julia, TypeTable, JugsawADT, JugsawObject, JugsawVector
 export Call, feval, fevalself
 export JugsawDemo, ftest
 export TypeTooAbstract
