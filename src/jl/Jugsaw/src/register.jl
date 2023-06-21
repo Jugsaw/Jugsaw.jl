@@ -56,10 +56,10 @@ function selftest(demo::JugsawDemo)
     return res === demo.result || res == demo.result || res ≈ demo.result
 end
 
-function register!(app::AppSpecification, f, args::Tuple, kwargs::NamedTuple, endpoint = get(ENV, "endpoint", "http://localhost:8088"))
+function register!(app::AppSpecification, f, args::Tuple, kwargs::NamedTuple, endpoint = get_endpoint())
     #f = protect_type(_f)
     jf = Call(f, args, kwargs)
-    adt = JugsawIR.julia2adt(jf)[1]
+    adt, type_table = JugsawIR.julia2adt(jf)
     fname = safe_f2str(f)
     result = f(args...; kwargs...)
     # if the function is not yet registered, add a new method
@@ -71,14 +71,15 @@ function register!(app::AppSpecification, f, args::Tuple, kwargs::NamedTuple, en
     if match_demo(fname, args, kwargs, app) === nothing
         # create a new demo
         doc = string(Base.Docs.doc(Base.Docs.Binding(module_and_symbol(f)...)))
+        idx = length(app.method_demos[fname]) + 1
         push!(app.method_demos[fname], JugsawDemo(jf, result,
             Dict{String,String}(
                 "docstring"=>doc,
                 "args_type"=>JugsawIR.type2str(typeof(args)),
                 "kwargs_type"=>JugsawIR.type2str(typeof(kwargs)),
-                "api_julialang"=>generate_code(JuliaLang(), endpoint, app.name, adt, jf),
-                "api_python"=>generate_code(Python(), endpoint, app.name, adt, jf),
-                "api_javascript"=>generate_code(Javascript(), endpoint, app.name, adt, jf)
+                "api_julialang"=>generate_code("Julia", endpoint, app.name, fname, idx, adt, type_table),
+                "api_python"=>generate_code("Python", endpoint, app.name, fname, idx, adt, type_table),
+                "api_javascript"=>generate_code("Javascript", endpoint, app.name, fname, idx, adt, type_table)
             )))
     end
     return result

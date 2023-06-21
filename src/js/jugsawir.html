@@ -2,10 +2,10 @@
 <html>
 
 <head>
-<!--<script type="text/javascript" src="jugsawirparser.js"></script>-->
-<script type="text/javascript" src="https://cdn.jsdelivr.net/gh/Jugsaw/Jugsaw/src/js/jugsawirparser.js"></script>
+<script type="text/javascript" src="jugsawirparser.js"></script>
+<!--<script type="text/javascript" src="https://cdn.jsdelivr.net/gh/Jugsaw/Jugsaw/src/js/jugsawirparser.js"></script>-->
 <script type="module" src="https://md-block.verou.me/md-block.js"></script>
-<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/10.0.0/styles/default.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/a11y-dark.min.css">
 <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/10.0.0/highlight.min.js"></script>
 <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/10.0.0/languages/julia.min.js"></script>
 <script type="text/x-mathjax-config">
@@ -23,9 +23,6 @@ MathJax.Hub.Config({
 </script>
 <script type="text/javascript" async src=
 "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML"></script>
-<script>
-hljs.initHighlightingOnLoad();
-</script>
 </head>
 <body>
     <h1>Jugsaw Debugger</h1>
@@ -46,9 +43,12 @@ hljs.initHighlightingOnLoad();
 
 <script>
 
-const host = document.getElementById("input-endpoint").value;
-const port = document.getElementById("input-port").value;
-const app_and_method = request_app(`${host}:${port}`, "unspecified", "helloworld").then(r=>r.text()).then(ir2adt);
+const endpoint = new URL(window.location.href);
+const host = `${endpoint.protocol}//${endpoint.hostname}`;
+document.getElementById("input-endpoint").value = host;
+const port = endpoint.port;
+document.getElementById("input-port").value = port;
+const app_and_method = request_app_obj(`${host}:${port}`, "unspecified", "helloworld").then(r=>r.text()).then(ir2adt);
 const app = app_and_method.then(render_app);
 
 const appbox = document.getElementById("jugsaw-demos");
@@ -93,6 +93,7 @@ function disp_demo(fname, index, demo){
         const codeblock = document.createElement('pre');
         const code = create_textblock('code', demo[`api_${langs[i]}`]);
         code.classList.add(`language-${langs[i]}`);
+        hljs.highlightBlock(code);
         codeblock.appendChild(code);
         details.appendChild(codeblock);
         apis.appendChild(details);

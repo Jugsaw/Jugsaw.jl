@@ -20,7 +20,7 @@ end
     context = Client.ClientContext()
 
     # parse function call
-    fcall = first(app.method_demos).second[1].fcall
+    fcall = JugsawIR.julia2adt(first(app.method_demos).second[1].fcall)[1]
     
     job_id = string(Jugsaw.uuid4())
     req = Client.new_request_obj(context, Val(:job), job_id, fcall)
@@ -35,7 +35,7 @@ end
     @test fetch_status(r.dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.succeeded
 
     # call functions not exist
-    fcall2 = JugsawIR.Call(:sinx, (0.5,), (;))
+    fcall2 = JugsawIR.julia2adt(JugsawIR.Call(:sinx, (0.5,), (;)))[1]
     job_id = string(Jugsaw.uuid4())
     req = Client.new_request_obj(context, Val(:job), job_id, fcall2)
     resp1 = Server.job_handler(r, req)
@@ -45,7 +45,7 @@ end
     @test fetch_status(r.dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.failed
 
     # trigger the bug
-    fcall3 = JugsawIR.Call(:buggy, (-0.5,), (;))
+    fcall3 = JugsawIR.julia2adt(JugsawIR.Call(:buggy, (-0.5,), (;)))[1]
     job_id = string(Jugsaw.uuid4())
     req = Client.new_request_obj(context, Val(:job), job_id, fcall3)
     resp1 = Server.job_handler(r, req)

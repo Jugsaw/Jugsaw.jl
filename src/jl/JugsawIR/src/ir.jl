@@ -33,7 +33,7 @@ function tree2adt(t)
             "true" => true
             "false" => false
             "null" => nothing
-            "list" => JugsawADT.Vector(tree2adt.(t.children))
+            "list" => JugsawVector(tree2adt.(t.children))
             "genericobj1" => buildobj("Core.Any", tree2adt.(t.children[1].children))
             "genericobj2" => buildobj(tree2adt(t.children[1]), tree2adt.(t.children[2].children))
             "genericobj3" => buildobj(tree2adt(t.children[2]), tree2adt.(t.children[1].children))
@@ -52,16 +52,16 @@ function tree2adt(t)
         end
     end
 end
-buildobj(type::String, fields::Vector) = JugsawADT.Object(type, fields)
+buildobj(type::String, fields::Vector) = JugsawObject(type, fields)
 
 ###################### ADT to IR
 adt2ir(x) = JSON3.write(_adt2ir(x))
 function _adt2ir(x)
     @match x begin
-        JugsawADT.Object(type, fields) => begin
-            _makedict(type, Any[_adt2ir(v) for v in fields])
+        ::JugsawADT => @match x.head begin
+            :Object => _makedict(x.typename, Any[_adt2ir(v) for v in x.fields])
+            :Vector => _adt2ir.(x.storage)
         end
-        JugsawADT.Vector(storage) => _adt2ir.(storage)
         ::DirectlyRepresentableTypes || ::UndefInitializer => x
         _ => error("type can not be casted to IR, got: $x of type $(typeof(x))")
     end

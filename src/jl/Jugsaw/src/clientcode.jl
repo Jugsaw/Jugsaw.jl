@@ -1,10 +1,10 @@
 abstract type AbstractLang end
-struct JuliaLang <: AbstractLang end
+struct Julia <: AbstractLang end
 struct Python <: AbstractLang end
 struct Javascript <: AbstractLang end
 
 """
-    generate_code(lang, endpoint::String, appname::Symbol, fcall::JugsawADT, democall::JugsawIR.Call)
+$TYPEDSIGNATURES
 
 Generate code for target language.
 
@@ -14,11 +14,17 @@ Please use `subtypes(AbstractLang)` for supported client languages.
 * `endpoint` is the url for service provider, e.g. it can be [https://www.jugsaw.co](https://www.jugsaw.co).
 * `appname` is the application name.
 * `fcall` is a [`JugsawADT`](@ref) that specifies the function call.
-* `democall` is the demo instance of that function call.
+* `idx` is the index of method instance.
+* `typetable` is a [`TypeTable`](@ref) instance with the type definitions.
 """
-function generate_code(lang::String, args...; kwargs...)
-    pl = if lang == "JuliaLang"
-        JuliaLang()
+function generate_code(lang::String, endpoint, appname, fname, idx::Int, fcall::JugsawADT, typetable::JugsawADT)
+    @assert fcall.typename == "JugsawIR.Call"
+    if isempty(endpoint)
+        @warn("The endpoint of this server is not set properly.")
+    end
+    tt = JugsawIR.adt2julia(typetable, JugsawIR.demoof(JugsawIR.TypeTable))
+    pl = if lang == "Julia"
+        Julia()
     elseif lang == "Python"
         Python()
     elseif lang == "Javascript"
@@ -26,55 +32,119 @@ function generate_code(lang::String, args...; kwargs...)
     else
         return error("Client langauge not defined, got: $lang")
     end
-    return generate_code(pl, args...; kwargs...)
+    return _generate_code(pl, endpoint, appname, Symbol(fname), idx, fcall, tt)
 end
+
+aslist(x::JugsawADT) = x.fields[2]
+
 # converting IR to different languages
-function generate_code(::JuliaLang, endpoint::String, appname::Symbol, fcall::JugsawADT, democall::JugsawIR.Call)
-    @assert fcall.typename == "JugsawIR.Call"
-    if isempty(endpoint)
-        @warn("The endpoint of this server is not set properly.")
-    end
-    callexpr = fexpr(JuliaLang(), fcall, democall)
-    callexpr.args[1] = :(app.$(callexpr.args[1]))
-    code = join(string.([
-        :(using Jugsaw.Client),
-        :(app = request_app(ClientContext(; endpoint=$endpoint), $(QuoteNode(appname)))),
-        callexpr
-            ]), "\n")
-    return string(code)
+function _generate_code(::Julia, endpoint::String, appname::Symbol, fname::Symbol, idx::Int, fcall::JugsawADT, typetable::TypeTable)
+    _, fargs, fkwargs = fcall.fields
+    args = join([adt2client(Julia(), arg) for arg in fargs.fields],", ")
+    kws = typetable.defs[fkwargs.typename].fieldnames
+    kwargs = join(["$key = $(adt2client(Julia(), arg))" for (key, arg) in zip(kws, fkwargs.fields)],", ")
+    code = """using Jugsaw.Client
+app = request_app(ClientContext(; endpoint=$(repr(endpoint))), :$(appname))
+lazyreturn = app.$fname[$idx]($args; $kwargs)
+result = lazyreturn()  # fetch result"""
+    return code
 end
-function generate_code(::Javascript, endpoint::String, appname::Symbol, fcall::JugsawADT, democall::JugsawIR.Call)
-    return "Not implemented yet!"
-end
-function generate_code(::Python, endpoint::String, appname::Symbol, fcall::JugsawADT, democall::JugsawIR.Call)
-    return "Not implemented yet!"
-end
-
-function fexpr(::JuliaLang, fcall, democall)
-    fname, args, kwargs = fcall.fields
-    return :($(fname)($([julia2client(JuliaLang(), arg, argdemo) for (arg, argdemo) in zip(args.fields, democall.args)]...);
-        $([Expr(:kw, k, julia2client(JuliaLang(), v, vdemo)) for (k, v, vdemo) in zip(fieldnames(typeof(democall.kwargs)), kwargs.fields, democall.kwargs)]...)))
-end
-
-
-function julia2client(lang::AbstractLang, x, demo::T) where T
-    @match demo begin
-        ###################### Basic Types ######################
-        ::Nothing || ::Missing || ::UndefInitializer || ::Type || ::Function => toexpr(lang, demo)
-        ::Char => toexpr(lang, T(x[1]))
-        ::JugsawIR.DirectlyRepresentableTypes => toexpr(lang, T(x))
-        ::Array => Expr(:call, :reshape,
-            Expr(:vect, [julia2client(lang, elem, JugsawIR.demoofelement(demo)) for elem in x.fields[2].storage]...),
-            x.fields[1].storage...)
-        ::JugsawADT => error("what for?")
+function adt2client(lang::Julia, x)
+    @match x begin
         ###################### Generic Compsite Types ######################
-        _ => begin
-            struct2expr(lang, x, demo)
+        ::JugsawADT => @match x.head begin
+            :Object => if startswith(x.typename, "JugsawIR.JArray")
+                content = join([adt2client(lang, elem) for elem in x.fields[2].storage], ", ")
+                size = join([string(x) for x in x.fields[1].storage], ", ")
+                length(size) > 1 ? "reshape([$content], $size)" : "[$content]"
+            elseif startswith(x.typename, "JugsawIR.JDict")
+                kvpairs = join(["$(adt2client(lang, k)) => $(adt2client(lang, v))" for (k, v) in zip(aslist(x.fields[1]).storage, aslist(x.fields[2]).storage)], ", ")
+                "Dict($kvpairs)"
+            elseif startswith(x.typename, "JugsawIR.JEnum")
+                repr(x.fields[2])
+            else
+                vals = [adt2client(lang, field) for field in x.fields]
+                "(" * join(vals, ", ") * ")"
+            end
+            :Vector => "[" * join([adt2client(lang, v) for v in x], ", ") * "]"
         end
+        ##################### Primitive types ###################
+        _ => repr(x)
     end
 end
-toexpr(::JuliaLang, x) = :($x)
-function struct2expr(lang::JuliaLang, t::JugsawADT, demo::T) where T
-    vals = [julia2client(lang, field, getfield(demo, fn)) for (field, fn) in zip(t.fields, fieldnames(T)) if isdefined(demo, fn)]
-    return :(($(vals...),))
+
+function _generate_code(::Python, endpoint::String, appname::Symbol, fname::Symbol, idx::Int, fcall::JugsawADT, typetable::TypeTable)
+    _, fargs, fkwargs = fcall.fields
+    args = join([adt2client(Python(), arg) for arg in fargs.fields],", ")
+    kws = typetable.defs[fkwargs.typename].fieldnames
+    kwargs = join(["$key = $(adt2client(Python(), arg))" for (key, arg) in zip(kws, fkwargs.fields)],", ")
+    code = """import jugsaw, numpy
+app = jugsaw.request_app(jugsaw.ClientContext(endpoint=$(repr(endpoint))), $(repr(string(appname))))
+lazyreturn = app.$fname[$(idx-1)]($(join(filter!(!isempty, [args, kwargs]), ", ")))
+result = lazyreturn()   # fetch result"""
+    return code
+end
+# We use tuple for objects
+# numpy array for Array
+# dict for Dict
+function adt2client(lang::Python, x)
+    @match x begin
+        ###################### Generic Compsite Types ######################
+        ::JugsawADT => @match x.head begin
+            :Object => if startswith(x.typename, "JugsawIR.JArray")
+                storage = join([adt2client(lang, v) for v in x.fields[2].storage], ", ")
+                size = (x.fields[1].storage...,)
+                length(size) == 1 ? "[$storage]" : "numpy.reshape([$storage], $size, order='F')"
+            elseif startswith(x.typename, "JugsawIR.JDict")
+                kvpairs = join(["$(adt2client(lang, k)):$(adt2client(lang, v))" for (k, v) in zip(aslist(x.fields[1]).storage, aslist(x.fields[2]).storage)], ", ")
+                "{$kvpairs}"
+            elseif startswith(x.typename, "JugsawIR.JEnum")
+                repr(x.fields[2])
+            else
+                vals = [adt2client(lang, field) for field in x.fields]
+                "(" * join(vals, ", ") * ")"
+            end
+            :Vector => "[" * join([adt2client(lang, v) for v in x], ", ") * "]"
+        end
+        ##################### Primitive types ###################
+        ::Nothing => "None"
+        ::Bool => x ? "True" : "False"
+        _ => repr(x)
+    end
+end
+
+function _generate_code(::Javascript, endpoint::String, appname::Symbol, fname::Symbol, idx::Int, fcall::JugsawADT, typetable::TypeTable)
+    _, fargs, fkwargs = fcall.fields
+    args = adt2client(Javascript(), fargs)
+    kws = typetable.defs[fkwargs.typename].fieldnames
+    kwargs = adt2client(Javascript(), fkwargs)
+    code = """<!-- include the jugsaw library -->
+<script type="text/javascript" src="https://cdn.jsdelivr.net/gh/Jugsaw/Jugsaw/src/js/jugsawirparser.js"></script>
+
+<!-- The function call -->
+<script>
+// call
+const context = new ClientContext({endpoint:"$endpoint"})
+const app_promise = request_app(context, "$appname")
+// keyword arguments are: $kws
+app_promise.then(app=>app.call("$fname", $(idx-1), $args, $kwargs)).then(console.log)
+</script>"""
+    return code
+end
+function adt2client(lang::Javascript, x)
+    @match x begin
+        ###################### Generic Compsite Types ######################
+        ::JugsawADT => @match x.head begin
+            :Object => if startswith(x.typename, "JugsawIR.JEnum")
+                repr(x.fields[2])
+            else
+                vals = [adt2client(lang, field) for field in x.fields]
+                """[$(join(vals, ", "))]"""
+            end
+            :Vector => "[" * join([adt2client(lang, v) for v in x.storage], ", ") * "]"
+        end
+        ##################### Primitive types ###################
+        ::Nothing => "null"
+        _ => repr(x)
+    end
 end

@@ -75,9 +75,9 @@ function julia2adt!(@nospecialize(x::T), tt::TypeTable) where T
             Tx = JArray{eltype(x)}
             (x isa UndefInitializer || x isa DirectlyRepresentableTypes) || pushtype!(tt, Tx)
             # NOTE: array must be special treated.
-            JugsawADT.Object(type2str(Tx),
-                Any[JugsawADT.Vector(collect(size(x))),  # size
-                    JugsawADT.Vector(julia2adt!.(vec(x), Ref(tt)))]  # storage
+            JugsawObject(type2str(Tx),
+                Any[JugsawVector(collect(size(x))),  # size
+                    JugsawVector(julia2adt!.(vec(x), Ref(tt)))]  # storage
             )
         end
         ::Function => string(x)
@@ -87,7 +87,7 @@ function julia2adt!(@nospecialize(x::T), tt::TypeTable) where T
             _x = native2jugsaw(x)
             Tx = typeof(_x)
             (_x isa UndefInitializer || _x isa DirectlyRepresentableTypes) || pushtype!(tt, Tx)
-            JugsawADT.Object(type2str(Tx), 
+            JugsawObject(type2str(Tx), 
                 Any[isdefined(_x, fn) ? julia2adt!(getfield(_x, fn), tt) : undef for fn in fieldnames(Tx)]
             )
         end

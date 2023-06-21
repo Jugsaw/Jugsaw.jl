@@ -18,10 +18,11 @@ using Jugsaw.Client
     @test r(Jugsaw.Client.new_request_obj(context, Val(:demos))).status == 200
 
     # api
-    req = Jugsaw.Client.new_request_obj(context, Val(:api), JugsawIR.Call("sin", (0.5,), (;)), "JuliaLang")
+    fcall = JugsawIR.julia2adt(JugsawIR.Call("sin", (0.5,), (;)))[1]
+    req = Jugsaw.Client.new_request_obj(context, Val(:api), fcall, "Julia")
     @test r(req).status == 200
     # language not defined
-    req = Jugsaw.Client.new_request_obj(context, Val(:api), JugsawIR.Call("sin", (0.5,), (;)), "Julia")
+    req = Jugsaw.Client.new_request_obj(context, Val(:api), fcall, "Julia2")
     @test r(req).status == 400
     
     # subscribe
@@ -29,7 +30,8 @@ using Jugsaw.Client
 
     # launch a job
     job_id = string(Jugsaw.uuid4())
-    req = Jugsaw.Client.new_request_obj(context, Val(:job), job_id, JugsawIR.Call(sin, (0.5,), (;)))
+    fcall2 = JugsawIR.julia2adt(JugsawIR.Call(sin, (0.5,), (;)))[1]
+    req = Jugsaw.Client.new_request_obj(context, Val(:job), job_id, fcall2)
     ret = r(req)
     @test ret.status == 200
 

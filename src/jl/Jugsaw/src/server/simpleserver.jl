@@ -90,12 +90,13 @@ function code_handler(req::HTTP.Request, app::AppSpecification)
     adt = JugsawIR.ir2adt(String(req.body))
     endpoint, fcall = adt.fields
     fname, args, kwargs = fcall.fields
-    demo = match_demo(fname, args.typename, kwargs.typename, app)
+    idx, demo = match_demo(fname, args.typename, kwargs.typename, app)
     if demo === nothing
         return _error_response(NoDemoException(fcall, app))
     else
         try
-            code = generate_code(lang, endpoint, app.name, fcall, demo.fcall)
+            adt, type_table = JugsawIR.julia2adt(app)
+            code = generate_code(lang, endpoint, app.name, fname, idx, fcall, type_table)
             return HTTP.Response(200, JSON_HEADER, JSON3.write((; code=code)))
         catch e
             return _error_response(e)
@@ -125,13 +126,13 @@ end
 function get_router(::RemoteRoute, runtime::AppRuntime)
     r = HTTP.Router()
     js_folder = joinpath(dirname(dirname(pkgdir(@__MODULE__))), "js")
-    # job
+    # web page
     HTTP.register!(r, "GET", "/",
         req->HTTP.Response(200,SIMPLE_HEADER,read(joinpath(js_folder, "jugsawir.html")))
     )
-    # HTTP.register!(r, "GET", "/jugsawirparser.js",
-    #     req->HTTP.Response(200,SIMPLE_HEADER,read(joinpath(js_folder, "jugsawirparser.js")))
-    # )
+    HTTP.register!(r, "GET", "/jugsawirparser.js",
+        req->HTTP.Response(200,SIMPLE_HEADER,read(joinpath(js_folder, "jugsawirparser.js")))
+    )
     # job
     HTTP.register!(r, "POST", "/v1/proj/{project}/app/{appname}/ver/{version}/func/{fname}",
         req->job_handler(runtime, req)
