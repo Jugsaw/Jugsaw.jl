@@ -2,8 +2,8 @@
 <html>
 
 <head>
-<!--<script type="text/javascript" src="jugsawirparser.js"></script>-->
-<script type="text/javascript" src="https://cdn.jsdelivr.net/gh/Jugsaw/Jugsaw/src/js/jugsawirparser.js"></script>
+<script type="text/javascript" src="jugsawirparser.js"></script>
+<!--<script type="text/javascript" src="https://cdn.jsdelivr.net/gh/Jugsaw/Jugsaw/src/js/jugsawirparser.js"></script>-->
 <script type="module" src="https://md-block.verou.me/md-block.js"></script>
 <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/10.0.0/styles/default.min.css">
 <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/10.0.0/highlight.min.js"></script>
@@ -48,7 +48,7 @@ hljs.initHighlightingOnLoad();
 
 const host = document.getElementById("input-endpoint").value;
 const port = document.getElementById("input-port").value;
-const app_and_method = request_app(`${host}:${port}`, "unspecified", "helloworld").then(r=>r.text()).then(ir2adt);
+const app_and_method = request_app_obj(`${host}:${port}`, "unspecified", "helloworld").then(r=>r.text()).then(ir2adt);
 const app = app_and_method.then(render_app);
 
 const appbox = document.getElementById("jugsaw-demos");

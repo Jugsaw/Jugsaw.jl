@@ -5936,7 +5936,7 @@ function uuid4() {
 
 // Request an application and return an object as Promise.
 // Please use `render_app` for further processing.
-function request_app(endpoint, project, appname, version="latest") {
+function request_app_obj(endpoint, project, appname, version="latest") {
     const url = new URL(`v1/proj/${project}/app/${appname}/ver/${version}/func`, endpoint).href
     return fetch(url, {
         method: 'GET',
@@ -6127,4 +6127,68 @@ function isbooltype(typename){
 }
 function isstringtype(typename){
     return typename == "Core.String"
+}
+
+class ClientContext {
+  constructor(
+      endpoint = "http://localhost:8088/",
+      project = "unspecified",
+      version = "1.0",
+  ) {
+    this.endpoint = endpoint
+    this.project = project
+    this.version = version
+    this.appname = "unspecified",
+    this.fname = "unspecified"
+  }
+}
+
+class App {
+  appname
+  function_list
+  context
+
+  call(fname, idx, args, kwargs, ferror=console.log) {
+    for (var i=0; i< this.function_list.length; i++){
+      const fi = this.function_list[i]
+      if (fi.function_name = fname){
+        const demo = fi.demo_list[idx]
+        return call(context.endpoint, context.project, context.appname, fname, demo.type_args, args, demo.type_kwargs, kwargs).then(resp=>{
+          if (resp.status != 200){
+            // call error
+            ferror(resp.json().error);
+          } else {
+            return LazyReturn(context, obj.json().job_id);
+          }
+        })
+      }
+    }
+  }
+}
+
+class LazyReturn {
+  context
+  obj_id
+  fetch(ferror=console.log) {
+    // an object id is returned
+    return fetch_result(this.context.endpoint, this.job_id).then(resp => {
+      if (resp.status == 200){
+          // fetch result with the object id
+          resp.text().then(ir=>{
+              // the result is returned as a Jugsaw object.
+              const result = ir2adt(ir);
+              return result
+          })
+      } else {
+          ferror(resp.json().error);
+      }
+    })
+  }
+}
+
+function request_app(context, appname){
+  const obj = await Promise.resolve(request_app_obj(context.endpoint, context.project, appname, context.version))
+  const app = render_app(obj)
+  const context = structuredClone(context)
+  return App(app.appname, app.function_list, context)
 }

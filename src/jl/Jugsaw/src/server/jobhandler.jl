@@ -37,7 +37,7 @@ end
 """
 $(TYPEDEF)
 
-A resolved job can be queued and executed in a `AppRuntime`.
+A resolved job can be queued and executed in a [`AppRuntime`](@ref).
 
 ### Fields
 $(TYPEDFIELDS)
@@ -343,7 +343,7 @@ function addjob!(r::AppRuntime, jobspec::JobSpec)
     # Find the demo and parse the arguments
     created_at, created_by, maxtime, fname, args, kwargs = jobspec.created_at, jobspec.created_by, jobspec.maxtime, jobspec.fname, jobspec.args, jobspec.kwargs
     # match demo or throw
-    thisdemo = match_demo(fname, args.typename, kwargs.typename, r.app)
+    idx, thisdemo = match_demo(fname, args.typename, kwargs.typename, r.app)
     if thisdemo === nothing
         err = NoDemoException(jobspec, r.app)
         publish_status(r.dapr, JobStatus(id=jobspec.id, status=failed, description=_error_msg(err)))
@@ -376,15 +376,15 @@ end
 # TODO: design a more powerful IR for chaining.
 function match_demo(fname, args_type, kwargs_type, app::AppSpecification)
     if !haskey(app.method_demos, fname) || isempty(app.method_demos[fname])
-        return nothing
+        return (-1, nothing)
     end
-    for demo in app.method_demos[fname]
+    for (idx, demo) in enumerate(app.method_demos[fname])
         _, dargs, dkwargs = demo.fcall.fname, demo.meta["args_type"], demo.meta["kwargs_type"]
         if dargs == args_type && dkwargs == kwargs_type
-            return demo
+            return (idx, demo)
         end
     end
-    return nothing
+    return (-1, nothing)
 end
 
 # if adt is a function call, launch a job and return an object getter, else, return an object.

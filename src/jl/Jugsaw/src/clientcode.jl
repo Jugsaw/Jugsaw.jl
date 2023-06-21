@@ -113,37 +113,20 @@ end
 
 function _generate_code(::Javascript, endpoint::String, appname::Symbol, fcall::JugsawADT, idx::Int, typetable::TypeTable)
     fname, fargs, fkwargs = fcall.fields
-    args = join([adt2client(Javascript(), arg) for arg in fargs.fields], ", ")
-    kwargs = join([adt2client(Javascript(), arg) for arg in fkwargs.fields], ", ")
+    args = adt2client(Javascript(), fargs)
+    kws = typetable.defs[fkwargs.typename].fieldnames
+    kwargs = adt2client(Javascript(), fkwargs)
     code = """<!-- include the jugsaw library -->
 <script type="text/javascript" src="https://cdn.jsdelivr.net/gh/Jugsaw/Jugsaw/src/js/jugsawirparser.js"></script>
 
 <!-- The function call -->
 <script>
 // call
-call("$endpoint", "unspecified", "$appname", "$fname",
-        {"type":"$type_args", "fields":[$args]},
-        {"type":"$type_kwargs", "fields":[$kwargs]}).then(
-            if (resp.status != 200){
-                // call error
-                console.log(resp.json().error);
-            } else {
-                // an object id is returned
-                const res = fetch_result("$endpoint", obj.json().job_id).then(resp => {
-                if (resp.status == 200){
-                    // fetch result with the object id
-                    resp.text().then(ir=>{
-                        // the result is returned as a Jugsaw object.
-                        const result = ir2adt(ir);
-                        console.log(result);
-                    })
-                } else {
-                    console.log(resp.json().error);
-                }
-            })
-
-         }
-     }
+const context = ClientContext(; endpoint="$endpoint")
+const app = request_app(context, "$appname")
+// keyword arguments are: $kws
+const result = app.call("$fname", $idx, $args, $kwargs)
+console.log(result.fetch())
 </script>"""
     return code
 end
@@ -155,7 +138,7 @@ function adt2client(lang::Javascript, x)
                 repr(x.fields[2])
             else
                 vals = [adt2client(lang, field) for field in x.fields]
-                """{"fields" : [$(join(vals, ", "))]}"""
+                """[$(join(vals, ", "))]"""
             end
             :Vector => "[" * join([adt2client(lang, v) for v in x.storage], ", ") * "]"
         end
