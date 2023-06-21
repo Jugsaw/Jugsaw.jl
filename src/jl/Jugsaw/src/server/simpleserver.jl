@@ -96,7 +96,7 @@ function code_handler(req::HTTP.Request, app::AppSpecification)
     else
         try
             adt, type_table = JugsawIR.julia2adt(app)
-            code = generate_code(lang, endpoint, app.name, fcall, idx, type_table)
+            code = generate_code(lang, endpoint, app.name, fname, idx, fcall, type_table)
             return HTTP.Response(200, JSON_HEADER, JSON3.write((; code=code)))
         catch e
             return _error_response(e)

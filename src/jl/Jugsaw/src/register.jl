@@ -56,7 +56,7 @@ function selftest(demo::JugsawDemo)
     return res === demo.result || res == demo.result || res ≈ demo.result
 end
 
-function register!(app::AppSpecification, f, args::Tuple, kwargs::NamedTuple, endpoint = get(ENV, "endpoint", "http://localhost:8088"))
+function register!(app::AppSpecification, f, args::Tuple, kwargs::NamedTuple, endpoint = get_endpoint())
     #f = protect_type(_f)
     jf = Call(f, args, kwargs)
     adt, type_table = JugsawIR.julia2adt(jf)
@@ -77,9 +77,9 @@ function register!(app::AppSpecification, f, args::Tuple, kwargs::NamedTuple, en
                 "docstring"=>doc,
                 "args_type"=>JugsawIR.type2str(typeof(args)),
                 "kwargs_type"=>JugsawIR.type2str(typeof(kwargs)),
-                "api_julialang"=>generate_code("Julia", endpoint, app.name, adt, idx, type_table),
-                "api_python"=>generate_code("Python", endpoint, app.name, adt, idx, type_table),
-                "api_javascript"=>generate_code("Javascript", endpoint, app.name, adt, idx, type_table)
+                "api_julialang"=>generate_code("Julia", endpoint, app.name, fname, idx, adt, type_table),
+                "api_python"=>generate_code("Python", endpoint, app.name, fname, idx, adt, type_table),
+                "api_javascript"=>generate_code("Javascript", endpoint, app.name, fname, idx, adt, type_table)
             )))
     end
     return result

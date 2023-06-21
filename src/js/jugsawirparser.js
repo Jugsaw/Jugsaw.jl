@@ -5899,6 +5899,17 @@ function ir2adt(ir){
     return tree2adt(tree);
 }
 
+// extract data from inputs
+function raw2json(obj, demo_obj){
+    if (demo_obj instanceof Array){
+        return obj.map((v, i) => raw2json(v, demo_obj[i]));
+    } else if (demo_obj instanceof Object){
+        return {'fields':obj.map((v, i)=>raw2json(v, demo_obj.fields[i]))}
+    } else {
+        return obj;
+    }
+}
+
 function tree2adt(t){
     if (t instanceof Tree) {
         if (t.data == "object" || t.data == "number" || t.data == "string") {
@@ -6017,7 +6028,6 @@ function render_demo(demo, typemap){
     const newkwargs = kwargs.fields.map((arg, i)=>(
         {"arg_name":kws[i], "data": render_value(arg, typemap), "type":get_type(arg)}
     ))
-    console.log(metamap.api_julialang)
     return {"args":newargs, "kwargs":newkwargs,
         "result":render_value(result, typemap), "type_args":args.type,
         "type_kwargs":kwargs.type, "docstring":metamap.docstring,
@@ -6130,35 +6140,59 @@ function isstringtype(typename){
 }
 
 class ClientContext {
-  constructor(
-      endpoint = "http://localhost:8088/",
+  constructor({endpoint = window.location.href,
       project = "unspecified",
-      version = "1.0",
-  ) {
-    this.endpoint = endpoint
-    this.project = project
-    this.version = version
-    this.appname = "unspecified",
-    this.fname = "unspecified"
+      version = "1.0"}) {
+    this.endpoint = endpoint;
+    this.project = project;
+    this.version = version;
+    this.appname = "unspecified";
+    this.fname = "unspecified";
   }
 }
 
 class App {
-  appname
-  function_list
-  context
+  constructor(
+    appname,
+    function_list,
+    context){
+      this.appname = appname;
+      this.function_list = function_list;
+      this.context = context;
+    }
 
   call(fname, idx, args, kwargs, ferror=console.log) {
     for (var i=0; i< this.function_list.length; i++){
       const fi = this.function_list[i]
-      if (fi.function_name = fname){
+      if (fi.function_name == fname){
         const demo = fi.demo_list[idx]
-        return call(context.endpoint, context.project, context.appname, fname, demo.type_args, args, demo.type_kwargs, kwargs).then(resp=>{
+        const newargs = demo.args.map((darg, i)=>raw2json(args[i], darg.data));
+        const newkwargs = demo.kwargs.map((darg,i)=>raw2json(kwargs[i], darg.data));
+        return call(context.endpoint, context.project, context.appname, fname,
+            {"type":demo.type_args, "fields":newargs},
+            {"type":demo.type_kwargs, "fields":newkwargs}
+          ).then(resp=>{
           if (resp.status != 200){
             // call error
-            ferror(resp.json().error);
+            resp.json().then(x=>ferror(x.error));
           } else {
-            return LazyReturn(context, obj.json().job_id);
+            // an object id is returned
+            return resp.json().then(data=>{
+              const job_id = data.job_id
+              console.log("job id = ", job_id)
+              return fetch_result(context.endpoint, job_id).then(resp => {
+                if (resp.status == 200){
+                    // fetch result with the object id
+                    return resp.text().then(ir=>{
+                        // the result is returned as a Jugsaw object.
+                        const result = ir2adt(ir);
+                        return result
+                    })
+                } else {
+                    resp.json().then(x=>ferror(x.error));
+                }
+              })
+            })
           }
         })
       }
@@ -6166,29 +6200,10 @@ class App {
   }
 }
 
-class LazyReturn {
-  context
-  obj_id
-  fetch(ferror=console.log) {
-    // an object id is returned
-    return fetch_result(this.context.endpoint, this.job_id).then(resp => {
-      if (resp.status == 200){
-          // fetch result with the object id
-          resp.text().then(ir=>{
-              // the result is returned as a Jugsaw object.
-              const result = ir2adt(ir);
-              return result
-          })
-      } else {
-          ferror(resp.json().error);
-      }
-    })
-  }
-}
-
 function request_app(context, appname){
-  const obj = await Promise.resolve(request_app_obj(context.endpoint, context.project, appname, context.version))
-  const app = render_app(obj)
-  const context = structuredClone(context)
-  return App(app.appname, app.function_list, context)
+  return request_app_obj(context.endpoint, context.project, appname, context.version).then(r=>r.text()).then(ir2adt).then(render_app).then(app => {
+    const newcontext = structuredClone(context)
+    newcontext.appname = appname
+    return new App(app.appname, app.function_list, newcontext)
+  })
 }
