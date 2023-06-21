@@ -14,13 +14,22 @@
 
 ## APIs
 
-<a id='Jugsaw.generate_code-Tuple{String, Vararg{Any}}' href='#Jugsaw.generate_code-Tuple{String, Vararg{Any}}'>#</a>
+<a id='Jugsaw.generate_code-Tuple{String, Any, Any, Any, Int64, JugsawADT, JugsawADT}' href='#Jugsaw.generate_code-Tuple{String, Any, Any, Any, Int64, JugsawADT, JugsawADT}'>#</a>
 **`Jugsaw.generate_code`** &mdash; *Method*.
 
 
 
 ```julia
-generate_code(lang, endpoint::String, appname::Symbol, fcall::JugsawADT, democall::JugsawIR.Call)
+generate_code(
+    lang::String,
+    endpoint,
+    appname,
+    fname,
+    idx::Int64,
+    fcall::JugsawADT,
+    typetable::JugsawADT
+) -> String
+
 ```
 
 Generate code for target language.
@@ -34,10 +43,11 @@ Please use `subtypes(AbstractLang)` for supported client languages.
   * `endpoint` is the url for service provider, e.g. it can be [https://www.jugsaw.co](https://www.jugsaw.co).
   * `appname` is the application name.
   * `fcall` is a [`JugsawADT`](JugsawIR.md#JugsawIR.JugsawADT) that specifies the function call.
-  * `democall` is the demo instance of that function call.
+  * `idx` is the index of method instance.
+  * `typetable` is a [`TypeTable`](JugsawIR.md#JugsawIR.TypeTable) instance with the type definitions.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5540be704545bfc349240e1c77ebcf3a9a6d1474/src/jl/Jugsaw/src/clientcode.jl#L6-L18' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/c21b0b831e3508daade80463058e89998155c4d6/src/jl/Jugsaw/src/clientcode.jl#L6' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.@register-Tuple{Any, Any}' href='#Jugsaw.@register-Tuple{Any, Any}'>#</a>
 **`Jugsaw.@register`** &mdash; *Macro*.
@@ -61,7 +71,7 @@ Register a function to the application. A function can be registered as a demo, 
 The [`@register`](Jugsaw.md#Jugsaw.@register-Tuple{Any, Any}) macro checks and executes the expression. If the tests and type asserts in the expression does not hold, an error will be thrown. Otherwise, both the top level function call and those appear in the input arguments will be registered.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5540be704545bfc349240e1c77ebcf3a9a6d1474/src/jl/Jugsaw/src/register.jl#L109-L125' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/c21b0b831e3508daade80463058e89998155c4d6/src/jl/Jugsaw/src/register.jl#L110-L126' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.AppSpecification' href='#Jugsaw.AppSpecification'>#</a>
 **`Jugsaw.AppSpecification`** &mdash; *Type*.
@@ -81,7 +91,7 @@ The application specification.
   * `method_demos::Dict{String, Vector{JugsawDemo}}`
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5540be704545bfc349240e1c77ebcf3a9a6d1474/src/jl/Jugsaw/src/register.jl#L1' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/c21b0b831e3508daade80463058e89998155c4d6/src/jl/Jugsaw/src/register.jl#L1' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.NoDemoException' href='#Jugsaw.NoDemoException'>#</a>
 **`Jugsaw.NoDemoException`** &mdash; *Type*.
@@ -100,5 +110,5 @@ This error was thrown when a demo matching the target type signature is not foun
   * `methods::Any`
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5540be704545bfc349240e1c77ebcf3a9a6d1474/src/jl/Jugsaw/src/errors.jl#L1' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/c21b0b831e3508daade80463058e89998155c4d6/src/jl/Jugsaw/src/errors.jl#L1' class='documenter-source'>source</a><br>
 
