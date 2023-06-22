@@ -99,13 +99,15 @@ function disp_demo(fname, index, demo){
         // copy API
         const copied = create_textblock('span', " [Copied!]")
         copied.style.color = 'green';
-        code.addEventListener('click', () => {
-            console.log(codetext);
-            copytext(codetext, code);
-            title.appendChild(copied)
-            setTimeout(()=> {
-                title.removeChild(copied);
-            },700)
+        code.addEventListener('mouseup', () => {
+            copytext(codetext, code).then(status=>{
+                if (status){
+                    title.appendChild(copied)
+                    setTimeout(()=> {
+                        title.removeChild(copied);
+                    },700)
+                }
+            });
         });
         codeblock.appendChild(code);
         details.appendChild(codeblock);
@@ -188,7 +190,10 @@ function disp_demo(fname, index, demo){
 }
 
 async function copytext(text, block) {
-    console.log(text)
+    if (document.getSelection().toString().length > 0){
+        // do nothing
+        return false
+    }
     if (navigator.clipboard == null){
         // could be useful in local debugging
         const textArea = document.createElement("textarea");
@@ -196,14 +201,18 @@ async function copytext(text, block) {
         block.appendChild(textArea);
         textArea.focus();
         textArea.select();
+        var status = false;
         try {
             document.execCommand('copy');
+            status = true
         } catch (err) {
             console.error('Unable to copy to clipboard', err);
         }
         block.removeChild(textArea);
+        return status
     } else {
         await navigator.clipboard.writeText(text);
+        return true
     }
 }
 
