@@ -7,6 +7,17 @@ from .simpleparser import load_app, Demo, JugsawObject, adt2py
 from .remotecall import request_app_data, ClientContext, call
 
 class App(object):
+    """
+    The Jugsaw app class, which contains a list of methods.
+    Please use `dir(app)` to list all registered methods.
+    Please check :func:`~jugsaw.request_app` to learn how to construct an `App` instance.
+
+    ### Attributes
+    * `name` is the application name.
+    * `method_demos` is a dictionary that maps a function name to a list of demos.
+    * `type_table` is a `TypeTable` instance that stores the type definitions.
+    * `context` is a `ClientContext` instance, which contains the context information for the client, including the endpoint.
+    """
     def __init__(self, name: str, method_demos:OrderedDict, type_table, context:ClientContext) -> None:
         # TODO: fix the following code
         self.name = name
@@ -20,7 +31,6 @@ class App(object):
     def __getattr__(self, fname: str):
         context = copy.deepcopy(self["context"])
         context.appname = self["name"]
-        context.fname = fname
         return DemoRefs(fname, self["method_demos"][fname], context)
 
     # this is for autocompletion!
@@ -28,6 +38,20 @@ class App(object):
         return list(self["method_demos"].keys())
 
 def request_app(context:ClientContext, appname:str):
+    """
+    Request application from the remote endpoint that specified in the `context` object.
+
+    ### Returns
+    An :class:`~jugsaw.App` instance.
+
+    ### Examples
+    ```python
+    >>> import jugsaw
+    >>> context = jugsaw.ClientContext(endpoint="app.jugsaw.co")
+    >>> app = jugsaw.request_app(context, :helloworld)
+    >>> app.greet("Jugsaw")
+    ```
+    """
     return App(*request_app_data(context, appname))
 
 class DemoRefs(object):
@@ -44,7 +68,10 @@ class DemoRefs(object):
         if len(self.demos) == 1:
             return self[0].__call__(*args, **kwargs)
         else:
-            raise ValueError("multiple demos found, please use choose a demo by indexing, e.g. `demos[0]`")
+            raise ValueError(f"More than one input patterns (got: {len(self.demos)}) available, to avoid ambiguity, please use choose the correct input pattern by indexing, e.g. using `demos[0](...)` instead of `demos(...)`")
+
+    def __len__(self):
+        return len(self.demos)
 
     def input(self):
         if len(self.demos) == 1:

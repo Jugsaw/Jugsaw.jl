@@ -25,7 +25,6 @@ MathJax.Hub.Config({
 "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML"></script>
 </head>
 <body>
-    <h1>Jugsaw Debugger</h1>
 <div>
 <span> Endpoint </span><input id="input-endpoint" value="http://0.0.0.0" type="text" disabled>
 </div>
@@ -58,7 +57,7 @@ function disp_app(app){
     const toplevel = document.createElement('div');
 
     // show header
-    toplevel.appendChild(create_textblock('h1', `Jugsaw Application: ${app.appname}`));
+    toplevel.appendChild(create_textblock('h1', `Jugsaw Debugger: ${app.appname}`));
 
     // append 
     const ul = document.createElement('div');
@@ -89,11 +88,28 @@ function disp_demo(fname, index, demo){
     const langs = ["julia", "python", "javascript"];
     for (var i=0; i<langs.length; i++){
         const details= document.createElement('details');
-        details.appendChild(create_textblock('summary', langs[i]));
+        const title = create_textblock('summary', langs[i]);
+        details.appendChild(title);
         const codeblock = document.createElement('pre');
-        const code = create_textblock('code', demo[`api_${langs[i]}`]);
+        const codetext = demo[`api_${langs[i]}`];
+        const code = create_textblock('code', codetext);
         code.classList.add(`language-${langs[i]}`);
+        // highlight
         hljs.highlightBlock(code);
+        // copy API
+        const copied = create_textblock('span', " [Copied!]")
+        copied.style.color = 'green';
+        code.addEventListener('mouseup', () => {
+            copytext(codetext, code).then(status=>{
+                if (status){
+                    title.appendChild(copied)
+                    setTimeout(()=> {
+                        title.removeChild(copied);
+                    },700)
+                }
+            });
+            return true
+        });
         codeblock.appendChild(code);
         details.appendChild(codeblock);
         apis.appendChild(details);
@@ -174,6 +190,33 @@ function disp_demo(fname, index, demo){
     return div
 }
 
+async function copytext(text, block) {
+    if (document.getSelection().toString().length > 0){
+        // do nothing
+        return false
+    }
+    if (navigator.clipboard == null){
+        // could be useful in local debugging
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        block.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        var status = false;
+        try {
+            document.execCommand('copy');
+            status = true
+        } catch (err) {
+            console.error('Unable to copy to clipboard', err);
+        }
+        block.removeChild(textArea);
+        return status
+    } else {
+        await navigator.clipboard.writeText(text);
+        return true
+    }
+}
+
 // add an error box to a parent
 function adderrorbox(parent){
     const obj = create_textblock('span', "");
@@ -198,6 +241,7 @@ function handle_fcall_form(event, fname, type_args, obj_args, demo_args, type_kw
             }
         }
     )
+    return true
 }
 
 function handle_fetch_form(event, job_id, output_demo, output, err){
@@ -216,6 +260,7 @@ function handle_fetch_form(event, job_id, output_demo, output, err){
             err.innerHTML = resp.json().error;
         }
     })
+    return true
 }
 // render the value as a normal JSON object
 function add_fieldnames(value, demo){

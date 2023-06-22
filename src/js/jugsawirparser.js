@@ -6147,7 +6147,6 @@ class ClientContext {
     this.project = project;
     this.version = version;
     this.appname = "unspecified";
-    this.fname = "unspecified";
   }
 }
 

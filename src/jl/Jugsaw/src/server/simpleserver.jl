@@ -128,7 +128,7 @@ function get_router(::RemoteRoute, runtime::AppRuntime)
     js_folder = joinpath(dirname(dirname(pkgdir(@__MODULE__))), "js")
     # web page
     HTTP.register!(r, "GET", "/",
-        req->HTTP.Response(200,SIMPLE_HEADER,read(joinpath(js_folder, "jugsawir.html")))
+        req->HTTP.Response(200,SIMPLE_HEADER,read(joinpath(js_folder, "jugsawdebug.html")))
     )
     HTTP.register!(r, "GET", "/jugsawirparser.js",
         req->HTTP.Response(200,SIMPLE_HEADER,read(joinpath(js_folder, "jugsawirparser.js")))

@@ -1,5 +1,18 @@
+"""
+    native2jugsaw(object)
+
+Convert a native Julia object to a Jugsaw compatible object.
+"""
 native2jugsaw(x) = x
 native2jugsaw(x::Vector) = x
+
+"""
+    construct_object(adt::JugsawADT, demo_object)
+
+Reconstruct the native Julia object from an object of type [`JugsawADT`](@ref).
+The return value must have the same data type as the second argument.
+"""
+function construct_object end
 
 ##### Dict
 """
@@ -14,6 +27,7 @@ struct JDict{K, V}
     keys::Vector{K}
     vals::Vector{V}
 end
+
 function native2jugsaw(x::Dict)
     JDict(collect(keys(x)), collect(values(x)))
 end
