@@ -108,6 +108,7 @@ function disp_demo(fname, index, demo){
                     },700)
                 }
             });
+            return true
         });
         codeblock.appendChild(code);
         details.appendChild(codeblock);
@@ -240,6 +241,7 @@ function handle_fcall_form(event, fname, type_args, obj_args, demo_args, type_kw
             }
         }
     )
+    return true
 }
 
 function handle_fetch_form(event, job_id, output_demo, output, err){
@@ -258,6 +260,7 @@ function handle_fetch_form(event, job_id, output_demo, output, err){
             err.innerHTML = resp.json().error;
         }
     })
+    return true
 }
 // render the value as a normal JSON object
 function add_fieldnames(value, demo){

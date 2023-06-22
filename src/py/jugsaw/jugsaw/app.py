@@ -70,6 +70,9 @@ class DemoRefs(object):
         else:
             raise ValueError(f"More than one input patterns (got: {len(self.demos)}) available, to avoid ambiguity, please use choose the correct input pattern by indexing, e.g. using `demos[0](...)` instead of `demos(...)`")
 
+    def __len__(self):
+        return len(self.demos)
+
     def input(self):
         if len(self.demos) == 1:
             return self[0].input()

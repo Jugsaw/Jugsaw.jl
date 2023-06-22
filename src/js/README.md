@@ -8,7 +8,7 @@ lark-js jugsawir.lark -o jugsawirparser.js
 
 ## How to use?
 
-Open `jugsawir.html` in a browser, in the Javascript console, type the following command:
+Open `jugsawdebug.html` in a browser, in the Javascript console, type the following command:
 
 ```javascript
 const parser = get_parser();
