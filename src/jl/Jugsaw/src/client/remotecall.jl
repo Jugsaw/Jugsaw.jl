@@ -114,7 +114,7 @@ function _new_request(context::ClientContext, ::Val{:job}, job_id::String, fcall
         ]
     data = JSON3.write(ir)
     return ("POST", joinpath(context.endpoint,
-        context.localurl ? "events/jobs/" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/func/$(context.fname)"
+        context.localurl ? "events/jobs/" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/func/$(fcall.fields[1])"
     ), header, data)
 end
 function _new_request(context::ClientContext, ::Val{:healthz})
@@ -136,7 +136,7 @@ end
 function _new_request(context::ClientContext, ::Val{:api}, fcall::JugsawADT, lang::String)
     ir = JugsawIR.adt2ir(JugsawObject("Core.Tuple{Core.String, JugsawIR.Call}", [context.endpoint, fcall]))
     return ("GET", joinpath(context.endpoint,
-        context.localurl ? "api/$lang" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/func/$(context.fname)/api/$lang"
+        context.localurl ? "api/$lang" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/func/$(fcall.fields[1])/api/$lang"
     ), ["Content-Type" => "application/json"], ir)
 end
 new_request(context, args...; kwargs...) = HTTP.request(_new_request(context, args...; kwargs...)...)

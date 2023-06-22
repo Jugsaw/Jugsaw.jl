@@ -11,9 +11,8 @@ Base.@kwdef mutable struct ClientContext
     project::String = "unspecified"
     appname::Symbol = :unspecified
     version::String = "1.0"
-    fname::Symbol = :unspecified
 end
-Base.copy(c::ClientContext) = ClientContext(c.endpoint, c.localurl, c.project, c.appname, c.version, c.fname)
+Base.copy(c::ClientContext) = ClientContext(c.endpoint, c.localurl, c.project, c.appname, c.version)
 
 """
 $(TYPEDEF)
@@ -125,7 +124,6 @@ end
 function Base.getproperty(app::App, fname::Symbol)
     context = copy(app[:context])
     context.appname = app[:name]
-    context.fname = fname
     res = DemoRefs(fname, app[:method_demos][fname], context)
     return res
 end

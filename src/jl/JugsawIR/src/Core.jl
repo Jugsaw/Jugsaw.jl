@@ -130,7 +130,26 @@ function demoofelement(demo::Dict{K,V}) where {K, V}
 end
 
 ############ ADT
-"`JugsawADT` is an intermediate representation between Jugsaw IR and Julia language."
+"""
+$TYPEDEF
+    JugsawObject(typename::String, fields::Vector)
+    JugsawVector(vector::Vector)
+
+### Fields
+$TYPEDFIELDS
+
+`JugsawADT` is an intermediate representation between Jugsaw IR data type and Julia native data type.
+
+### Examples
+The Jugsaw object representation for `2+3im` is
+```jldoctest; setup=:(using JugsawIR)
+julia> JugsawObject("Base.ComplexF64", [2, 3])
+JugsawADT(:Object, "Base.ComplexF64", [2, 3])
+
+julia> JugsawVector([2, 3])
+JugsawADT(:Vector, "", [2, 3])
+```
+"""
 struct JugsawADT
     head::Symbol
     typename::String
