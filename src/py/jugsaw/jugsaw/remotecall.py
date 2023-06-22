@@ -7,19 +7,29 @@ from urllib.parse import urljoin
 import pdb
 
 class ClientContext(object):
+    """
+    Client context for storing contextual information.
+
+    ### Attributes
+    * `endpoint = "http://localhost:8088/"` is the website serving the application.
+    * `project = "unspecified"` is the project or user name.
+    * `appname = "unspecified"` is the applicatoin name.
+    * `version = "latest"` is the application version number.
+
+    ### Examples
+    Please check :func:`~jugsaw.request_app` for an example.
+    """
     def __init__(self,
             endpoint:str = "http://localhost:8088/",
             localurl:bool = False,
             project:str = "unspecified",
             appname:str = "unspecified",
-            version:str = "1.0",
-            fname:str = "unspecified"):
+            version:str = "latest"):
         self.endpoint = endpoint
         self.localurl = localurl
         self.project = project
         self.appname = appname
         self.version = version
-        self.fname = fname
 
 class LazyReturn(object):
     def __init__(self, context, job_id, demo_result):
@@ -80,7 +90,7 @@ def new_request_job(context:ClientContext, job_id:str, fcall:JugsawObject, maxti
             "ce-specversion":"1.0"
         }
     data = json.dumps(ir)
-    method, body = ("POST", urljoin(context.endpoint, f"v1/proj/{context.project}/app/{context.appname}/ver/{context.version}/func/{context.fname}"))
+    method, body = ("POST", urljoin(context.endpoint, f"v1/proj/{context.project}/app/{context.appname}/ver/{context.version}/func/{fcall.fields[0]}"))
     return requests.request(method, body, headers=header, data=data)
 
 def new_request_healthz(context:ClientContext):
@@ -105,6 +115,6 @@ def new_request_fetch(context:ClientContext, job_id:str):
 def new_request_api(context:ClientContext, fcall:JugsawObject, lang:str):
     ir = adt2ir(JugsawObject("Core.Tuple{Core.String, JugsawIR.Call}", [context.endpoint, fcall]))
     method, body = ("GET", urljoin(context.endpoint,
-        f"v1/proj/{context.project}/app/{context.appname}/ver/{context.version}/func/{context.fname}/api/{lang}"
+        f"v1/proj/{context.project}/app/{context.appname}/ver/{context.version}/func/{fcall.fields[0]}/api/{lang}"
         ), {"Content-Type": "application/json"}, ir)
     return requests.request(method, body)

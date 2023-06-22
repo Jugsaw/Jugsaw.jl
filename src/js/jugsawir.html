@@ -25,7 +25,6 @@ MathJax.Hub.Config({
 "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML"></script>
 </head>
 <body>
-    <h1>Jugsaw Debugger</h1>
 <div>
 <span> Endpoint </span><input id="input-endpoint" value="http://0.0.0.0" type="text" disabled>
 </div>
@@ -58,7 +57,7 @@ function disp_app(app){
     const toplevel = document.createElement('div');
 
     // show header
-    toplevel.appendChild(create_textblock('h1', `Jugsaw Application: ${app.appname}`));
+    toplevel.appendChild(create_textblock('h1', `Jugsaw Debugger: ${app.appname}`));
 
     // append 
     const ul = document.createElement('div');
@@ -89,11 +88,25 @@ function disp_demo(fname, index, demo){
     const langs = ["julia", "python", "javascript"];
     for (var i=0; i<langs.length; i++){
         const details= document.createElement('details');
-        details.appendChild(create_textblock('summary', langs[i]));
+        const title = create_textblock('summary', langs[i]);
+        details.appendChild(title);
         const codeblock = document.createElement('pre');
-        const code = create_textblock('code', demo[`api_${langs[i]}`]);
+        const codetext = demo[`api_${langs[i]}`];
+        const code = create_textblock('code', codetext);
         code.classList.add(`language-${langs[i]}`);
+        // highlight
         hljs.highlightBlock(code);
+        // copy API
+        const copied = create_textblock('span', " [Copied!]")
+        copied.style.color = 'green';
+        code.addEventListener('click', () => {
+            console.log(codetext);
+            copytext(codetext, code);
+            title.appendChild(copied)
+            setTimeout(()=> {
+                title.removeChild(copied);
+            },700)
+        });
         codeblock.appendChild(code);
         details.appendChild(codeblock);
         apis.appendChild(details);
@@ -172,6 +185,26 @@ function disp_demo(fname, index, demo){
     fbtn.addEventListener('click', event=>handle_fetch_form(event, job_id, demo.result, output, fetcherr));
 
     return div
+}
+
+async function copytext(text, block) {
+    console.log(text)
+    if (navigator.clipboard == null){
+        // could be useful in local debugging
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        block.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            document.execCommand('copy');
+        } catch (err) {
+            console.error('Unable to copy to clipboard', err);
+        }
+        block.removeChild(textArea);
+    } else {
+        await navigator.clipboard.writeText(text);
+    }
 }
 
 // add an error box to a parent
