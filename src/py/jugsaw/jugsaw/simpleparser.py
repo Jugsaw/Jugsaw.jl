@@ -91,8 +91,7 @@ def load_app(s:str):
     tt = load_typetable(typesadt)
     ############ load app
     name, method_names, _method_demos = obj.fields
-    ks, vs = _method_demos.fields
-    method_demos = makedict(ks, vs)
+    method_demos = makedict(_method_demos)
     demos = OrderedDict()
     for fname in aslist(method_names):
         demos[fname] = []
@@ -100,7 +99,7 @@ def load_app(s:str):
             (_fcall, result, meta) = demo.fields
             _fname, args, kwargs = _fcall.fields
             jf = Call(fname, args.fields, OrderedDict(zip(aslist(tt.defs[kwargs.typename].fieldnames), kwargs.fields)))
-            demo = Demo(jf, result, makedict(meta.fields[0], meta.fields[1]))
+            demo = Demo(jf, result, makedict(meta))
             demos[fname].append(demo)
     return (name, demos, tt)
 
@@ -118,20 +117,19 @@ def adt2py(adt):
 def aslist(obj):
     return obj.fields[1]
 
-def makedict(ks, vs):
-    return OrderedDict(zip(aslist(ks), aslist(vs)))
+def makedict(adt):
+    pairs = aslist(adt.fields[0])
+    return OrderedDict([(pair.fields[0], pair.fields[1]) for pair in pairs])
 
 def load_typetable(ast:JugsawObject):
     #for obj in ast
     types, typedefs = ast.fields
-    ks, vs = typedefs.fields
-    defs = OrderedDict(zip(aslist(ks), aslist(vs)))
-    d = {}
-    for type in aslist(types):
+    defs = makedict(typedefs)
+    for type in defs:
         elem = defs[type]
         name, fieldnames, fieldtypes = elem.fields
-        d[type] = JDataType(name, fieldnames, fieldtypes)
-    return TypeTable(d)
+        defs[type] = JDataType(name, fieldnames, fieldtypes)
+    return TypeTable(defs)
 
 # convert a Jugsaw tree to a dict
 def isdirectrepresentable(obj):
@@ -145,16 +143,16 @@ def py2adt(obj):
     elif isinstance(obj, np.floating):
         return float(obj)
     elif isinstance(obj, dict) or isinstance(obj, OrderedDict):
-        return JugsawObject("JugsawIR.JDict", [py2adt([k for k in obj.keys()]), py2adt([v for v in obj.values()])])
+        return JugsawObject("JugsawIR.JDict", [JugsawObject("JugsawIR.JArray", [[len(obj)], [py2adt(item) for item in obj.items()]])])
     elif isinstance(obj, list):
-        return JugsawObject("Core.Array", [[len(obj)], [py2adt(x) for x in obj]])
+        return JugsawObject("JusawIR.JArray", [[len(obj)], [py2adt(x) for x in obj]])
     elif isinstance(obj, np.ndarray):
         vec = np.reshape(obj, -1, order="F")
-        return JugsawObject("Core.Array", [list(obj.shape), [py2adt(x) for x in vec]])
+        return JugsawObject("JugsawIR.JArray", [list(obj.shape), [py2adt(x) for x in vec]])
     elif isinstance(obj, tuple):
         return JugsawObject("Core.Tuple", [py2adt(x) for x in obj])
     elif isinstance(obj, enum.Enum):
-        return JugsawObject("Base.Enum", [type(obj).__name__, obj.name, [str(x.name) for x in type(obj)]])
+        return JugsawObject("JugsawIR.JEnum", [type(obj).__name__, obj.name, [str(x.name) for x in type(obj)]])
     elif isinstance(obj, complex):
         return JugsawObject("Base.Complex", [obj.real, obj.imag])
     else:
@@ -166,7 +164,7 @@ def adt2ir(x):
 
 def _adt2ir(x):
     if isinstance(x, JugsawObject):
-        return _makedict(x.typename, [_adt2ir(v) for v in x.fields])
+        return make_object_dict(x.typename, [_adt2ir(v) for v in x.fields])
     elif isinstance(x, list):
         return [_adt2ir(v) for v in x]
     elif isdirectrepresentable(x):
@@ -177,7 +175,7 @@ def _adt2ir(x):
 def py2ir(py):
     return adt2ir(py2adt(py))
 
-def _makedict(T:str, fields:list):
+def make_object_dict(T:str, fields:list):
     return {"type" : T, "fields" : fields}
 
 if __name__ == "__main__":

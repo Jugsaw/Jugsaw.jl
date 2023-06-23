@@ -5902,9 +5902,13 @@ function ir2adt(ir){
 // extract data from inputs
 function raw2json(obj, demo_obj){
     if (demo_obj instanceof Array){
-        return obj.map((v, i) => raw2json(v, demo_obj[i]));
+        return obj.map((v, i) => raw2json(v, i < demo_obj.length ? demo_obj[i] : demo_obj[0]));
     } else if (demo_obj instanceof Object){
-        return {'fields':obj.map((v, i)=>raw2json(v, demo_obj.fields[i]))}
+        if (isenumtype(demo_obj.type)){
+            return {'fields':[demo_obj.fields[0], obj, {"fields":demo_obj.fields[2].fields}]}
+        } else {
+            return {'fields':obj.map((v, i)=>raw2json(v, demo_obj.fields[i]))}
+        }
     } else {
         return obj;
     }
@@ -6004,11 +6008,11 @@ function render_app(app_and_method){
     // get application specification and type table.
     const [app, typetable] = app_and_method;
     const [appname, method_names, method_demos] = app.fields;
-    const [demofnames, demolists] = method_demos.fields;
-    const typemap = render_dict(...aslist(typetable).fields);
+    const demopairs = aslist(method_demos.fields[0]);
+    const typemap = render_dict(typetable.fields[1]);
     // create result
-    const function_list = aslist(demofnames).map((name, i) => (
-        {"function_name":name, "demo_list":aslist(aslist(demolists)[i]).map(demo=>render_demo(demo, typemap))}
+    const function_list = demopairs.map(pair => (
+        {"function_name":pair.fields[0], "demo_list":aslist(pair.fields[1]).map(demo=>render_demo(demo, typemap))}
     ));
     return {"appname":appname, "function_list":function_list};
 }
@@ -6017,7 +6021,7 @@ function render_app(app_and_method){
 // render a demo as an object
 function render_demo(demo, typemap){
     const [fcall, result, meta] = demo.fields;
-    const metamap = render_dict(...meta.fields);
+    const metamap = render_dict(meta);
     const [fname, args, kwargs] = fcall.fields;
     // positional arguments
     const newargs = args.fields.map((arg, i)=>(
@@ -6062,10 +6066,10 @@ function render_object(typename, fieldnames, fields){
     return {"type":typename, "fieldnames":fieldnames, "fields": fields}
 }
 // create type dictionary from two arrays
-function render_dict(keys, values){
-    const _values = aslist(values);
+function render_dict(adt){
+    const _pairs = aslist(adt.fields[0]);
     const result = {};
-    aslist(keys).forEach((key, i) => result[key] = _values[i]);
+    _pairs.forEach(pair => result[pair.fields[0]] = pair.fields[1]);
     return result;
 }
 
@@ -6094,6 +6098,10 @@ function listfromstring(s){
 function isarraytype(typename){
     const [primary, params] = decompose_type(typename);
     return primary == 'JugsawIR.JArray'
+}
+function isenumtype(typename){
+    const [primary, params] = decompose_type(typename);
+    return primary == 'JugsawIR.JEnum'
 }
 function issimplearraytype(typename){
     const [primary, params] = decompose_type(typename);

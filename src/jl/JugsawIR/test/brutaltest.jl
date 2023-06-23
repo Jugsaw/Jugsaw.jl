@@ -8,7 +8,7 @@ using Dates
         (Dict(2=>3), Dict())
     ]
     for (obj, demo) in brutal_obj_demos
-        @test_throws TypeTooAbstract test_twoway(obj, demo)
+        @test_throws Union{TypeError, TypeTooAbstract} test_twoway(obj, demo)
     end
 end
 

@@ -58,7 +58,7 @@ function adt2client(lang::Julia, x)
                 size = join([string(x) for x in x.fields[1].storage], ", ")
                 length(size) > 1 ? "reshape([$content], $size)" : "[$content]"
             elseif startswith(x.typename, "JugsawIR.JDict")
-                kvpairs = join(["$(adt2client(lang, k)) => $(adt2client(lang, v))" for (k, v) in zip(aslist(x.fields[1]).storage, aslist(x.fields[2]).storage)], ", ")
+                kvpairs = join(["$(adt2client(lang, pair.fields[1])) => $(adt2client(lang, pair.fields[2]))" for pair in aslist(x.fields[1]).storage], ", ")
                 "Dict($kvpairs)"
             elseif startswith(x.typename, "JugsawIR.JEnum")
                 repr(x.fields[2])
@@ -96,7 +96,7 @@ function adt2client(lang::Python, x)
                 size = (x.fields[1].storage...,)
                 length(size) == 1 ? "[$storage]" : "numpy.reshape([$storage], $size, order='F')"
             elseif startswith(x.typename, "JugsawIR.JDict")
-                kvpairs = join(["$(adt2client(lang, k)):$(adt2client(lang, v))" for (k, v) in zip(aslist(x.fields[1]).storage, aslist(x.fields[2]).storage)], ", ")
+                kvpairs = join(["$(adt2client(lang, pair.fields[1])):$(adt2client(lang, pair.fields[2]))" for pair in aslist(x.fields[1]).storage], ", ")
                 "{$kvpairs}"
             elseif startswith(x.typename, "JugsawIR.JEnum")
                 repr(x.fields[2])

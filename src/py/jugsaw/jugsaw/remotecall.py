@@ -83,6 +83,7 @@ def new_request_job(context:ClientContext, job_id:str, fcall:JugsawObject, maxti
     jobspec = JugsawObject("Jugsaw.JobSpec", [job_id, round(time.time()), created_by,
         maxtime, *fcall.fields])
     ir = adt2ir(jobspec)
+    print(ir)
     # NOTE: UGLY!
     # create a cloud event
     header = {"Content-Type" : "application/json",

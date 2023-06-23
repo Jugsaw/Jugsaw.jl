@@ -37,6 +37,6 @@ end
 const context = new ClientContext({endpoint:"jugsaw.co"})
 const app_promise = request_app(context, "testapp")
 // keyword arguments are: ["a", "b"]
-app_promise.then(app=>app.call("f", 0, [null, true, 1, 1.0, [[3], [1, 2, 3]], [[2, 2], [1, 3, 2, 4]], [[[1], [2]], [[1], [3]]], "EA", [1, 2]], [1.0e-8, [[[1], [2]], [[1], [4]]]])).then(console.log)
+app_promise.then(app=>app.call("f", 0, [null, true, 1, 1.0, [[3], [1, 2, 3]], [[2, 2], [1, 3, 2, 4]], [[[1], [[2, 3]]]], "EA", [1, 2]], [1.0e-8, [[[1], [[2, 4]]]]])).then(console.log)
 </script>"""
 end
