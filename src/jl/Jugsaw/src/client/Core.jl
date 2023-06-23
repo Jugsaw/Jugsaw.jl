@@ -142,3 +142,14 @@ end
 # for printing docstring
 Base.Docs.Binding(app::App, sym::Symbol) = getproperty(app, sym)[1]
 test_demo(app::App) = all(name->test_demo(getproperty(app, name)), propertynames(app))
+
+##### Utilities
+function makedict(adt::JugsawADT)
+    pairs = aslist(adt.fields[1])
+    return Dict([pair.fields[1]=>pair.fields[2] for pair in pairs])
+end
+function makeordereddict(adt::JugsawADT)
+    pairs = aslist(adt.fields[1])
+    return OrderedDict([pair.fields[1]=>pair.fields[2] for pair in pairs])
+end
+aslist(x::JugsawADT) = x.fields[2].storage

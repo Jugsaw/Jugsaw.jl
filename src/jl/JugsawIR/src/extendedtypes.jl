@@ -14,28 +14,29 @@ The return value must have the same data type as the second argument.
 """
 function construct_object end
 
+aslist(obj) = obj.fields[2].storage
+
 ##### Dict
 """
 $TYPEDEF
 
-The dictionary type in Jugsaw.
+The dictionary type in Jugsaw, which represents a dictionary in key-value pairs.
 
 ### Fields
 $TYPEDFIELDS
 """
 struct JDict{K, V}
-    keys::Vector{K}
-    vals::Vector{V}
+    pairs::Vector{Pair{K, V}}
 end
 
 function native2jugsaw(x::Dict)
-    JDict(collect(keys(x)), collect(values(x)))
+    JDict(collect(x))
 end
 function construct_object(t::JugsawADT, demo::Dict)
+    @show t, demo
     # TODO: fix this bad implementation
-    ks = adt2julia(t.fields[1], collect(keys(demo)))
-    vs = adt2julia(t.fields[2], collect(values(demo)))
-    typeof(demo)(zip(ks, vs))
+    pairs = adt2julia(t.fields[1], collect(demo))
+    typeof(demo)(pairs)
 end
 
 ##### Enum
@@ -57,7 +58,11 @@ function native2jugsaw(x::Enum)
 end
 function construct_object(t::JugsawADT, demo::Enum)
     kind, value, options = t.fields
-    typeof(demo)(findfirst(==(value), options.fields[2].storage)-1)
+    typeof(demo)(findfirst(==(value), aslist(options))-1)
+end
+function construct_object(value::String, demo::Enum)
+    idx = findfirst(x->string(x)==(value), instances(typeof(demo)))
+    typeof(demo)(idx-1)
 end
 
 ##### JArray

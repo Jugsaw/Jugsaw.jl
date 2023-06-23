@@ -9,4 +9,8 @@ greet(x::String) = "Hello, $x"
 
 app = AppSpecification(:helloworld)
 @register app greet("Jinguo") == "Hello, Jinguo"
-# Jugsaw.Server.serve(r; localmode=false, host="127.0.0.1")
+
+# test input types
+@enum ENM X Y Z
+const dict = Dict(3=>5)
+@register app identity((X, 1.0, 1, "string", nothing, [1, 2], dict , ComplexF64)) == (X, 1.0, 1, "string", nothing, [1, 2], dict, ComplexF64)
