@@ -32,10 +32,9 @@ end
 function native2jugsaw(x::Dict)
     JDict(collect(x))
 end
-function construct_object(t::JugsawADT, demo::Dict)
-    @show t, demo
+function construct_object(t::JugsawADT, demo::AbstractDict{T, V}) where {T, V}
     # TODO: fix this bad implementation
-    pairs = adt2julia(t.fields[1], collect(demo))
+    pairs = adt2julia(t.fields[1], isempty(demo) ? Pair{T,V}[] : collect(demo))
     typeof(demo)(pairs)
 end
 

@@ -219,7 +219,7 @@ async function copytext(text, block) {
 
 // add an error box to a parent
 function adderrorbox(parent){
-    const obj = create_textblock('span', "");
+    const obj = create_textblock('pre', "");
     obj.style.color = "red";
     parent.appendChild(obj);
     return obj
@@ -257,7 +257,7 @@ function handle_fetch_form(event, job_id, output_demo, output, err){
             })
         } else {
             output.replaceChildren(document.createTextNode('<output>'));
-            err.innerHTML = resp.json().error;
+            resp.json().then(x=>err.innerHTML = x.error);
         }
     })
     return true
