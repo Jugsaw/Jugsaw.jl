@@ -6,19 +6,19 @@ using UUIDs
 # TODO: sanity check for the input symbol
 
 function init(appname::Symbol; version::VersionNumber=v"1.0.0-DEV",
-        authors::AbstractString = default_authors(),
-        basedir::AbstractString=pwd(),
-        juliaversion::VersionNumber=default_version(),
-        dockerport::Int=8081)
+    authors::AbstractString=default_authors(),
+    basedir::AbstractString=pwd(),
+    juliaversion::VersionNumber=default_version(),
+    dockerport::Int=8081)
     appdir = joinpath(basedir, String(appname))
     @info "Generated Jugsaw app `$appname` at folder: $appdir"
     mkpath(appdir)
     toml = project_config(; version, authors, appname, juliaversion)
     open(joinpath(appdir, "Project.toml"), "w") do f
-        TOML.print(f, toml, sorted = true, by = key -> (project_key_order(key), key))
+        TOML.print(f, toml, sorted=true, by=key -> (project_key_order(key), key))
     end
     open(joinpath(appdir, "Dockerfile"), "w") do f
-        write(f, docker_config(; juliaversion, appname, dockerport))
+        write(f, docker_config(; juliaversion, dockerport))
     end
     open(joinpath(appdir, "README"), "w") do f
         println(f, "# $appname")
@@ -36,9 +36,9 @@ To upload your application to Jugsaw website, please check https://jugsaw.github
 end
 
 function project_config(; version::VersionNumber,
-        authors::AbstractString = default_authors(),
-        appname::Symbol,
-        juliaversion::VersionNumber=default_version())
+    authors::AbstractString=default_authors(),
+    appname::Symbol,
+    juliaversion::VersionNumber=default_version())
     return Dict(
         "jugsaw" => Dict(
             "name" => String(appname),
@@ -46,7 +46,7 @@ function project_config(; version::VersionNumber,
             "authors" => authors,
             "version" => string(version)
         ),
-        "deps" => Dict("Jugsaw"=>"506f6749-58fa-473a-ada6-eb0172fb6950"),
+        "deps" => Dict("Jugsaw" => "506f6749-58fa-473a-ada6-eb0172fb6950"),
         "compat" => Dict("julia" => compat_version(juliaversion)),
     )
 end
@@ -80,59 +80,58 @@ function compat_version(v::VersionNumber)
     end
 end
 
-function docker_config(; juliaversion::VersionNumber,
-        appname::Symbol, dockerport::Int=8081)
-    return """
-ARG JULIA_VERSION=$(juliaversion)
-FROM julia:\$JULIA_VERSION
+function docker_config(; juliaversion::VersionNumber, dockerport::Int=8081)
+    """
+    ARG JULIA_VERSION=$(juliaversion)
+    FROM julia:\$JULIA_VERSION
 
-# FIXME: no need to develop Jugsaw once it is registered
-COPY . /$appname
-WORKDIR /$appname
-# The environment varialbe `JUGSAW_SERVER=DOCKER` turns the local mode off
-RUN JUGSAW_SERVER=DOCKER julia --project=. -e "using Pkg; Pkg.instantiate()"
+    # FIXME: no need to develop Jugsaw once it is registered
+    COPY . /app
+    WORKDIR /app
+    # The environment varialbe `JUGSAW_SERVER=DOCKER` turns the local mode off
+    RUN JUGSAW_SERVER=DOCKER julia --project=. -e "using Pkg; Pkg.instantiate()"
 
-EXPOSE $dockerport
-ENTRYPOINT ["julia", "--project=.", "app.jl"]
-"""
+    EXPOSE $dockerport
+    ENTRYPOINT ["julia", "--project=.", "app.jl"]
+    """
 end
 
 function app_demo(appname::Symbol)
-"""
-# Please check Jugsaw documentation: TBD
-using Jugsaw
+    """
+    # Please check Jugsaw documentation: TBD
+    using Jugsaw
 
-"
-    greet(x)
+    "
+        greet(x)
 
-This is the docstring, in which **markdown** grammar and math equations are supported
+    This is the docstring, in which **markdown** grammar and math equations are supported
 
-```math
-x^2
-```
-"
-greet(x::String) = "Hello, \$(x)!"
+    ```math
+    x^2
+    ```
+    "
+    greet(x::String) = "Hello, \$(x)!"
 
-# create an application
-app = Jugsaw.AppSpecification(:$appname)
+    # create an application
+    app = Jugsaw.AppSpecification(:$appname)
 
-@register app begin
-    # register by demo
-    greet("Jugsaw")
-    # register by test case, here four functions `sin`, `cos`, `^`, `+` are registered.
-    sin(0.5) ^ 2 + cos(0.5) ^ 2 ≈ 1.0
-end
-"""
+    @register app begin
+        # register by demo
+        greet("Jugsaw")
+        # register by test case, here four functions `sin`, `cos`, `^`, `+` are registered.
+        sin(0.5) ^ 2 + cos(0.5) ^ 2 ≈ 1.0
+    end
+    """
 end
 
 function server_demo()
-"""
-import Jugsaw, Revise
+    """
+    import Jugsaw, Revise
 
-Revise.includet("app.jl")
+    Revise.includet("app.jl")
 
-# reload the application on change
-Jugsaw.Server.serve(app; watched_files=["app.jl"])
-"""
+    # reload the application on change
+    Jugsaw.Server.serve(app; watched_files=["app.jl"])
+    """
 end
 end
