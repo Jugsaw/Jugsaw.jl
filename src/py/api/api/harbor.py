@@ -173,6 +173,55 @@ async def resolve_artifact(
             return res["digest"]
 
 
+class AppExampleCode(BaseModel):
+    julia: Optional[str] = None
+    python: Optional[str] = None
+
+
+class AppMeta(BaseModel):
+    demos: Optional[str] = None
+    types: Optional[str] = None
+    code: AppExampleCode = AppExampleCode()
+
+
+async def get_labels(
+    client: aiohttp.ClientSession,
+    project_name: str,
+    repository_name: str,
+    reference: str,
+) -> dict[str, str]:
+    async with client.get(
+        f"/api/v2.0/projects/{project_name}/repositories/{repository_name}/artifacts",
+        params={"q": f"digest={reference}"},
+    ) as resp:
+        if resp.status == 200:
+            res = await resp.json()
+            assert len(res) == 1
+            return res[0]["extra_attrs"]["config"].get("Labels", {})
+        else:
+            raise Exception("Failed to retrieve labels due to network issue.")
+
+
+async def get_app_meta(
+    client: aiohttp.ClientSession,
+    project_name: str,
+    repository_name: str,
+    reference: str,
+) -> AppMeta:
+    labels = await get_labels(client, project_name, repository_name, reference)
+
+    meta = AppMeta(
+        demos=labels.get("jugsaw.demos"),
+        types=labels.get("jugsaw.types"),
+        code=AppExampleCode(
+            julia=labels.get("jugsaw.code.julia"),
+            python=labels.get("jugsaw.code.python"),
+        ),
+    )
+
+    return meta
+
+
 #####
 
 
