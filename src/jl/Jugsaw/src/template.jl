@@ -92,7 +92,7 @@ function docker_config(; juliaversion::VersionNumber, dockerport::Int=8081)
     RUN JUGSAW_SERVER=DOCKER julia --project=. -e "using Pkg; Pkg.instantiate()"
 
     EXPOSE $dockerport
-    ENTRYPOINT ["julia", "--project=.", "app.jl"]
+    ENTRYPOINT ["julia", "--project=.", "-e", "'include(\"app.jl\"); Jugsaw.Server.serve(app);'"]
     """
 end
 
