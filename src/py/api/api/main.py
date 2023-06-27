@@ -16,7 +16,9 @@ from . import job
 from .job import Job, JobEvent, Payload
 from .harbor import (
     HARBOR_CLIENT,
+    AppMeta,
     ArtifactPushedData,
+    get_app_meta,
     list_artifacts,
     list_projects_names,
     list_repositories,
@@ -69,8 +71,9 @@ async def describe_application(
     app: str,
     uid: Annotated[str, Depends(get_uid_by_api_key)],
     ver: str,
-) -> str:
-    ...
+    client: Annotated[aiohttp.ClientSession, Depends(HARBOR_CLIENT)],
+) -> AppMeta:
+    return await get_app_meta(client, proj, app, ver)
 
 
 @app.get("/v1/proj/{proj}/app/{app}/ver/{ver}/func", tags=["App"])
