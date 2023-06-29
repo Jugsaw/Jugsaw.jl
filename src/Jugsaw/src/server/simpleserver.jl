@@ -109,7 +109,14 @@ struct LocalRoute end
 
 function get_router(::LocalRoute, runtime::AppRuntime)
     r = HTTP.Router()
-
+    js_folder = joinpath(dirname(dirname(pkgdir(@__MODULE__))), "js")
+    # web page
+    HTTP.register!(r, "GET", "/",
+        req->HTTP.Response(200,SIMPLE_HEADER,read(joinpath(js_folder, "jugsawdebug.html")))
+    )
+    HTTP.register!(r, "GET", "/jugsawirparser.js",
+        req->HTTP.Response(200,SIMPLE_HEADER,read(joinpath(js_folder, "jugsawirparser.js")))
+    )
     HTTP.register!(r, "GET", "/healthz", _ -> JSON3.write((; status="OK")))
     HTTP.register!(r, "POST", "/events/jobs", req->job_handler(runtime, req))
     HTTP.register!(r, "POST", "/events/jobs/fetch", req -> fetch_handler(runtime, req))
