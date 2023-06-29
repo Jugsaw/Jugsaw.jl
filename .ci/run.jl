@@ -2,7 +2,7 @@ using Pkg
 
 function main()
     root_directory = dirname(@__DIR__)
-    package_names = readdir(joinpath(root_directory, "src", "jl"))
+    package_names = readdir(joinpath(root_directory, "lib"))
 
     help = """
     CI Test Manager
@@ -21,7 +21,7 @@ function main()
     length(ARGS) > 0 || return print(help)
     if "dev" == ARGS[1]
         packages = map(package_names) do pkg
-            Pkg.PackageSpec(path = joinpath(root_directory, "src", "jl", pkg))
+            Pkg.PackageSpec(path = joinpath(root_directory, "lib", pkg))
         end
         Pkg.develop(packages)
     elseif "test" == ARGS[1]
@@ -35,8 +35,9 @@ function main()
         Pkg.test(package_names; coverage = true)
     elseif "doc" == ARGS[1]
         packages = map(package_names) do pkg
-            Pkg.PackageSpec(path = joinpath(root_directory, "src", "jl", pkg))
+            Pkg.PackageSpec(path = joinpath(root_directory, "lib", pkg))
         end
+        push!(packages, Pkg.PackageSpec(path = root_directory))
         Pkg.develop(packages)
         Pkg.instantiate()
     end

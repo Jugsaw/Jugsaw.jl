@@ -11,7 +11,6 @@ A Jugsaw IR that corresponds to a [`JobSpec`](@ref) instance.
 * [NoDemoException]: a JSON object `{"error" : ...}`.
 """
 function job_handler(r::AppRuntime, req::HTTP.Request)
-    @info "call!"
     # top level must be a function call
     # add jobs recursively to the queue
     try
@@ -109,7 +108,7 @@ struct LocalRoute end
 
 function get_router(::LocalRoute, runtime::AppRuntime)
     r = HTTP.Router()
-    js_folder = joinpath(dirname(dirname(pkgdir(@__MODULE__))), "js")
+    js_folder = joinpath(pkgdir(@__MODULE__), "js")
     # web page
     HTTP.register!(r, "GET", "/",
         req->HTTP.Response(200,SIMPLE_HEADER,read(joinpath(js_folder, "jugsawdebug.html")))
@@ -132,7 +131,7 @@ end
 
 function get_router(::RemoteRoute, runtime::AppRuntime)
     r = HTTP.Router()
-    js_folder = joinpath(dirname(dirname(pkgdir(@__MODULE__))), "js")
+    js_folder = joinpath(pkgdir(@__MODULE__), "js")
     # web page
     HTTP.register!(r, "GET", "/",
         req->HTTP.Response(200,SIMPLE_HEADER,read(joinpath(js_folder, "jugsawdebug.html")))
