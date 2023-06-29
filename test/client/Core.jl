@@ -2,8 +2,8 @@ using Test, Jugsaw.Client, Jugsaw, Jugsaw.Server
 
 @testset "App" begin
     # start service
-    sapp = AppSpecification(:testapp)
-    @register sapp sin(cos(0.5))::Float64
+    sapp = Jugsaw.APP; empty!(sapp)
+    @register testapp sin(cos(0.5))::Float64
     dapr = InMemoryEventService()
     r = AppRuntime(sapp, dapr)
     t = Server.simpleserve(r; is_async=true)

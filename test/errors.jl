@@ -9,13 +9,13 @@ using Jugsaw.Server
 end
 
 @testset "error handling" begin
-    app = AppSpecification(:testapp)
+    app = Jugsaw.APP; empty!(app)
     function buggy(x)
         if x < 0
             error("you did not catch me!")
         end
     end
-    @register app buggy(0.5)
+    @register testapp buggy(0.5)
     r = AppRuntime(app, InMemoryEventService())
     context = Client.ClientContext()
 

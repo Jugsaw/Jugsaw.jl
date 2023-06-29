@@ -56,8 +56,8 @@ end
 end
 
 @testset "app runtime" begin
-    app = AppSpecification(:testapp)
-    @register app sin(cos(0.5))::Float64
+    app = Jugsaw.APP; empty!(app)
+    @register testapp sin(cos(0.5))::Float64
     dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
     r = AppRuntime(app, dapr)
     @test r isa AppRuntime
@@ -91,10 +91,10 @@ end
             error("you did not catch me!")
         end
     end
-    app = AppSpecification(:testapp)
+    app = Jugsaw.APP; empty!(app)
     dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
-    @register app sin(cos(0.5))::Float64
-    @register app buggy(0.5)
+    @register testapp sin(cos(0.5))::Float64
+    @register testapp buggy(0.5)
     r = AppRuntime(app, dapr)
 
     job_id = string(Jugsaw.uuid4())
@@ -114,9 +114,9 @@ end
 
 @testset "job handler" begin
     # create an app
-    app = AppSpecification(:testapp)
+    app = Jugsaw.APP; empty!(app)
     dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
-    @register app sin(cos(0.5))::Float64
+    @register testapp sin(cos(0.5))::Float64
     r = AppRuntime(app, dapr)
     context = Client.ClientContext()
 
@@ -139,9 +139,9 @@ end
 
 @testset "code handler" begin
     context = Client.ClientContext()
-    app = AppSpecification(:testapp)
+    app = Jugsaw.APP; empty!(app)
     dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
-    @register app sin(cos(0.5))::Float64
+    @register testapp sin(cos(0.5))::Float64
 
     fcall = JugsawIR.julia2adt(JugsawIR.Call("sin", (0.5,), (;)))[1]
     req = Jugsaw.Client.new_request_obj(context, Val(:api), fcall, "Julia")
@@ -159,8 +159,8 @@ end
 end
 
 @testset "parse fcall" begin
-    app = AppSpecification(:testapp)
-    @register app sin(cos(0.5))::Float64
+    app = Jugsaw.APP; empty!(app)
+    @register testapp sin(cos(0.5))::Float64
     path = joinpath(@__DIR__, "testapp")
     # saving demos
     Jugsaw.save_demos(path, app)
@@ -175,9 +175,9 @@ end
     @test Jugsaw.nfunctions(app) == 0
 
     # register a type function
-    @register app Tuple([1, 2, 3]) == (1, 2, 3)
+    @register testapp Tuple([1, 2, 3]) == (1, 2, 3)
     struct A end
-    @register app A()
+    @register testapp A()
     @test Jugsaw.nfunctions(app) == 2
     demo = first(first(app.method_demos)[2])
     @test feval(demo.fcall) == A()

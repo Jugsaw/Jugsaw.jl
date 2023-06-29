@@ -8,9 +8,9 @@ end
 
 @testset "server-client" begin
     # start service
-    sapp = AppSpecification(:testapp)
+    sapp = Jugsaw.APP; empty!(sapp)
     r = AppRuntime(sapp, InMemoryEventService())
-    @register sapp sin(cos(0.5))::Float64
+    @register testapp sin(cos(0.5))::Float64
     context = Client.ClientContext()
     t = Jugsaw.Server.simpleserve(r; is_async=true)
 
@@ -40,8 +40,8 @@ end
 
 @testset "request in server mode" begin
     # start the service
-    sapp = AppSpecification(:testapp)
-    @register sapp sin(cos(0.5))::Float64
+    sapp = Jugsaw.APP; empty!(sapp)
+    @register testapp sin(cos(0.5))::Float64
     r = AppRuntime(sapp, InMemoryEventService())
     # request in remote mode
     context = Client.ClientContext(; localurl=false, endpoint="http://localhost:8081")

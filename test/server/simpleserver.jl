@@ -6,9 +6,9 @@ using Jugsaw.Client
 
 @testset "routes" begin
     context = Client.ClientContext(; localurl=true)
-    app = AppSpecification(:testapp)
+    app = Jugsaw.APP; empty!(app)
     dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
-    @register app sin(cos(0.5))::Float64
+    @register testapp sin(cos(0.5))::Float64
     ar = AppRuntime(app, dapr)
     r = Jugsaw.Server.get_router(Jugsaw.Server.LocalRoute(), ar)
     # services
