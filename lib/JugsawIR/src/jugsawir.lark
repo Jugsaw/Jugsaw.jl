@@ -1,0 +1,25 @@
+object: genericobj1
+        | genericobj2
+        | genericobj3
+        | list
+        | string
+        | number
+        | true
+        | false
+        | null
+
+genericobj1 : "{" "\"fields\"" ":" list "}"
+genericobj2 : "{" "\"type\"" ":" string "," "\"fields\"" ":" list "}"
+genericobj3 : "{" "\"fields\"" ":" list "," "\"type\"" ":" string "}"
+
+list : "[" [object ("," object)*] "]"
+string : ESCAPED_STRING
+number : SIGNED_NUMBER
+true : "true"
+false : "false"
+null : "null"
+
+%import common.ESCAPED_STRING
+%import common.SIGNED_NUMBER
+%import common.WS
+%ignore WS
