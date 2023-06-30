@@ -71,9 +71,8 @@ end
 # :MaximalIS, :SpinGlass, :Coloring, :DominatingSet,
 # :HyperSpinGlass, :Matching, :MaxCut, :OpenPitMining,
 # :PaintShop, :Satisfiability, :SetCovering, :SetPacking
-app = Jugsaw.AppSpecification(:GenericTN)
 for property in [:(SizeMax()), :(CountingMax()), :(CountingMax(2))]
-    @eval @register app solve(IndependentSetConfig(; graph=smallgraph(:petersen), weights=ones(10)), $property;
+    @eval @register GenericTN solve(IndependentSetConfig(; graph=smallgraph(:petersen), weights=ones(10)), $property;
             usecuda::Bool=false,
             seed::Int=2
         )
