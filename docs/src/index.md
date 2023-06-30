@@ -15,6 +15,7 @@ CurrentModule = Jugsaw
 ```@contents
 Pages = [
     "get-started.md",
+    "examples.md",
 ]
 Depth = 1
 ```

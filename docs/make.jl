@@ -30,6 +30,7 @@ for fmt in formats
         pages=[
             "Home" => "index.md",
             "Get Started" => ["get-started.md"],
+            "Sample Projects" => ["examples.md"],
             "Builder Guide" => "developer.md",
             "End User Guides" => ["client-julia.md", "client-python.md", "client-javascript.md"],
             "Package Manuals" => ["man/JugsawIR.md", "man/Jugsaw.md", "man/JugsawServer.md", "man/JugsawClient.md"],
