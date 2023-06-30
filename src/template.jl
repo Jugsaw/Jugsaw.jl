@@ -9,16 +9,13 @@ function init(appname::Symbol; version::VersionNumber=v"1.0.0-DEV",
     authors::AbstractString=default_authors(),
     basedir::AbstractString=pwd(),
     juliaversion::VersionNumber=default_version(),
-    dockerport::Int=8081)
+    )
     appdir = joinpath(basedir, String(appname))
     @info "Generated Jugsaw app `$appname` at folder: $appdir"
     mkpath(appdir)
     toml = project_config(; version, authors, appname, juliaversion)
     open(joinpath(appdir, "Project.toml"), "w") do f
         TOML.print(f, toml, sorted=true, by=key -> (project_key_order(key), key))
-    end
-    open(joinpath(appdir, "Dockerfile"), "w") do f
-        write(f, docker_config(; juliaversion, dockerport))
     end
     open(joinpath(appdir, "README"), "w") do f
         println(f, "# $appname")
