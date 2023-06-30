@@ -47,7 +47,7 @@ Please use `subtypes(AbstractLang)` for supported client languages.
   * `typetable` is a [`TypeTable`](JugsawIR.md#JugsawIR.TypeTable) instance with the type definitions.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/3f8617b5f39a3d09a586bcd16fe9f7fdcd73327c/src/jl/Jugsaw/src/clientcode.jl#L6' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/ee40ac585d7968616914b253073e6cf99adcaa64/src/jl/Jugsaw/src/clientcode.jl#L6' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.@register-Tuple{Any, Any}' href='#Jugsaw.@register-Tuple{Any, Any}'>#</a>
 **`Jugsaw.@register`** &mdash; *Macro*.
@@ -71,7 +71,7 @@ Register a function to the application. A function can be registered as a demo, 
 The [`@register`](Jugsaw.md#Jugsaw.@register-Tuple{Any, Any}) macro checks and executes the expression. If the tests and type asserts in the expression does not hold, an error will be thrown. Otherwise, both the top level function call and those appear in the input arguments will be registered.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/3f8617b5f39a3d09a586bcd16fe9f7fdcd73327c/src/jl/Jugsaw/src/register.jl#L110-L126' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/ee40ac585d7968616914b253073e6cf99adcaa64/src/jl/Jugsaw/src/register.jl#L110-L126' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.AppSpecification' href='#Jugsaw.AppSpecification'>#</a>
 **`Jugsaw.AppSpecification`** &mdash; *Type*.
@@ -91,7 +91,7 @@ The application specification.
   * `method_demos::Dict{String, Vector{JugsawDemo}}`
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/3f8617b5f39a3d09a586bcd16fe9f7fdcd73327c/src/jl/Jugsaw/src/register.jl#L1' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/ee40ac585d7968616914b253073e6cf99adcaa64/src/jl/Jugsaw/src/register.jl#L1' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.NoDemoException' href='#Jugsaw.NoDemoException'>#</a>
 **`Jugsaw.NoDemoException`** &mdash; *Type*.
@@ -110,5 +110,5 @@ This error was thrown when a demo matching the target type signature is not foun
   * `methods::Any`
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/3f8617b5f39a3d09a586bcd16fe9f7fdcd73327c/src/jl/Jugsaw/src/errors.jl#L1' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/ee40ac585d7968616914b253073e6cf99adcaa64/src/jl/Jugsaw/src/errors.jl#L1' class='documenter-source'>source</a><br>
 
