@@ -47,31 +47,33 @@ Please use `subtypes(AbstractLang)` for supported client languages.
   * `typetable` is a [`TypeTable`](JugsawIR.md#JugsawIR.TypeTable) instance with the type definitions.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/ee40ac585d7968616914b253073e6cf99adcaa64/src/jl/Jugsaw/src/clientcode.jl#L6' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/e6880dd953cee1f82c3aa8053cf496265b96e0ad/src/clientcode.jl#L6' class='documenter-source'>source</a><br>
 
-<a id='Jugsaw.@register-Tuple{Any, Any}' href='#Jugsaw.@register-Tuple{Any, Any}'>#</a>
+<a id='Jugsaw.@register-Tuple{Symbol, Any}' href='#Jugsaw.@register-Tuple{Symbol, Any}'>#</a>
 **`Jugsaw.@register`** &mdash; *Macro*.
 
 
 
 ```julia
-@register app expression
+@register appname expression
 ```
 
-Register a function to the application. A function can be registered as a demo, which can take the following forms.
+Register functions to the Jugsaw application, where `appname` is the name of applications. A function can be registered as a demo, which can take the following forms.
 
 ```julia
-@register app f(args...; kwargs...) == result    # a function call + a test
-@register app f(args...; kwargs...) ≈ result     # similar to the above
-@register app f(args...; kwargs...)::T           # a function call with assertion of the return type
-@register app f(args...; kwargs...)              # a function call
-@register app begin ... end                      # a sequence of function
+@register appname f(args...; kwargs...) == result    # a function call + a test
+@register appname f(args...; kwargs...) ≈ result     # similar to the above
+@register appname f(args...; kwargs...)::T           # a function call with assertion of the return type
+@register appname f(args...; kwargs...)              # a function call
+@register appname begin ... end                      # a sequence of function
 ```
 
-The [`@register`](Jugsaw.md#Jugsaw.@register-Tuple{Any, Any}) macro checks and executes the expression. If the tests and type asserts in the expression does not hold, an error will be thrown. Otherwise, both the top level function call and those appear in the input arguments will be registered.
+The [`@register`](Jugsaw.md#Jugsaw.@register-Tuple{Symbol, Any}) macro checks and executes the expression. If the tests and type asserts in the expression does not hold, an error will be thrown. Otherwise, both the top level function call and those appear in the input arguments will be registered.
+
+Registered functions are stored in `Jugsaw.APP`.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/ee40ac585d7968616914b253073e6cf99adcaa64/src/jl/Jugsaw/src/register.jl#L110-L126' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/e6880dd953cee1f82c3aa8053cf496265b96e0ad/src/register.jl#L111-L129' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.AppSpecification' href='#Jugsaw.AppSpecification'>#</a>
 **`Jugsaw.AppSpecification`** &mdash; *Type*.
@@ -79,7 +81,7 @@ The [`@register`](Jugsaw.md#Jugsaw.@register-Tuple{Any, Any}) macro checks and e
 
 
 ```julia
-struct AppSpecification
+mutable struct AppSpecification
 ```
 
 The application specification.
@@ -91,7 +93,7 @@ The application specification.
   * `method_demos::Dict{String, Vector{JugsawDemo}}`
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/ee40ac585d7968616914b253073e6cf99adcaa64/src/jl/Jugsaw/src/register.jl#L1' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/e6880dd953cee1f82c3aa8053cf496265b96e0ad/src/register.jl#L1' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.NoDemoException' href='#Jugsaw.NoDemoException'>#</a>
 **`Jugsaw.NoDemoException`** &mdash; *Type*.
@@ -110,5 +112,5 @@ This error was thrown when a demo matching the target type signature is not foun
   * `methods::Any`
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/ee40ac585d7968616914b253073e6cf99adcaa64/src/jl/Jugsaw/src/errors.jl#L1' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/e6880dd953cee1f82c3aa8053cf496265b96e0ad/src/errors.jl#L1' class='documenter-source'>source</a><br>
 

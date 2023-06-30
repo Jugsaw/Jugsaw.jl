@@ -20,7 +20,7 @@ To complete your first Jugsaw function call, please copy-paste the following cod
 <html>
   <head>
   <!-- include the jugsaw library -->
-  <script type="text/javascript" src="https://cdn.jsdelivr.net/gh/Jugsaw/Jugsaw/src/js/jugsawirparser.js"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/gh/Jugsaw/Jugsaw/js/jugsawirparser.js"></script>
   </head>
   <body>
     <input id="jugsaw-input" type="text"/>

@@ -74,7 +74,7 @@ end
 ````
 
 
-`Jugsaw` is already included as your project dependency in `Project.toml`, you can add more dependencies to your project file [in the standard Julian way](https://pkgdocs.julialang.org/v1/environments/). A Jugsaw app is specified as a [`Jugsaw.AppSpecification`](man/Jugsaw.md#Jugsaw.AppSpecification) instance, in which you can register functions. A function or an API can be registered as a *demo* with the [`@register`](man/Jugsaw.md#Jugsaw.@register-Tuple{Any, Any}) macro, where a *demo* is a using case of a function with concrete input values. It can be either a function call or a test case. In the above example, the functions registered in application `:Test` are `greet`, `sin`, `cos`, `^` and `+`.
+`Jugsaw` is already included as your project dependency in `Project.toml`, you can add more dependencies to your project file [in the standard Julian way](https://pkgdocs.julialang.org/v1/environments/). A Jugsaw app is specified as a [`Jugsaw.AppSpecification`](man/Jugsaw.md#Jugsaw.AppSpecification) instance, in which you can register functions. A function or an API can be registered as a *demo* with the [`@register`](man/Jugsaw.md#Jugsaw.@register-Tuple{Symbol, Any}) macro, where a *demo* is a using case of a function with concrete input values. It can be either a function call or a test case. In the above example, the functions registered in application `:Test` are `greet`, `sin`, `cos`, `^` and `+`.
 
 
 <a id='Deploy-on-the-Jugsaw-cloud-(TODO)'></a>
