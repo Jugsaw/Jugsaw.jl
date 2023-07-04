@@ -88,11 +88,6 @@ deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 version = "1.6.0"
 
-[[EnumX]]
-git-tree-sha1 = "bdb1942cd4c45e3c678fd11569d5cccd80976237"
-uuid = "4e289a0a-7415-4d19-859d-a7e5c4648b56"
-version = "1.0.4"
-
 [[ExceptionUnwrapping]]
 deps = ["Test"]
 git-tree-sha1 = "e90caa41f5a86296e014e148ee061bd6c3edec96"
@@ -137,13 +132,18 @@ version = "1.13.1"
 
 [[Jugsaw]]
 deps = ["CloudEvents", "DaprClients", "Dates", "Distributed", "HTTP", "JugsawIR", "LibGit2", "MLStyle", "Markdown", "OrderedCollections", "Pkg", "Revise", "StructTypes", "TOML", "URIs", "UUIDs"]
-path = "../../.."
+git-tree-sha1 = "e9ce041dbb46f5f1a591f7a52e17891cc9911791"
+repo-rev = "main"
+repo-url = "https://github.com/Jugsaw/Jugsaw.jl.git"
 uuid = "506f6749-58fa-473a-ada6-eb0172fb6950"
 version = "0.1.0"
 
 [[JugsawIR]]
 deps = ["AbstractTrees", "Base64", "DocStringExtensions", "JSON3", "Lerche", "MLStyle"]
-path = "../../../lib/JugsawIR"
+git-tree-sha1 = "4a6146b965bbb560c3bc1d43d7b4c9bea317a01b"
+repo-rev = "main"
+repo-subdir = "lib/JugsawIR"
+repo-url = "https://github.com/Jugsaw/Jugsaw.jl.git"
 uuid = "6340f1c1-b722-4800-8081-8412e0693b45"
 version = "1.0.0-DEV"
 
@@ -159,9 +159,9 @@ uuid = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
 
 [[Lerche]]
 deps = ["DataStructures", "Logging"]
-path = "../../../../../.julia/dev/Lerche"
+git-tree-sha1 = "64ce9e3818a4dd5741d6c5b6c838ed87b7391b9b"
 uuid = "d42ef402-04e6-4356-9f73-091573ea58dc"
-version = "0.5.3"
+version = "0.5.4"
 
 [[LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]

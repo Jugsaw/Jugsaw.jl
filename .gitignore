@@ -192,6 +192,8 @@ docs/site/
 # committed for packages, but should be committed for applications that require a static
 # environment.
 Manifest.toml
+!example/**/Manifest.toml
+example/**/Dockerfile
 /src/jl/Jugsaw/test/Testapp/
 
 # codecov

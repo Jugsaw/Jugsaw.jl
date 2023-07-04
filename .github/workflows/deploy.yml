@@ -1,0 +1,34 @@
+name: "Deploy applications to Jugsaw"
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+jobs:
+  helloworld:
+    runs-on: "ubuntu-latest"
+    if: github.ref_type == 'branch' || (github.ref_type == 'tag' && startsWith(github.ref_name, 'helloworld-v'))
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            hello-world:
+              - 'example/hello-world/**'
+      - name: deploy hello-world
+        id: deploy-hello-world
+        # if: steps.filter.outputs.hello-world == 'true'
+        uses: Jugsaw/github-actions/deploy-application@main
+        with:
+          token: ${{ secrets.JUGSAW_TOKEN }}
+          dir: "./example/hello-world"
+          tags: |
+            # set latest tag for default branch
+            type=raw,value=latest,enable={{is_default_branch}}
+            # extract semver from tag with the pattern
+            type=match,pattern=hello-world-v(.*),group=1
+      - run: echo "${{ steps.deploy-hello-world.outputs.appID }}"
+        shell: bash

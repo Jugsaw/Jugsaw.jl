@@ -80,7 +80,7 @@ function compat_version(v::VersionNumber)
     end
 end
 
-function docker_config(; juliaversion::VersionNumber, dockerport::Int=8081)
+function docker_config(; juliaversion::VersionNumber=default_version(), dockerport::Int=8081)
     """
     ARG JULIA_VERSION=$(juliaversion)
     FROM julia:\$JULIA_VERSION
@@ -92,7 +92,7 @@ function docker_config(; juliaversion::VersionNumber, dockerport::Int=8081)
     RUN JUGSAW_SERVER=DOCKER julia --project=. -e "using Pkg; Pkg.instantiate()"
 
     EXPOSE $dockerport
-    ENTRYPOINT ["julia", "--project=.", "-e", "include(\"app.jl\"); Jugsaw.Server.serve(app, localurl=true);"]
+    ENTRYPOINT ["julia", "--project=.", "-e", "include(\"app.jl\"); Jugsaw.Server.serve(Jugsaw.APP, localurl=true);"]
     """
 end
 
