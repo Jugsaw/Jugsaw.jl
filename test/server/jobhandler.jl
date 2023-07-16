@@ -57,7 +57,10 @@ end
 
 @testset "app runtime" begin
     app = Jugsaw.APP; empty!(app)
-    @register testapp sin(cos(0.5))::Float64
+    @register testapp begin
+        sin(cos(0.5))::Float64
+        cos(0.5)::Float64
+    end
     dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
     r = AppRuntime(app, dapr)
     @test r isa AppRuntime
@@ -179,8 +182,8 @@ end
     struct A end
     @register testapp A()
     @test Jugsaw.nfunctions(app) == 2
-    demo = first(first(app.method_demos)[2])
+    demo = first(app.method_demos)[2]
     @test feval(demo.fcall) == A()
-    demo = app.method_demos[app.method_names[1]][1]
+    demo = app.method_demos[app.method_names[1]]
     @test fevalself(demo.fcall) == (1, 2, 3)
 end

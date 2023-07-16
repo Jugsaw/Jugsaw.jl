@@ -8,4 +8,4 @@ WORKDIR /app
 RUN JUGSAW_SERVER=DOCKER julia --project=. -e "using Pkg; Pkg.instantiate()"
 
 EXPOSE 8081
-ENTRYPOINT ["julia", "--project=.", "-e", "include("app.jl"); Jugsaw.Server.serve(app, localurl=true);"]
+ENTRYPOINT ["julia", "--project=.", "-e", "include("app.jl"); Jugsaw.Server.serve(Jugsaw.APP, localurl=true);"]

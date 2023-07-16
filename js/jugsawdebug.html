@@ -63,25 +63,19 @@ function disp_app(app){
     const ul = document.createElement('div');
     for (let i=0; i < app.function_list.length; i++){
         const fi = app.function_list[i];
-        const demo_list = fi.demo_list;
-        const ul2 = document.createElement('ul');
-        ul2.appendChild(create_textblock('md-block', demo_list[0].docstring));
-        for (let i=0; i < demo_list.length; i++){
-            const li2 = document.createElement('li');
-            li2.appendChild(create_textblock('strong', `Input Pattern ${i+1}`));
-            li2.appendChild(disp_demo(fi.function_name, i, demo_list[i]));
-            ul2.appendChild(li2)
-        }
+        const div2 = document.createElement('div');
+        div2.appendChild(create_textblock('md-block', fi.demo.docstring));
+        div2.appendChild(disp_demo(fi.function_name, fi.demo));
         const details = document.createElement('details');
         details.appendChild(create_textblock('summary', fi.function_name));
-        details.appendChild(ul2);
+        details.appendChild(div2);
         ul.appendChild(details);
     }
     toplevel.appendChild(ul);
     return toplevel
 }
-function disp_demo(fname, index, demo){
-    const id = `${fname}-${index+1}`
+function disp_demo(fname, demo){
+    const id = `${fname}`
 
     // render args
     const apis = document.createElement('div');
@@ -230,8 +224,8 @@ function handle_fcall_form(event, fname, type_args, obj_args, demo_args, type_kw
     const args = demo_args.map((darg, i)=>extract_data(obj_args[i], darg.data));
     const kwargs = demo_kwargs.map((darg,i)=>extract_data(obj_kwargs[i], darg.data));
     call(`${host}:${port}`, "unspecified", app.appname, fname,
-        {"type":type_args, "fields":args},
-        {"type":type_kwargs, "fields":kwargs}).then(resp=>resp.json()).then(obj=>{
+        {"fields":args},
+        {"fields":kwargs}).then(resp=>resp.json()).then(obj=>{
             if ("error" in obj){
                 err.innerHTML = obj.error;
                 job_id.setAttribute('value', "<job id>");

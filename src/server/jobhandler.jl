@@ -343,13 +343,13 @@ function addjob!(r::AppRuntime, jobspec::JobSpec)
     # Find the demo and parse the arguments
     created_at, created_by, maxtime, fname, args, kwargs = jobspec.created_at, jobspec.created_by, jobspec.maxtime, jobspec.fname, jobspec.args, jobspec.kwargs
     # match demo or throw
-    idx, thisdemo = match_demo(fname, args.typename, kwargs.typename, r.app)
-    if thisdemo === nothing
-        err = NoDemoException(jobspec, r.app)
+    if !haskey(r.app.method_demos, fname)
+        err = NoDemoException(fname, r.app)
         publish_status(r.dapr, JobStatus(id=jobspec.id, status=failed, description=_error_msg(err)))
         throw(err)
     end
 
+    thisdemo = r.app.method_demos[fname]
     # IF tree is a function call, return an `object_id` for return value.
     #     recurse over args and kwargs to get `Call` parsed.
     newargs = ntuple(i->renderobj!(r, created_at, created_by, maxtime, args.fields[i], thisdemo.fcall.args[i]), length(args.fields))
@@ -369,20 +369,6 @@ function addjob!(r::AppRuntime, jobspec::JobSpec)
         publish_status(r.dapr, JobStatus(id=job.id, status=pending, description="Failed to submit job after $maxtime seconds."))
     end
     return job
-end
-
-# TODO: design a more powerful IR for chaining.
-function match_demo(fname, args_type, kwargs_type, app::AppSpecification)
-    if !haskey(app.method_demos, fname) || isempty(app.method_demos[fname])
-        return (-1, nothing)
-    end
-    for (idx, demo) in enumerate(app.method_demos[fname])
-        _, dargs, dkwargs = demo.fcall.fname, demo.meta["args_type"], demo.meta["kwargs_type"]
-        if dargs == args_type && dkwargs == kwargs_type
-            return (idx, demo)
-        end
-    end
-    return (-1, nothing)
 end
 
 # if adt is a function call, launch a job and return an object getter, else, return an object.

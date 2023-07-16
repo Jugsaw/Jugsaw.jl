@@ -10,7 +10,7 @@ using OrderedCollections: OrderedDict
 using Markdown
 using UUIDs
 
-export ClientContext, App, DemoRefs, DemoRef, Demo
+export ClientContext, App, DemoRef, Demo
 export request_app, fetch, call, run_demo, request_app, healthz, test_demo
 
 include("Core.jl")

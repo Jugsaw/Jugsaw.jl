@@ -89,13 +89,12 @@ function code_handler(req::HTTP.Request, app::AppSpecification)
     adt = JugsawIR.ir2adt(String(req.body))
     endpoint, fcall = adt.fields
     fname, args, kwargs = fcall.fields
-    idx, demo = match_demo(fname, args.typename, kwargs.typename, app)
-    if demo === nothing
+    if !haskey(app.method_demos, fname)
         return _error_response(NoDemoException(fcall, app))
     else
         try
             adt, type_table = JugsawIR.julia2adt(app)
-            code = generate_code(lang, endpoint, app.name, fname, idx, fcall, type_table)
+            code = generate_code(lang, endpoint, app.name, fname, fcall, type_table)
             return HTTP.Response(200, JSON_HEADER, JSON3.write((; code=code)))
         catch e
             return _error_response(e)

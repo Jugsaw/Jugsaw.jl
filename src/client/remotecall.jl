@@ -47,11 +47,11 @@ $TYPEDSIGNATURES
 Launch a function call.
 """
 function call(context::ClientContext, demo::Demo, args...; kwargs...)
-    args_adt = JugsawObject(demo.meta["args_type"], Any[JugsawIR.julia2adt(arg)[1] for arg in args])
+    args_adt = JugsawObject(JugsawIR.type2str(typeof(args)), Any[JugsawIR.julia2adt(arg)[1] for arg in args])
     @assert length(args_adt.fields) == length(demo.fcall.args)
     # fetch kwargs, if not set, use demo
     kws = fieldnames(typeof(demo.fcall.kwargs))
-    kwargs_adt = JugsawObject(demo.meta["kwargs_type"], Any[isdefined(kwargs, fn) ? JugsawIR.julia2adt(getfield(x, fn))[1] : getfield(demo.fcall.kwargs, fn) for (k, fn) in enumerate(kws)])
+    kwargs_adt = JugsawObject(JugsawIR.type2str(typeof(kwargs)), Any[isdefined(kwargs, fn) ? JugsawIR.julia2adt(getfield(x, fn))[1] : getfield(demo.fcall.kwargs, fn) for (k, fn) in enumerate(kws)])
 
     fcall = JugsawObject("JugsawIR.Call", [demo.fcall.fname, args_adt, kwargs_adt])
     job_id = string(uuid4())

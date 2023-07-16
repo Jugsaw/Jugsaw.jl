@@ -6012,7 +6012,7 @@ function render_app(app_and_method){
     const typemap = render_dict(typetable.fields[1]);
     // create result
     const function_list = demopairs.map(pair => (
-        {"function_name":pair.fields[0], "demo_list":aslist(pair.fields[1]).map(demo=>render_demo(demo, typemap))}
+        {"function_name":pair.fields[0], "demo":render_demo(pair.fields[1], typemap)}
     ));
     return {"appname":appname, "function_list":function_list};
 }
@@ -6168,16 +6168,16 @@ class App {
       this.context = context;
     }
 
-  call(fname, idx, args, kwargs, ferror=console.log) {
+  call(fname, args, kwargs, ferror=console.log) {
     for (var i=0; i< this.function_list.length; i++){
       const fi = this.function_list[i]
       if (fi.function_name == fname){
-        const demo = fi.demo_list[idx]
+        const demo = fi.demo
         const newargs = demo.args.map((darg, i)=>raw2json(args[i], darg.data));
         const newkwargs = demo.kwargs.map((darg,i)=>raw2json(kwargs[i], darg.data));
         return call(context.endpoint, context.project, context.appname, fname,
-            {"type":demo.type_args, "fields":newargs},
-            {"type":demo.type_kwargs, "fields":newkwargs}
+            {"fields":newargs},
+            {"fields":newkwargs}
           ).then(resp=>{
           if (resp.status != 200){
             // call error

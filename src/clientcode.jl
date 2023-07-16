@@ -14,10 +14,9 @@ Please use `subtypes(AbstractLang)` for supported client languages.
 * `endpoint` is the url for service provider, e.g. it can be [https://www.jugsaw.co](https://www.jugsaw.co).
 * `appname` is the application name.
 * `fcall` is a [`JugsawADT`](@ref) that specifies the function call.
-* `idx` is the index of method instance.
 * `typetable` is a [`TypeTable`](@ref) instance with the type definitions.
 """
-function generate_code(lang::String, endpoint, appname, fname, idx::Int, fcall::JugsawADT, typetable::JugsawADT)
+function generate_code(lang::String, endpoint, appname, fname, fcall::JugsawADT, typetable::JugsawADT)
     @assert fcall.typename == "JugsawIR.Call"
     if isempty(endpoint)
         @warn("The endpoint of this server is not set properly.")
@@ -32,20 +31,20 @@ function generate_code(lang::String, endpoint, appname, fname, idx::Int, fcall::
     else
         return error("Client langauge not defined, got: $lang")
     end
-    return _generate_code(pl, endpoint, appname, Symbol(fname), idx, fcall, tt)
+    return _generate_code(pl, endpoint, appname, Symbol(fname), fcall, tt)
 end
 
 aslist(x::JugsawADT) = x.fields[2]
 
 # converting IR to different languages
-function _generate_code(::Julia, endpoint::String, appname::Symbol, fname::Symbol, idx::Int, fcall::JugsawADT, typetable::TypeTable)
+function _generate_code(::Julia, endpoint::String, appname::Symbol, fname::Symbol, fcall::JugsawADT, typetable::TypeTable)
     _, fargs, fkwargs = fcall.fields
     args = join([adt2client(Julia(), arg) for arg in fargs.fields],", ")
     kws = typetable.defs[fkwargs.typename].fieldnames
     kwargs = join(["$key = $(adt2client(Julia(), arg))" for (key, arg) in zip(kws, fkwargs.fields)],", ")
     code = """using Jugsaw.Client
 app = request_app(ClientContext(; endpoint=$(repr(endpoint))), :$(appname))
-lazyreturn = app.$fname[$idx]($args; $kwargs)
+lazyreturn = app.$fname($args; $kwargs)
 result = lazyreturn()  # fetch result"""
     return code
 end
@@ -73,14 +72,14 @@ function adt2client(lang::Julia, x)
     end
 end
 
-function _generate_code(::Python, endpoint::String, appname::Symbol, fname::Symbol, idx::Int, fcall::JugsawADT, typetable::TypeTable)
+function _generate_code(::Python, endpoint::String, appname::Symbol, fname::Symbol, fcall::JugsawADT, typetable::TypeTable)
     _, fargs, fkwargs = fcall.fields
     args = join([adt2client(Python(), arg) for arg in fargs.fields],", ")
     kws = typetable.defs[fkwargs.typename].fieldnames
     kwargs = join(["$key = $(adt2client(Python(), arg))" for (key, arg) in zip(kws, fkwargs.fields)],", ")
     code = """import jugsaw, numpy
 app = jugsaw.request_app(jugsaw.ClientContext(endpoint=$(repr(endpoint))), $(repr(string(appname))))
-lazyreturn = app.$fname[$(idx-1)]($(join(filter!(!isempty, [args, kwargs]), ", ")))
+lazyreturn = app.$fname($(join(filter!(!isempty, [args, kwargs]), ", ")))
 result = lazyreturn()   # fetch result"""
     return code
 end
@@ -113,7 +112,7 @@ function adt2client(lang::Python, x)
     end
 end
 
-function _generate_code(::Javascript, endpoint::String, appname::Symbol, fname::Symbol, idx::Int, fcall::JugsawADT, typetable::TypeTable)
+function _generate_code(::Javascript, endpoint::String, appname::Symbol, fname::Symbol, fcall::JugsawADT, typetable::TypeTable)
     _, fargs, fkwargs = fcall.fields
     args = adt2client(Javascript(), fargs)
     kws = typetable.defs[fkwargs.typename].fieldnames
@@ -127,7 +126,7 @@ function _generate_code(::Javascript, endpoint::String, appname::Symbol, fname::
 const context = new ClientContext({endpoint:"$endpoint"})
 const app_promise = request_app(context, "$appname")
 // keyword arguments are: $kws
-app_promise.then(app=>app.call("$fname", $(idx-1), $args, $kwargs)).then(console.log)
+app_promise.then(app=>app.call("$fname", $args, $kwargs)).then(console.log)
 </script>"""
     return code
 end

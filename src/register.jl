@@ -11,7 +11,7 @@ mutable struct AppSpecification
     # `method_demos` is a maps function names to demos,
     # where a demo is a pair of jugsaw function call and result.
     const method_names::Vector{String}
-    const method_demos::Dict{String, Vector{JugsawDemo}}
+    const method_demos::Dict{String, JugsawDemo}
 end
 AppSpecification(name) = AppSpecification(name, String[], Dict{String,JugsawDemo}())
 const APP = AppSpecification(:__unspecified__)
@@ -25,14 +25,10 @@ Base.:(==)(app::AppSpecification, app2::AppSpecification) = app.name == app2.nam
 function Base.show(io::IO, app::AppSpecification)
     println(io, "AppSpecification: $(app.name)")
     println(io, "Method table = [")
-    for (k, (fname, demos)) in enumerate(app.method_demos)
+    for (k, fname) in enumerate(app.method_names)
         print(io, "- ")
-        println(io, fname)
-        for (l, demo) in enumerate(demos)
-            print(io, "  - ")
-            print(io, demo)
-            (k !== length(app.method_demos) || l !== length(demos)) && println(io)
-        end
+        print(io, app.method_demos[fname])
+        k !== length(app.method_demos) && println(io)
     end
     print(io, "]")
 end
@@ -44,11 +40,11 @@ function Base.empty!(app::AppSpecification)
 end
 
 function selftest(app::AppSpecification)
-    detail = Dict{String, Vector{Bool}}()
+    detail = Dict{String, Bool}()
     res = true
     for func in app.method_names
-        detail[func] = Bool[selftest(demo) for demo in app.method_demos[func]]
-        res = res & all(detail[func])
+        detail[func] = selftest(app.method_demos[func])
+        res = res & detail[func]
     end
     return res, detail
 end
@@ -66,37 +62,19 @@ function register!(app::AppSpecification, f, args::Tuple, kwargs::NamedTuple, en
     # if the function is not yet registered, add a new method
     if !haskey(app.method_demos, fname)
         push!(app.method_names, fname)
-        app.method_demos[fname] = JugsawDemo[]
-    end
-    # function signature not yet registered
-    if match_demo(fname, args, kwargs, app) === nothing
         # create a new demo
         doc = string(Base.Docs.doc(Base.Docs.Binding(module_and_symbol(f)...)))
-        idx = length(app.method_demos[fname]) + 1
-        push!(app.method_demos[fname], JugsawDemo(jf, result,
+        app.method_demos[fname] = JugsawDemo(jf, result,
             Dict{String,String}(
                 "docstring"=>doc,
-                "args_type"=>JugsawIR.type2str(typeof(args)),
-                "kwargs_type"=>JugsawIR.type2str(typeof(kwargs)),
-                "api_julialang"=>generate_code("Julia", endpoint, app.name, fname, idx, adt, type_table),
-                "api_python"=>generate_code("Python", endpoint, app.name, fname, idx, adt, type_table),
-                "api_javascript"=>generate_code("Javascript", endpoint, app.name, fname, idx, adt, type_table)
-            )))
+                "api_julialang"=>generate_code("Julia", endpoint, app.name, fname, adt, type_table),
+                "api_python"=>generate_code("Python", endpoint, app.name, fname, adt, type_table),
+                "api_javascript"=>generate_code("Javascript", endpoint, app.name, fname, adt, type_table)
+            ))
+    else
+        @warn "Repeated registration of function will be ignored: $fname"
     end
     return result
-end
-function match_demo(fname::String, args, kwargs, app::AppSpecification)
-    # handle function request error
-    if !haskey(app.method_demos, fname) || isempty(app.method_demos[fname])
-        return nothing
-    end
-    for demo in app.method_demos[fname]
-        _, dargs, dkwargs = demo.fcall.fname, demo.fcall.args, demo.fcall.kwargs
-        if typeof(dargs) == typeof(args) && typeof(dkwargs) == typeof(kwargs)
-            return demo
-        end
-    end
-    return nothing
 end
 module_and_symbol(f::DataType) = f.name.module, f.name.name
 module_and_symbol(f::Function) = typeof(f).name.module, Symbol(f)

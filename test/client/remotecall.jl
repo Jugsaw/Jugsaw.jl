@@ -26,7 +26,7 @@ end
         @test test_demo(app.sin)
 
         # call
-        f = app.sin[1]
+        f = app.sin
         obj = call(f.context, f.demo, 3.0)
         @test obj isa Client.LazyReturn
         @test obj() ≈ sin(3.0)
