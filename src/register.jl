@@ -178,9 +178,10 @@ end
 
 function render_args(app, arg, exs)
     @match arg begin
-        Expr(:call, fname, args...) => begin
-            register_by_expr(app, arg, exs)
-        end
+        # NOTE: recurse over the arguments are forbidden
+        # Expr(:call, fname, args...) => begin
+        #     register_by_expr(app, arg, exs)
+        # end
         _ => arg
     end
 end
