@@ -71,14 +71,16 @@ end
 # :MaximalIS, :SpinGlass, :Coloring, :DominatingSet,
 # :HyperSpinGlass, :Matching, :MaxCut, :OpenPitMining,
 # :PaintShop, :Satisfiability, :SetCovering, :SetPacking
-for property in [:(SizeMax()), :(CountingMax()), :(CountingMax(2))]
-    @eval @register GenericTN solve(IndependentSetConfig(; graph=smallgraph(:petersen), weights=ones(10)), $property;
+for (property, tag) in [(:(SizeMax()), :sizemax),
+                         (:(CountingMax()), :countingmax),
+                         (:(CountingMax(2)), :countingmax2)
+                        ]
+    FNAME = Symbol(:solve_, tag)
+    @eval $FNAME(config; kwargs...) = solve(config, $property; kwargs...)
+    @eval @register GenericTN $FNAME(
+            IndependentSetConfig(; graph=smallgraph(:petersen), weights=ones(10));
             usecuda::Bool=false,
             seed::Int=2
         )
 end
-
-#####
-
-#r= Jugsaw.AppRuntime(app)
-#serve(r, @__DIR__; is_async=false)
+@register GenericTN smallgraph(:petersen)

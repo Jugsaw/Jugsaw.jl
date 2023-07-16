@@ -113,13 +113,9 @@ function app_demo(appname::Symbol)
     greet(x::String) = "Hello, \$(x)!"
 
     # create an application
-    app = Jugsaw.AppSpecification(:$appname)
-
-    @register app begin
+    @register $appname begin
         # register by demo
         greet("Jugsaw")
-        # register by test case, here four functions `sin`, `cos`, `^`, `+` are registered.
-        sin(0.5) ^ 2 + cos(0.5) ^ 2 ≈ 1.0
     end
     """
 end
@@ -129,9 +125,10 @@ function server_demo()
     import Jugsaw, Revise
 
     Revise.includet("app.jl")
+    @info "Running application: " Jugsaw.APP
 
     # reload the application on change
-    Jugsaw.Server.serve(app; watched_files=["app.jl"])
+    Jugsaw.Server.serve(Jugsaw.APP; watched_files=["app.jl"])
     """
 end
 end

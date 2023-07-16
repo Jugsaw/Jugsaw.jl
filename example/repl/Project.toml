@@ -1,0 +1,11 @@
+[deps]
+Jugsaw = "506f6749-58fa-473a-ada6-eb0172fb6950"
+
+[compat]
+julia = "1"
+
+[jugsaw]
+name = "repl"
+uuid = "fe7788df-03fb-44ef-a62b-ff21e28cc72f"
+authors = "GiggleLiu <cacate0129@gmail.com> and contributors"
+version = "1.0.0-DEV"

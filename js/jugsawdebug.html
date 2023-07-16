@@ -433,9 +433,7 @@ function disp_input(value){
             return [foldable(value.type, ul), lst]
         }
     } else if (typeof value === 'string'){
-        const obj = document.createElement('input');
-        obj.setAttribute('value', value)
-        obj.setAttribute('type', 'text')
+        const obj = create_textblock('textarea', value);
         return [obj, obj]
     } else if (typeof value === 'number'){
         const obj = document.createElement('input');
