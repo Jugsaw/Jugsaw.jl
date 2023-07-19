@@ -83,21 +83,22 @@ end
         # get type
         tree = JugsawIR.Lerche.parse(JugsawIR.jp, str)
         adt = JugsawIR.tree2adt(tree)
+        typename = adt isa JugsawExpr && adt.head == :object ? JugsawIR.unpack_typename(adt) : ""
         if typeof(obj) <: JugsawIR.DirectlyRepresentableTypes || obj === undef
         elseif obj isa Vector
-            @test adt isa JugsawADT
+            @test adt isa JugsawExpr
         elseif obj isa Dict
-            @test adt.typename == "JugsawIR.JDict{$(JugsawIR.type2str(JugsawIR.key_type(obj))), $(JugsawIR.type2str(JugsawIR.value_type(obj)))}"
+            @test typename == "JugsawIR.JDict{$(JugsawIR.type2str(JugsawIR.key_type(obj))), $(JugsawIR.type2str(JugsawIR.value_type(obj)))}"
         elseif obj isa Array
-            @test adt.typename == "JugsawIR.JArray"
+            @test typename == "JugsawIR.JArray"
         elseif obj isa Enum
-            @test adt.typename == "JugsawIR.JEnum"
+            @test typename == "JugsawIR.JEnum"
         elseif obj isa DataType
-            @test adt.typename == "JugsawIR.JDataType"
+            @test typename == "JugsawIR.JDataType"
         elseif obj isa UnionAll
             @test adt == JugsawIR.type2str(obj)
         else
-            @test adt.typename == sT
+            @test typename == sT
         end
         # load objects
         res = ir2julia(str, demo)
@@ -110,6 +111,6 @@ end
 
 @testset "datatype" begin
     type, tt = julia2ir(ComplexF64)
-    @test type == "{\"fields\":[\"Base.Complex{Core.Float64}\",{\"fields\":[[2],[\"re\",\"im\"]],\"type\":\"JugsawIR.JArray{Core.String}\"},{\"fields\":[[2],[\"Core.Float64\",\"Core.Float64\"]],\"type\":\"JugsawIR.JArray{Core.String}\"}],\"type\":\"JugsawIR.JDataType\"}"
+    @test type == "[\"object\",\"JugsawIR.JDataType\",\"Base.Complex{Core.Float64}\",[\"list\",\"re\",\"im\"],[\"list\",\"Core.Float64\",\"Core.Float64\"]]"
     println(tt)
 end

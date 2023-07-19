@@ -14,7 +14,7 @@ end
 """
 $(TYPEDEF)
 
-A job with function payload specified as a [`JugsawADT`](@ref).
+A job with function payload specified as a [`JugsawExpr`](@ref).
 
 ### Fields
 $(TYPEDFIELDS)
@@ -30,8 +30,8 @@ struct JobSpec
 
     # payload
     fname::String
-    args::JugsawADT
-    kwargs::JugsawADT
+    args::JugsawExpr
+    kwargs::JugsawExpr
 end
 
 """
@@ -352,8 +352,10 @@ function addjob!(r::AppRuntime, jobspec::JobSpec)
     thisdemo = r.app.method_demos[fname]
     # IF tree is a function call, return an `object_id` for return value.
     #     recurse over args and kwargs to get `Call` parsed.
-    newargs = ntuple(i->renderobj!(r, created_at, created_by, maxtime, args.fields[i], thisdemo.fcall.args[i]), length(args.fields))
-    newkwargs = typeof(thisdemo.fcall.kwargs)(ntuple(i->renderobj!(r, created_at, created_by, maxtime, kwargs.fields[i], thisdemo.fcall.kwargs[i]), length(kwargs.fields)))
+    args_fields = JugsawIR.unpack_fields(args)
+    newargs = ntuple(i->renderobj!(r, created_at, created_by, maxtime, args_fields[i], thisdemo.fcall.args[i]), length(args_fields))
+    kwargs_fields = JugsawIR.unpack_fields(kwargs)
+    newkwargs = typeof(thisdemo.fcall.kwargs)(ntuple(i->renderobj!(r, created_at, created_by, maxtime, kwargs_fields[i], thisdemo.fcall.kwargs[i]), length(kwargs_fields)))
 
     # add task to the queue
     job = Job(jobspec.id, created_at, created_by, maxtime, thisdemo, newargs, newkwargs)
@@ -373,9 +375,9 @@ end
 
 # if adt is a function call, launch a job and return an object getter, else, return an object.
 function renderobj!(r::AppRuntime, created_at, created_by, maxtime, adt, thisdemo)
-    if adt isa JugsawADT && hasproperty(adt, :typename) && adt.typename == "JugsawIR.Call"
+    if adt isa JugsawExpr && adt.head == :call
         object_id = string(UUIDs.uuid4())
-        addjob!(r, JobSpec(object_id, created_at, created_by, maxtime, adt.fields...))
+        addjob!(r, JobSpec(object_id, created_at, created_by, maxtime, adt.args...))
         # Return an object getter, which is a `Call` instance that fetches objects from the event service.
         return object_getter(r.dapr, object_id, thisdemo; timeout=get_timeout()+maxtime)
     else

@@ -4,17 +4,14 @@
 Convert a native Julia object to a Jugsaw compatible object.
 """
 native2jugsaw(x) = x
-native2jugsaw(x::Vector) = x
 
 """
-    construct_object(adt::JugsawADT, demo_object)
+    jugsaw2native(jugsaw_object, demo_object)
 
-Reconstruct the native Julia object from an object of type [`JugsawADT`](@ref).
+Reconstruct the native Julia object from an plain Jugsaw object.
 The return value must have the same data type as the second argument.
 """
-function construct_object end
-
-aslist(obj) = obj.fields[2].storage
+jugsaw2native(x, demo) = x
 
 ##### Dict
 """
@@ -26,16 +23,14 @@ The dictionary type in Jugsaw, which represents a dictionary in key-value pairs.
 $TYPEDFIELDS
 """
 struct JDict{K, V}
-    pairs::Vector{Pair{K, V}}
+    pairs::Storage{Pair{K, V}}
 end
 
 function native2jugsaw(x::Dict)
-    JDict(collect(x))
+    JDict(Storage(collect(x)))
 end
-function construct_object(t::JugsawADT, demo::AbstractDict{T, V}) where {T, V}
-    # TODO: fix this bad implementation
-    pairs = adt2julia(t.fields[1], isempty(demo) ? Pair{T,V}[] : collect(demo))
-    typeof(demo)(pairs)
+function jugsaw2native(t::JDict, demo::AbstractDict{T, V}) where {T, V}
+    return typeof(demo)(t.pairs)
 end
 
 ##### Enum
@@ -50,21 +45,20 @@ $TYPEDFIELDS
 struct JEnum
     kind::String
     value::String
-    options::Vector{String}
+    options::Storage{String}
 end
 function native2jugsaw(x::Enum)
-    JEnum(type2str(typeof(x)), string(x), String[string(v) for v in instances(typeof(x))])
+    JEnum(type2str(typeof(x)), string(x), Storage(String[string(v) for v in instances(typeof(x))]))
 end
-function construct_object(t::JugsawADT, demo::Enum)
-    kind, value, options = t.fields
-    typeof(demo)(findfirst(==(value), aslist(options))-1)
+function jugsaw2native(t::JEnum, demo::Enum)
+    typeof(demo)(findfirst(==(t.value), t.options)-1)
 end
-function construct_object(value::String, demo::Enum)
+function jugsaw2native(value::String, demo::Enum)
     idx = findfirst(x->string(x)==(value), instances(typeof(demo)))
     typeof(demo)(idx-1)
 end
 
-##### JArray
+##### Array
 """
 $TYPEDEF
 
@@ -74,8 +68,14 @@ The data type for arrays in Jugsaw.
 $TYPEDFIELDS
 """
 struct JArray{T}
-    size::Vector{Int}
-    storage::Vector{T}
+    size::Storage{Int}
+    storage::Storage{T}
+end
+function native2jugsaw(x::Array{T}) where T
+    return JArray(Storage(collect(Int, size(x))), Storage(vec(x)))
+end
+function jugsaw2native(t::JArray, demo::Array)
+    typeof(demo)(reshape(t.storage, t.size...))
 end
 
 ##### DataType
@@ -89,15 +89,19 @@ $TYPEDFIELDS
 """
 struct JDataType
     name::String
-    fieldnames::Vector{String}   # can not use tuple!
-    fieldtypes::Vector{String}
+    fieldnames::Storage{String}   # can not use tuple!
+    fieldtypes::Storage{String}
 end
 function native2jugsaw(x::DataType)
-    isconcretetype(x) || return JDataType(type2str(x), String[], String[])
-    JDataType(type2str(x), String[string(x) for x in fieldnames(x)], String[type2str(x) for x in x.types])
+    isconcretetype(x) || return JDataType(type2str(x), Storage(String[]), Storage(String[]))
+    JDataType(type2str(x),
+        Storage(String[string(x) for x in fieldnames(x)]),
+        Storage(String[type2str(x) for x in x.types]))
 end
 
-##### Tuple
-function construct_object(t::JugsawADT, demo::Tuple)
-    ([adt2julia(v, d) for (v, d) in zip(t.fields, demo)]...,)
-end
+# no need to define jugsaw2native, since it is handled manually.
+
+# ##### Tuple
+# function jugsaw2native(t::JugsawExpr)
+#     ([adt2julia(v, d) for (v, d) in zip(getfields(t), demo)]...,)
+# end

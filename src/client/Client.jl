@@ -1,7 +1,7 @@
 module Client
 
 using JugsawIR
-using JugsawIR: type2str, TypeTable, JSON3
+using JugsawIR: type2str, TypeTable, JSON3, unpack_call, unpack_fields, unpack_list, unpack_object
 using JugsawIR.Lerche, JugsawIR.DocStringExtensions
 using MLStyle
 using HTTP

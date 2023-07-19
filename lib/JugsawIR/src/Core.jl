@@ -73,12 +73,6 @@ struct Call
 end
 Base.:(==)(a::Call, b::Call) = a.fname == b.fname && a.args == b.args && a.kwargs == b.kwargs
 
-function same_signature(a::Call, b::Call)
-    return a.fname == b.fname && 
-        all([typeof(t1) == typeof(t2) for (t1, t2) in zip(a.args, b.args)]) && 
-        all([typeof(t1) == typeof(t2) for (t1, t2) in zip(a.kwargs, b.kwargs)])
-end
-
 feval(f::Call, args...; kwargs...) = f.fname(args...; kwargs...)
 # evaluate nested function call
 fevalself(x) = x
@@ -91,6 +85,15 @@ function Base.show(io::IO, f::Call)
     print(io, "$(f.fname)($args; $kwargs)")
 end
 Base.show(io::IO, ::MIME"text/plain", f::Call) = Base.show(io, f)
+
+##### Storage is a special type that will be parsed directly
+struct Storage{T} <: AbstractVector{T}
+    storage::Vector{T}
+end
+Base.getindex(s::Storage, i::Int) = getindex(s.storage, i)
+Base.length(s::Storage) = length(s.storage)
+Base.size(s::Storage) = size(s.storage)
+Base.size(s::Storage, i::Int) = size(s.storage, i)
 
 struct JugsawDemo
     fcall::Call
@@ -132,44 +135,64 @@ end
 ############ ADT
 """
 $TYPEDEF
-    JugsawObject(typename::String, fields::Vector)
-    JugsawVector(vector::Vector)
 
 ### Fields
 $TYPEDFIELDS
 
-`JugsawADT` is an intermediate representation between Jugsaw IR data type and Julia native data type.
+`JugsawExpr` is an intermediate representation between Jugsaw IR data type and Julia native data type.
+The head can be one of [:object, :untyped, :list, :call]
 
 ### Examples
 The Jugsaw object representation for `2+3im` is
 ```jldoctest; setup=:(using JugsawIR)
-julia> JugsawObject("Base.ComplexF64", [2, 3])
-JugsawADT(:Object, "Base.ComplexF64", [2, 3])
+julia> JugsawExpr(:object, Any["Base.ComplexF64", 2, 3])
+JugsawExpr(:object, ["Base.ComplexF64", 2, 3])
 
-julia> JugsawVector([2, 3])
-JugsawADT(:Vector, "", [2, 3])
+julia> JugsawExpr(:list, [2, 3])
+JugsawExpr(:list, [2, 3])
 ```
 """
-struct JugsawADT
+struct JugsawExpr
     head::Symbol
-    typename::String
-    fields::Vector
-end
-JugsawObject(typename::String, fields::Vector) = JugsawADT(:Object, typename, fields)
-JugsawVector(storage::Vector) = JugsawADT(:Vector, "", storage)
-@inline function Base.getproperty(adt::JugsawADT, name::Symbol)
-    head = getfield(adt, :head)
-    if head == :Object
-        return getfield(adt, name)
-    elseif head == :Vector
-        if name == :storage
-            return getfield(adt, :fields)
-        else
-            return getfield(adt, name)
+    args::Vector{Any}
+    function JugsawExpr(head::Symbol, args::AbstractVector)
+        if head ∉ (:object, :untyped, :list, :call)
+            error("unknown expression head: $head")
         end
-    else
-        return getfield(adt, name)
+        return new(head, args)
     end
 end
-Base.:(==)(a::JugsawADT, b::JugsawADT) = all(fn->getfield(a, fn) == getfield(b, fn), fieldnames(JugsawADT))
-Base.show(io::IO, ::MIME"text/plain", a::JugsawADT) = Base.show(io, a)
+Base.:(==)(a::JugsawExpr, b::JugsawExpr) = all(fn->getfield(a, fn) == getfield(b, fn), fieldnames(JugsawExpr))
+Base.show(io::IO, ::MIME"text/plain", a::JugsawExpr) = Base.show(io, a)
+
+function unpack_object(expr::JugsawExpr)
+    @assert expr.head == :object || expr.head == :untyped
+    if expr.head == :object
+        typename, fields... = expr.args
+        return typename, fields
+    else
+        return "", expr.args
+    end
+end
+function unpack_fields(expr::JugsawExpr)
+    @assert expr.head == :object || expr.head == :untyped
+    if expr.head == :object
+        return expr.args[2:end]
+    else
+        return expr.args
+    end
+end
+function unpack_typename(expr::JugsawExpr)
+    @assert expr.head == :object
+    return expr.args[1]
+end
+
+function unpack_list(expr::JugsawExpr)
+    @assert expr.head == :list
+    return expr.args
+end
+
+function unpack_call(expr::JugsawExpr)
+    @assert expr.head == :call
+    return expr.args
+end
