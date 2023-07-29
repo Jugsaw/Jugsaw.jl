@@ -3,7 +3,7 @@
 ```bash
 pip install lark-js
 
-lark-js jugsawir.lark -o jugsawirparser.js
+lark-js jugsawir.lark -o jugsawirparser.js --start=expr
 ```
 
 ## How to use?

@@ -224,8 +224,8 @@ function handle_fcall_form(event, fname, type_args, obj_args, demo_args, type_kw
     const args = demo_args.map((darg, i)=>extract_data(obj_args[i], darg.data));
     const kwargs = demo_kwargs.map((darg,i)=>extract_data(obj_kwargs[i], darg.data));
     call(`${host}:${port}`, "unspecified", app.appname, fname,
-        {"fields":args},
-        {"fields":kwargs}).then(resp=>resp.json()).then(obj=>{
+        ['untyped', ...args],
+        ['untyped', ...kwargs]).then(resp=>resp.json()).then(obj=>{
             if ("error" in obj){
                 err.innerHTML = obj.error;
                 job_id.setAttribute('value', "<job id>");
@@ -294,7 +294,7 @@ function disp_value(value){
             ul.appendChild(li2)
             return foldable(value.type, ul);
         } else if (isenumtype(value.type)){
-            return create_textblock('span', `${value.fields[1]}/[${value.fields[2].fields[1]}]`)
+            return create_textblock('span', `${value.fields[1]}/[${value.fields[2]}]`)
         } else {
             const ul = document.createElement('ul');
             for (var i=0; i<value.fieldnames.length; i++){
@@ -466,12 +466,12 @@ function resize(arr, size, defval) {
 // extract data from inputs
 function extract_data(obj, demo_obj){
     if (demo_obj instanceof Array){
-        return obj.map((v, i) => extract_data(v, i < demo_obj.length ? demo_obj[i] : demo_obj[0]));
+        return ['list', ...obj.map((v, i) => extract_data(v, i < demo_obj.length ? demo_obj[i] : demo_obj[0]))];
     } else if (demo_obj instanceof Object){
         if (isenumtype(demo_obj.type)){
-            return {'fields':[demo_obj.fields[0], obj.value, {"fields":demo_obj.fields[2].fields}]}
+            return ['untyped', demo_obj.fields[0], obj.value, ['list', ...demo_obj.fields[2]]]
         } else {
-            return {'fields':obj.map((v, i)=>extract_data(v, demo_obj.fields[i]))}
+            return ['untyped', ...obj.map((v, i)=>extract_data(v, demo_obj.fields[i]))]
         }
     } else {
         if (obj.type == 'number'){
