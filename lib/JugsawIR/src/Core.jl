@@ -163,7 +163,36 @@ struct JugsawExpr
     end
 end
 Base.:(==)(a::JugsawExpr, b::JugsawExpr) = all(fn->getfield(a, fn) == getfield(b, fn), fieldnames(JugsawExpr))
-Base.show(io::IO, ::MIME"text/plain", a::JugsawExpr) = Base.show(io, a)
+Base.show(io::IO, ::MIME"text/plain", ex::JugsawExpr) = Base.show(io, ex)
+function Base.show(io::IO, ex::JugsawExpr)
+    if ex.head == :object
+        typename, fields... = ex.args
+        print(io, "$typename(")
+        print_args(io, fields)
+        print(io, ")")
+    elseif ex.head == :untyped
+        print(io, "(")
+        print_args(io, ex.args)
+        print(io, ")")
+    elseif ex.head == :call
+        fname, args, kwargs = ex.args
+        print(io, "$(fname)(")
+        print_args(io, args)
+        print(io, "; ")
+        print_args(io, kwargs)
+        print(io, ")")
+    elseif ex.head == :list
+        print(io, ex.args)
+    else
+        print(io, ex)
+    end
+end
+function print_args(io, args, deliminator=", ")
+    for (k, arg) in enumerate(args)
+        print(io, arg)
+        k != length(args) && print(io, deliminator)
+    end
+end
 
 function unpack_object(expr::JugsawExpr)
     @assert expr.head == :object || expr.head == :untyped

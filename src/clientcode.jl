@@ -111,6 +111,7 @@ function adt2client(lang::Python, x)
         end
         ##################### Primitive types ###################
         ::Nothing => "None"
+        ::Symbol => repr(String(x))
         ::Bool => x ? "True" : "False"
         _ => repr(x)
     end

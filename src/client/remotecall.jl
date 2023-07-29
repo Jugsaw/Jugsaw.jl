@@ -87,7 +87,7 @@ Fetch results from the endpoint with job id.
 # can we access the object without knowing the appname and function name?
 function fetch(context::ClientContext, job_id::String, demo_result)
     ret = safe_request(()->new_request(context, Val(:fetch), job_id))
-    return ir2julia(String(ret.body), demo_result)
+    return String(ret.body) |> JugsawIR.ir2tree |> JugsawIR.tree2adt
 end
 
 """
