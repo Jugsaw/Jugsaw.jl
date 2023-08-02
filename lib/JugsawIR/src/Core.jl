@@ -115,6 +115,7 @@ demoof(::Type{T}) where T<:Symbol = :x
 demoof(::Type{T}) where T<:DataType = Float64
 demoof(::Type{T}) where T<:Tuple = (demoof.(T.parameters)...,)
 demoof(::Type{T}) where {E,N,T<:AbstractArray{E,N}} = T(reshape([demoof(E)], ones(Int, N)...))
+demoof(::Type{T}) where {K,V,T<:Dict{K,V}} = T(demoof(K)=>demoof(V))
 function demoof(::Type{T}) where T
     vals = demoof.(T.types)
     return Core.eval(@__MODULE__, Expr(:new, T, Any[:($vals[$i]) for i=1:length(vals)]...))
