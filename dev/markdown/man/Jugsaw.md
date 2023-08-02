@@ -14,7 +14,7 @@
 
 ## APIs
 
-<a id='Jugsaw.generate_code-Tuple{String, Any, Any, Any, Int64, JugsawADT, JugsawADT}' href='#Jugsaw.generate_code-Tuple{String, Any, Any, Any, Int64, JugsawADT, JugsawADT}'>#</a>
+<a id='Jugsaw.generate_code-Tuple{String, Any, Any, Any, JugsawExpr, JugsawExpr}' href='#Jugsaw.generate_code-Tuple{String, Any, Any, Any, JugsawExpr, JugsawExpr}'>#</a>
 **`Jugsaw.generate_code`** &mdash; *Method*.
 
 
@@ -25,9 +25,8 @@ generate_code(
     endpoint,
     appname,
     fname,
-    idx::Int64,
-    fcall::JugsawADT,
-    typetable::JugsawADT
+    fcall::JugsawExpr,
+    typetable::JugsawExpr
 ) -> String
 
 ```
@@ -42,12 +41,11 @@ Please use `subtypes(AbstractLang)` for supported client languages.
 
   * `endpoint` is the url for service provider, e.g. it can be [https://www.jugsaw.co](https://www.jugsaw.co).
   * `appname` is the application name.
-  * `fcall` is a [`JugsawADT`](JugsawIR.md#JugsawIR.JugsawADT) that specifies the function call.
-  * `idx` is the index of method instance.
+  * `fcall` is a [`JugsawExpr`](JugsawIR.md#JugsawIR.JugsawExpr) that specifies the function call.
   * `typetable` is a [`TypeTable`](JugsawIR.md#JugsawIR.TypeTable) instance with the type definitions.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/be2e7360e41898076413bfa84ab7a7d505db2b43/src/clientcode.jl#L6' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/d8a5d63e86ed98d83c8df50ecc4abc5ba52fcbe3/src/clientcode.jl#L6' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.@register-Tuple{Symbol, Any}' href='#Jugsaw.@register-Tuple{Symbol, Any}'>#</a>
 **`Jugsaw.@register`** &mdash; *Macro*.
@@ -73,7 +71,7 @@ The [`@register`](Jugsaw.md#Jugsaw.@register-Tuple{Symbol, Any}) macro checks an
 Registered functions are stored in `Jugsaw.APP`.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/be2e7360e41898076413bfa84ab7a7d505db2b43/src/register.jl#L111-L129' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/d8a5d63e86ed98d83c8df50ecc4abc5ba52fcbe3/src/register.jl#L89-L107' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.AppSpecification' href='#Jugsaw.AppSpecification'>#</a>
 **`Jugsaw.AppSpecification`** &mdash; *Type*.
@@ -90,10 +88,10 @@ The application specification.
 
   * `name::Symbol`
   * `method_names::Vector{String}`
-  * `method_demos::Dict{String, Vector{JugsawDemo}}`
+  * `method_demos::Dict{String, JugsawDemo}`
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/be2e7360e41898076413bfa84ab7a7d505db2b43/src/register.jl#L1' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/d8a5d63e86ed98d83c8df50ecc4abc5ba52fcbe3/src/register.jl#L1' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.NoDemoException' href='#Jugsaw.NoDemoException'>#</a>
 **`Jugsaw.NoDemoException`** &mdash; *Type*.
@@ -112,5 +110,5 @@ This error was thrown when a demo matching the target type signature is not foun
   * `methods::Any`
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/be2e7360e41898076413bfa84ab7a7d505db2b43/src/errors.jl#L1' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/d8a5d63e86ed98d83c8df50ecc4abc5ba52fcbe3/src/errors.jl#L1' class='documenter-source'>source</a><br>
 
