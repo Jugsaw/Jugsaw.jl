@@ -3,7 +3,10 @@ using Test, Jugsaw.Client, Jugsaw, Jugsaw.Server
 @testset "App" begin
     # start service
     sapp = Jugsaw.APP; empty!(sapp)
-    @register testapp sin(cos(0.5))::Float64
+    @register testapp begin
+        sin(cos(0.5))::Float64
+        cos(0.5)
+    end
     dapr = InMemoryEventService()
     r = AppRuntime(sapp, dapr)
     t = Server.simpleserve(r; is_async=true)
@@ -17,11 +20,8 @@ using Test, Jugsaw.Client, Jugsaw, Jugsaw.Server
         @test length(@doc app.sin) > 3
         as = app.sin
         println(as)
-        @test as isa DemoRefs
-        as1 = as[1]
-        @test as1 isa DemoRef
-        println(as1)
-        @test test_demo(as1)
+        @test as isa DemoRef
+        @test test_demo(as)
         @test test_demo(app)
         #@test (@doc as)
         #@test length(@doc as) > 3

@@ -26,7 +26,7 @@ end
         @test test_demo(app.sin)
 
         # call
-        f = app.sin[1]
+        f = app.sin
         obj = call(f.context, f.demo, 3.0)
         @test obj isa Client.LazyReturn
         @test obj() ≈ sin(3.0)
@@ -44,8 +44,8 @@ end
     @register testapp sin(cos(0.5))::Float64
     r = AppRuntime(sapp, InMemoryEventService())
     # request in remote mode
-    context = Client.ClientContext(; localurl=false, endpoint="http://localhost:8081")
-    t = Jugsaw.Server.simpleserve(r; is_async=true, localurl=false, port=8081)
+    context = Client.ClientContext(; localurl=false, endpoint="http://localhost:8082")
+    t = Jugsaw.Server.simpleserve(r; is_async=true, localurl=false, port=8082)
 
     try
         @test Client.new_request(context, Val(:healthz)).status == 200

@@ -39,7 +39,7 @@ Or when calling a remote function, one can ommit the `"type"` specification, sin
 
 To customize a Jugsaw data type for your own data type, the following two functions should be overloaded.
 * [`native2jugsaw`](@ref) is for converting a native Julia object to a Jugsaw compatible object.
-* [`construct_object`](@ref) is for reconstructing the native Julia object from an object of type [`JugsawADT`](@ref). The return value must have the same data type as the second argument.
+* [`construct_object`](@ref) is for reconstructing the native Julia object from an object of type [`JugsawExpr`](@ref). The return value must have the same data type as the second argument.
 
 #### Dictionary
 A dictionary is parsed to a [`JugsawIR.JDict`](@ref) instance, which has two fields `keys` and `vals`.

@@ -14,7 +14,7 @@ end
 """
 $(TYPEDEF)
 
-A job with function payload specified as a [`JugsawADT`](@ref).
+A job with function payload specified as a [`JugsawExpr`](@ref).
 
 ### Fields
 $(TYPEDFIELDS)
@@ -30,8 +30,8 @@ struct JobSpec
 
     # payload
     fname::String
-    args::JugsawADT
-    kwargs::JugsawADT
+    args::JugsawExpr
+    kwargs::JugsawExpr
 end
 
 """
@@ -343,17 +343,19 @@ function addjob!(r::AppRuntime, jobspec::JobSpec)
     # Find the demo and parse the arguments
     created_at, created_by, maxtime, fname, args, kwargs = jobspec.created_at, jobspec.created_by, jobspec.maxtime, jobspec.fname, jobspec.args, jobspec.kwargs
     # match demo or throw
-    idx, thisdemo = match_demo(fname, args.typename, kwargs.typename, r.app)
-    if thisdemo === nothing
-        err = NoDemoException(jobspec, r.app)
+    if !haskey(r.app.method_demos, fname)
+        err = NoDemoException(fname, r.app)
         publish_status(r.dapr, JobStatus(id=jobspec.id, status=failed, description=_error_msg(err)))
         throw(err)
     end
 
+    thisdemo = r.app.method_demos[fname]
     # IF tree is a function call, return an `object_id` for return value.
     #     recurse over args and kwargs to get `Call` parsed.
-    newargs = ntuple(i->renderobj!(r, created_at, created_by, maxtime, args.fields[i], thisdemo.fcall.args[i]), length(args.fields))
-    newkwargs = typeof(thisdemo.fcall.kwargs)(ntuple(i->renderobj!(r, created_at, created_by, maxtime, kwargs.fields[i], thisdemo.fcall.kwargs[i]), length(kwargs.fields)))
+    args_fields = JugsawIR.unpack_fields(args)
+    newargs = ntuple(i->renderobj!(r, created_at, created_by, maxtime, args_fields[i], thisdemo.fcall.args[i]), length(args_fields))
+    kwargs_fields = JugsawIR.unpack_fields(kwargs)
+    newkwargs = typeof(thisdemo.fcall.kwargs)(ntuple(i->renderobj!(r, created_at, created_by, maxtime, kwargs_fields[i], thisdemo.fcall.kwargs[i]), length(kwargs_fields)))
 
     # add task to the queue
     job = Job(jobspec.id, created_at, created_by, maxtime, thisdemo, newargs, newkwargs)
@@ -371,25 +373,11 @@ function addjob!(r::AppRuntime, jobspec::JobSpec)
     return job
 end
 
-# TODO: design a more powerful IR for chaining.
-function match_demo(fname, args_type, kwargs_type, app::AppSpecification)
-    if !haskey(app.method_demos, fname) || isempty(app.method_demos[fname])
-        return (-1, nothing)
-    end
-    for (idx, demo) in enumerate(app.method_demos[fname])
-        _, dargs, dkwargs = demo.fcall.fname, demo.meta["args_type"], demo.meta["kwargs_type"]
-        if dargs == args_type && dkwargs == kwargs_type
-            return (idx, demo)
-        end
-    end
-    return (-1, nothing)
-end
-
 # if adt is a function call, launch a job and return an object getter, else, return an object.
 function renderobj!(r::AppRuntime, created_at, created_by, maxtime, adt, thisdemo)
-    if adt isa JugsawADT && hasproperty(adt, :typename) && adt.typename == "JugsawIR.Call"
+    if adt isa JugsawExpr && adt.head == :call
         object_id = string(UUIDs.uuid4())
-        addjob!(r, JobSpec(object_id, created_at, created_by, maxtime, adt.fields...))
+        addjob!(r, JobSpec(object_id, created_at, created_by, maxtime, adt.args...))
         # Return an object getter, which is a `Call` instance that fetches objects from the event service.
         return object_getter(r.dapr, object_id, thisdemo; timeout=get_timeout()+maxtime)
     else

@@ -1,18 +1,17 @@
-object: genericobj1
-        | genericobj2
-        | genericobj3
+expr: object
         | list
+        | call
+        | untyped
         | string
         | number
         | true
         | false
         | null
 
-genericobj1 : "{" "\"fields\"" ":" list "}"
-genericobj2 : "{" "\"type\"" ":" string "," "\"fields\"" ":" list "}"
-genericobj3 : "{" "\"fields\"" ":" list "," "\"type\"" ":" string "}"
-
-list : "[" [object ("," object)*] "]"
+untyped : "[" ("\"untyped\"" | "'untyped'") ("," expr)* "]"
+object : "[" ("\"object\"" | "'object'") "," string ("," expr)* "]"
+list : "[" ("\"list\"" | "'list'") ("," expr)* "]"
+call : "[" ("\"call\"" | "'call'") "," string "," (object|untyped) "," (object|untyped) "]"
 string : ESCAPED_STRING
 number : SIGNED_NUMBER
 true : "true"

@@ -1,15 +1,18 @@
-using JugsawIR: jp
-using Lerche
+using JugsawIR: jp, tree2adt, JugsawExpr
+using JugsawIR.Lerche
 using Test
 
 @testset "object" begin
-    res = Lerche.parse(jp, """{"type" : "Jugsaw.People{Core.Int}", "fields" : [32]}""")
-    print(res)
-    #@test res == JugsawObject(JugsawType("Jugsaw", "People", [JugsawType("Core", "Int", None)]), [32], ["age"])
-    res = Lerche.parse(jp, """{"type":"Jugsaw.TP", "fields":[]}""")
-    print(res)
-    
-    res = Lerche.parse(jp, """{"fields":[]}""")
-    print(res)
-    #@test res == JugsawObject(JugsawType("Jugsaw", "TP", None), [], [])
+    res = Lerche.parse(jp, """["object", "Jugsaw.People{Core.Int}", 32]""")
+    @test tree2adt(res) == JugsawExpr(:object, ["Jugsaw.People{Core.Int}", 32])
+    res = Lerche.parse(jp, """['object', "Jugsaw.TP"]""")
+    @test tree2adt(res) == JugsawExpr(:object, ["Jugsaw.TP"])
+    res = Lerche.parse(jp, """["untyped"]""")
+    @test tree2adt(res) == JugsawExpr(:untyped, [])
+
+    res = Lerche.parse(jp, """['call', "f", ['untyped', 3], ['untyped', "x"]]""")
+    @test tree2adt(res) == JugsawExpr(:call, ["f", JugsawExpr(:untyped, [3]), JugsawExpr(:untyped, ["x"])])
+
+    res = Lerche.parse(jp, """['list', 2, ['list', "x"]]""")
+    @test tree2adt(res) == JugsawExpr(:list, [2, JugsawExpr(:list, ["x"])])
 end

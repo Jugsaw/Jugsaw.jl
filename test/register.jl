@@ -16,8 +16,7 @@ end
     @register testapp smallgraph(:petersen)
     t = 1.0:0.1:2
     @register testapp collect(t) == ones(Int, 10)
-    @test Jugsaw.nfunctions(app) == 4
-    @test Jugsaw.length(app.method_demos["collect"]) == 2
+    @test Jugsaw.nfunctions(app) == 3
+    @test app.method_demos["collect"] isa Jugsaw.JugsawDemo
     @test Jugsaw.selftest(app)[1]
-    @test Jugsaw.match_demo("collect", (1:4,), (;), app).fcall.args == (1:10,)
 end

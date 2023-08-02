@@ -64,16 +64,18 @@ obj_demos = [
     for (obj, demo) in obj_demos
         @info typeof(obj)
         @test test_twoway(obj, demo)
-        if !(typeof(obj) <: JugsawIR.DirectlyRepresentableTypes || obj === undef || obj isa Union{DataType, Array, Dict, Enum, UnionAll})
+        if !(typeof(obj) <: JugsawIR.DirectlyRepresentableTypes || obj isa JugsawIR.Call || obj === undef || obj isa Union{DataType, Array, Dict, Enum, UnionAll})
             sT = JugsawIR.type2str(typeof(obj))
             adt, = julia2adt(obj)
-            @test adt.typename == sT
+            @test adt.args[1] == sT
         end
     end
 
     @testset "datatype" begin
         type, tt = julia2adt(ComplexF64)
-        @test type == JugsawObject("JugsawIR.JDataType", Any["Base.Complex{Core.Float64}", JugsawObject("JugsawIR.JArray{Core.String}", Any[JugsawVector([2]), JugsawVector(["re", "im"])]), JugsawObject("JugsawIR.JArray{Core.String}", Any[JugsawVector([2]), JugsawVector(["Core.Float64", "Core.Float64"])])]) 
+        @test type == JugsawExpr(:object, Any["JugsawIR.JDataType", "Base.Complex{Core.Float64}",
+                JugsawExpr(:list, ["re", "im"]),
+                JugsawExpr(:list, ["Core.Float64", "Core.Float64"])]) 
         println(tt)
     end
 end
@@ -84,7 +86,8 @@ end
             Graph = GraphT(6, [2 4 1; 3 1 6]),
             )
     adt, typeadt = julia2adt(obj)
-    tt = adt2julia(typeadt, JugsawIR.demoof(TypeTable))
+    ttdemo = JugsawIR.demoof(TypeTable)
+    tt = adt2julia(typeadt, ttdemo)
     @test tt isa TypeTable
     @show tt
     @test JugsawIR.get_fieldnames(adt, tt) == ["complex", "Tensor", "Graph"]

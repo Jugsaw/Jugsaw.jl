@@ -47,13 +47,13 @@ $TYPEDSIGNATURES
 Launch a function call.
 """
 function call(context::ClientContext, demo::Demo, args...; kwargs...)
-    args_adt = JugsawObject(demo.meta["args_type"], Any[JugsawIR.julia2adt(arg)[1] for arg in args])
-    @assert length(args_adt.fields) == length(demo.fcall.args)
+    args_adt = JugsawExpr(:object, Any[JugsawIR.type2str(typeof(args)), [JugsawIR.julia2adt(arg)[1] for arg in args]...])
+    @assert length(unpack_fields(args_adt)) == length(demo.fcall.args)
     # fetch kwargs, if not set, use demo
     kws = fieldnames(typeof(demo.fcall.kwargs))
-    kwargs_adt = JugsawObject(demo.meta["kwargs_type"], Any[isdefined(kwargs, fn) ? JugsawIR.julia2adt(getfield(x, fn))[1] : getfield(demo.fcall.kwargs, fn) for (k, fn) in enumerate(kws)])
+    kwargs_adt = JugsawExpr(:object, Any[JugsawIR.type2str(typeof(kwargs)), [isdefined(kwargs, fn) ? JugsawIR.julia2adt(getfield(x, fn))[1] : getfield(demo.fcall.kwargs, fn) for (k, fn) in enumerate(kws)]...])
 
-    fcall = JugsawObject("JugsawIR.Call", [demo.fcall.fname, args_adt, kwargs_adt])
+    fcall = JugsawExpr(:call, [demo.fcall.fname, args_adt, kwargs_adt])
     job_id = string(uuid4())
     safe_request(()->new_request(context, Val(:job), job_id, fcall; maxtime=60.0, created_by="jugsaw"))
     return LazyReturn(context, job_id, demo.result)
@@ -87,7 +87,7 @@ Fetch results from the endpoint with job id.
 # can we access the object without knowing the appname and function name?
 function fetch(context::ClientContext, job_id::String, demo_result)
     ret = safe_request(()->new_request(context, Val(:fetch), job_id))
-    return ir2julia(String(ret.body), demo_result)
+    return String(ret.body) |> JugsawIR.ir2tree |> JugsawIR.tree2adt
 end
 
 """
@@ -101,10 +101,10 @@ function healthz(context::ClientContext)
 end
 
 
-function _new_request(context::ClientContext, ::Val{:job}, job_id::String, fcall::JugsawADT; maxtime=10.0, created_by="jugsaw")
+function _new_request(context::ClientContext, ::Val{:job}, job_id::String, fcall::JugsawExpr; maxtime=10.0, created_by="jugsaw")
     # create a job
-    jobspec = JugsawObject("Jugsaw.JobSpec", [job_id, round(Int, time()), created_by,
-        maxtime, fcall.fields...])
+    jobspec = JugsawExpr(:object, Any["Jugsaw.JobSpec", job_id, round(Int, time()), created_by,
+        maxtime, unpack_call(fcall)...])
     ir = JugsawIR.adt2ir(jobspec)
     # NOTE: UGLY!
     # create a cloud event
@@ -114,7 +114,7 @@ function _new_request(context::ClientContext, ::Val{:job}, job_id::String, fcall
         ]
     data = JSON3.write(ir)
     return ("POST", joinpath(context.endpoint,
-        context.localurl ? "events/jobs/" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/func/$(fcall.fields[1])"
+        context.localurl ? "events/jobs/" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/func/$(first(unpack_call(fcall)))"
     ), header, data)
 end
 function _new_request(context::ClientContext, ::Val{:healthz})
@@ -133,10 +133,10 @@ function _new_request(context::ClientContext, ::Val{:fetch}, job_id::String)
         context.localurl ? "events/jobs/fetch" : "v1/job/$job_id/result"
     ), ["Content-Type" => "application/json"], JSON3.write((; job_id=job_id)))
 end
-function _new_request(context::ClientContext, ::Val{:api}, fcall::JugsawADT, lang::String)
-    ir = JugsawIR.adt2ir(JugsawObject("Core.Tuple{Core.String, JugsawIR.Call}", [context.endpoint, fcall]))
+function _new_request(context::ClientContext, ::Val{:api}, fcall::JugsawExpr, lang::String)
+    ir = JugsawIR.adt2ir(JugsawExpr(:untyped, Any[context.endpoint, fcall]))
     return ("GET", joinpath(context.endpoint,
-        context.localurl ? "api/$lang" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/func/$(fcall.fields[1])/api/$lang"
+        context.localurl ? "api/$lang" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/func/$(unpack_call(fcall) |> first)/api/$lang"
     ), ["Content-Type" => "application/json"], ir)
 end
 new_request(context, args...; kwargs...) = HTTP.request(_new_request(context, args...; kwargs...)...)

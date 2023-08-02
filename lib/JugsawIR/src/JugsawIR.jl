@@ -10,13 +10,13 @@ using AbstractTrees
 using AbstractTrees: print_tree
 using DocStringExtensions
 
-export julia2ir, ir2julia, TypeTable, JugsawADT, JugsawObject, JugsawVector
+export julia2ir, ir2julia, TypeTable, JugsawExpr
 export Call, feval, fevalself
 export JugsawDemo, ftest
 export TypeTooAbstract
 export JArray, JDataType, JDict, JEnum
 
-const jp = Lark(read(joinpath(@__DIR__, "jugsawir.lark"), String),parser="lalr",lexer="contextual", start="object")
+const jp = Lark(read(joinpath(@__DIR__, "jugsawir.lark"), String),parser="lalr",lexer="contextual", start="expr")
 
 include("Core.jl")
 include("errors.jl")

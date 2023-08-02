@@ -57,7 +57,10 @@ end
 
 @testset "app runtime" begin
     app = Jugsaw.APP; empty!(app)
-    @register testapp sin(cos(0.5))::Float64
+    @register testapp begin
+        sin(cos(0.5))::Float64
+        cos(0.5)::Float64
+    end
     dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
     r = AppRuntime(app, dapr)
     @test r isa AppRuntime
@@ -65,7 +68,7 @@ end
     # simple call
     job_id = string(Jugsaw.uuid4())
     adt, = JugsawIR.julia2adt(JugsawIR.Call(sin, (0.5,), (;)))
-    jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, adt.fields...)
+    jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, JugsawIR.unpack_call(adt)...)
     job = addjob!(r, jobspec)
     st, res = load_object(dapr, job_id, job.demo.result; timeout=1.0)
     @test res ≈ sin(0.5)
@@ -74,10 +77,10 @@ end
     # nested call
     job_id = string(Jugsaw.uuid4())
     adt1, = JugsawIR.julia2adt(JugsawIR.Call(cos, (0.7,), (;)),)
-    adt = JugsawIR.JugsawObject("JugsawIR.Call",
-        ["sin", JugsawIR.JugsawObject(JugsawIR.type2str(Tuple{Float64}), [adt1]), JugsawIR.julia2adt((;))[1]])
+    adt = JugsawIR.JugsawExpr(:call,
+        ["sin", JugsawIR.JugsawExpr(:object, Any[JugsawIR.type2str(Tuple{Float64}), adt1]), JugsawIR.julia2adt((;))[1]])
     # fix adt
-    jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, adt.fields...)
+    jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, JugsawIR.unpack_call(adt)...)
     job = addjob!(r, jobspec)
     st, res = load_object(dapr, job_id, job.demo.result; timeout=1.0)
     @test res ≈ sin(cos(0.7))
@@ -100,13 +103,13 @@ end
     job_id = string(Jugsaw.uuid4())
     adt1, = JugsawIR.julia2adt(JugsawIR.Call(buggy, (1.0,), (;)))
     # normal call
-    jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, adt1.fields...)
+    jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, JugsawIR.unpack_call(adt1)...)
     job = addjob!(r, jobspec)
     st, res = load_object(dapr, job_id, job.demo.result; timeout=1.0)
     @test fetch_status(dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.succeeded
     # trigger error
     adt2, = JugsawIR.julia2adt(JugsawIR.Call(buggy, (-1.0,), (;)))
-    jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, adt2.fields...)
+    jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, JugsawIR.unpack_call(adt2)...)
     job = addjob!(r, jobspec)
     st, res = load_object(dapr, job_id, job.demo.result; timeout=1.0)
     @test fetch_status(dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.failed
@@ -179,8 +182,8 @@ end
     struct A end
     @register testapp A()
     @test Jugsaw.nfunctions(app) == 2
-    demo = first(first(app.method_demos)[2])
+    demo = first(app.method_demos)[2]
     @test feval(demo.fcall) == A()
-    demo = app.method_demos[app.method_names[1]][1]
+    demo = app.method_demos[app.method_names[1]]
     @test fevalself(demo.fcall) == (1, 2, 3)
 end
