@@ -99,12 +99,13 @@ Base.Docs.Binding(app::App, sym::Symbol) = getproperty(app, sym)
 test_demo(app::App) = all(name->test_demo(getproperty(app, name)), propertynames(app))
 
 ##### Utilities
-function makedict(adt::JugsawADT)
-    pairs = aslist(adt.fields[1])
-    return Dict([pair.fields[1]=>pair.fields[2] for pair in pairs])
+function makedict(adt::JugsawExpr)
+    typename, fields = unpack_object(adt)
+    pairs = unpack_list(fields[1])
+    return Dict([pair.args[2]=>pair.args[3] for pair in pairs])
 end
-function makeordereddict(adt::JugsawADT)
-    pairs = aslist(adt.fields[1])
-    return OrderedDict([pair.fields[1]=>pair.fields[2] for pair in pairs])
+function makeordereddict(adt::JugsawExpr)
+    typename, fields = unpack_object(adt)
+    pairs = unpack_list(fields[1])
+    return OrderedDict([pair.args[2]=>pair.args[3] for pair in pairs])
 end
-aslist(x::JugsawADT) = x.fields[2].storage

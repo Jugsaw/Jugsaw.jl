@@ -189,7 +189,7 @@ function save_demos(dir::String, methods::AppSpecification)
     fdemos = joinpath(dir, "demos.json")
     @info "dumping demos to: $fdemos"
     open(fdemos, "w") do f
-        write(f, "[$demos, $types]")
+        write(f, "['list', $demos, $types]")
     end
 end
 
@@ -200,7 +200,7 @@ function load_demos_from_dir(dir::String, demos)
 end
 function load_demos(sdemos::String, demos)
     adt = JugsawIR.ir2adt(sdemos)
-    appadt, typesadt = adt.storage
+    appadt, typesadt = unpack_list(adt)
     return JugsawIR.adt2julia(appadt, demos), JugsawIR.adt2julia(typesadt, JugsawIR.demoof(JugsawIR.TypeTable))
 end
 

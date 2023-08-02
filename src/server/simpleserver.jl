@@ -17,7 +17,7 @@ function job_handler(r::AppRuntime, req::HTTP.Request)
         evt = CloudEvents.from_http(req.headers, req.body)
         # CloudEvent
         jobadt = JugsawIR.ir2adt(String(evt.data))
-        job_id, created_at, created_by, maxtime, fname, args, kwargs = jobadt.fields
+        job_id, created_at, created_by, maxtime, fname, args, kwargs = JugsawIR.unpack_fields(jobadt)
         jobspec = JobSpec(job_id, created_at, created_by, maxtime, fname, args, kwargs)
         @info "get job: $jobspec"
         addjob!(r, jobspec)
@@ -67,7 +67,7 @@ Handle the request of getting application specification, including registered fu
 """
 function demos_handler(app::AppSpecification)
     (demos, types) = JugsawIR.julia2ir(app)
-    ir = "[$demos, $types]"
+    ir = "['list', $demos, $types]"
     return HTTP.Response(200, JSON_HEADER, ir)
 end
 
@@ -87,8 +87,8 @@ function code_handler(req::HTTP.Request, app::AppSpecification)
     lang = params["lang"]
     # get request
     adt = JugsawIR.ir2adt(String(req.body))
-    endpoint, fcall = adt.fields
-    fname, args, kwargs = fcall.fields
+    endpoint, fcall = JugsawIR.unpack_fields(adt)
+    fname, args, kwargs = JugsawIR.unpack_call(fcall)
     if !haskey(app.method_demos, fname)
         return _error_response(NoDemoException(fcall, app))
     else

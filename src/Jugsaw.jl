@@ -2,7 +2,7 @@ module Jugsaw
 
 using JugsawIR
 using JugsawIR.JSON3, JugsawIR.DocStringExtensions
-using JugsawIR: @match, Tree, Call
+using JugsawIR: @match, Tree, Call, unpack_call, unpack_fields, unpack_list, unpack_object, unpack_typename
 using UUIDs
 using UUIDs: uuid4
 using HTTP

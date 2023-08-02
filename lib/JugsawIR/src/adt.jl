@@ -1,4 +1,4 @@
-# JugsawIR code -> Lerche.Tree -> JugsawADT <-> Julia
+# JugsawIR code -> Lerche.Tree -> JugsawExpr <-> Julia
 #       ↑                            ↓
 #       <-----------------------------
 
@@ -45,8 +45,9 @@ function Base.show(io::IO, t::TypeTable)
         end
     end
 end
-function get_fieldnames(obj::JugsawADT, tt::TypeTable)
-    return tt.defs[obj.typename].fieldnames
+function get_fieldnames(obj::JugsawExpr, tt::TypeTable)
+    @assert obj.head == :object
+    return tt.defs[obj.args[1]].fieldnames
 end
 function Base.merge!(t1::TypeTable, t2::TypeTable)
     for name in t2.names
@@ -71,50 +72,46 @@ function julia2adt!(@nospecialize(x::T), tt::TypeTable) where T
         ###################### Basic Types ######################
         ::UndefInitializer => nothing
         ::DirectlyRepresentableTypes => x
-        ::Array => begin
-            Tx = JArray{eltype(x)}
-            (x isa UndefInitializer || x isa DirectlyRepresentableTypes) || pushtype!(tt, Tx)
-            # NOTE: array must be special treated.
-            JugsawObject(type2str(Tx),
-                Any[JugsawVector(collect(size(x))),  # size
-                    JugsawVector(julia2adt!.(vec(x), Ref(tt)))]  # storage
-            )
-        end
         ::Function => string(x)
         ::UnionAll => type2str(x)
+        ::Call => JugsawExpr(:call, [julia2adt!(x.fname, tt), julia2adt!(x.args, tt), julia2adt!(x.kwargs, tt)])
+        ::Storage => JugsawExpr(:list, julia2adt!.(x.storage, Ref(tt)))
         ###################### Generic Compsite Types ######################
         _ => begin
             _x = native2jugsaw(x)
             Tx = typeof(_x)
             (_x isa UndefInitializer || _x isa DirectlyRepresentableTypes) || pushtype!(tt, Tx)
-            JugsawObject(type2str(Tx), 
-                Any[isdefined(_x, fn) ? julia2adt!(getfield(_x, fn), tt) : undef for fn in fieldnames(Tx)]
+            JugsawExpr(:object, Any[type2str(Tx), 
+                Any[isdefined(_x, fn) ? julia2adt!(getfield(_x, fn), tt) : undef for fn in fieldnames(Tx)]...]
             )
         end
     end
 end
 
 ###################### ADT to julia
-function adt2julia(t, demo::T) where T
+function adt2julia(t, @nospecialize(demo::T)) where T
     @match demo begin
         ###################### Basic Types ######################
         ::Nothing || ::Missing || ::UndefInitializer || ::Type || ::Function => demo
         ::Char => T(t[1])
         ::DirectlyRepresentableTypes => T(t)
-        ::Array => begin
-            size, data = t.fields
-            T(reshape(adt2julia.(data.storage, Ref(demoofelement(demo))), size.storage...))
+        # ::JugsawExpr => t
+        ::Storage => begin
+            @assert t.head == :list "expect the expression be a list, got: $(t.head)"
+            T(adt2julia.(t.args, Ref(demoofelement(demo.storage))))
         end
-        ::JugsawADT => t
+        ::Call => begin
+            @assert t.head == :call "expect the expression be a call, got: $(t.head)"
+            fname, args, kwargs = t.args
+            Call(demo.fname, adt2julia(args, demo.args), adt2julia(kwargs, demo.kwargs))
+        end
         ###################### Generic Compsite Types ######################
         _ => begin
-            construct_object(t, demo)
+            _x = native2jugsaw(demo)
+            fields = JugsawIR.unpack_fields(t)
+            vals = [adt2julia(fields[i], getfield(_x, fn)) for (i, fn) in enumerate(fieldnames(typeof(_x))) if isdefined(_x, fn)]
+            obj = Core.eval(@__MODULE__, Expr(:new, typeof(_x), Any[:($vals[$i]) for i=1:length(vals)]...))
+            jugsaw2native(obj, demo)
         end
     end
-end
-
-function construct_object(t::JugsawADT, demo::T) where T
-    flds = t.fields
-    vals = [adt2julia(flds[i], getfield(demo, fn)) for (i, fn) in enumerate(fieldnames(T)) if isdefined(demo, fn)]
-    return Core.eval(@__MODULE__, Expr(:new, T, Any[:($vals[$i]) for i=1:length(vals)]...))
 end
