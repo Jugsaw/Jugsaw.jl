@@ -1,5 +1,6 @@
 ###################### IR 2 Tree
 ir2tree(str::String) = Lerche.parse(jp, str)
+cli2tree(str::String) = Lerche.parse(jcli, str)
 """
 $(TYPEDSIGNATURES)
 

@@ -17,6 +17,7 @@ export TypeTooAbstract
 export JArray, JDataType, JDict
 
 const jp = Lark(read(joinpath(@__DIR__, "jugsawir.lark"), String),parser="lalr",lexer="contextual", start="expr")
+const jcli = Lark(read(joinpath(@__DIR__, "jugsawcli.lark"), String),parser="lalr",lexer="contextual", start="call")
 
 include("Core.jl")
 include("errors.jl")

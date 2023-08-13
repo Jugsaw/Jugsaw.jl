@@ -7,6 +7,12 @@ using Test, JugsawIR
     end
 end
 
+@testset "cli" begin
+    fcall = "sin 3 [2, 4] z=5 c=[4, [3, \"5\"]]"
+    res = JugsawIR.cli2tree(fcall)
+    @test res isa JugsawIR.Lerche.Tree
+end
+
 @testset "type string" begin
     struct S{T, C}
     end
