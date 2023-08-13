@@ -14,7 +14,7 @@ Jugsaw IR can represent data, data types, and function calls.
 The basic rule is representing a Jugsaw object as a JSON object with extra constaints,
 1. Integers, floating point numbers, `Nothing`, `Missing`, `UndefInitializer`, `Symbol` and `String` are directly representable.
 2. Generic objects are represented by a JSON object with at most two fields: `fields` and `type` (optional).
-3. Some objects are specialized, including `Array`, `Tuple`, `Dict`, `DataType` and `Enum`.
+3. Some objects are specialized, including `Array`, `Tuple`, `Dict`, `DataType`.
 
 ## 1: Representing Data
 ### Generic Data Types
@@ -46,9 +46,6 @@ A dictionary is parsed to a [`JugsawIR.JDict`](@ref) instance, which has two fie
 
 #### Array
 An array is parsed to a [`JugsawIR.JArray`](@ref) instance, which has two fields `size` and `storage`.
-
-#### Enum
-An enum instance is parsed to a [`JugsawIR.JEnum`](@ref) instance, which has three fields `kind`, `value` and `options`.
 
 ## 2: Representing Data Type
 An data type is parsed to a [`JugsawIR.JDataType`](@ref) instance, which has three fields `name`, `fieldnames` and `fieldtypes`.

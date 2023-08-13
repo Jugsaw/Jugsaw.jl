@@ -1,6 +1,4 @@
 using Jugsaw
-using Jugsaw.Universe
-
 using GenericTensorNetworks
 using GenericTensorNetworks: AbstractProperty
 import GenericTensorNetworks.Graphs

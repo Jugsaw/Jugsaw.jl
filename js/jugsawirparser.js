@@ -7189,11 +7189,7 @@ function raw2json(obj, demo_obj){
     if (demo_obj instanceof Array){
         return obj.map((v, i) => raw2json(v, i < demo_obj.length ? demo_obj[i] : demo_obj[0]));
     } else if (demo_obj instanceof Object){
-        if (isenumtype(demo_obj.type)){
-            return {'fields':[demo_obj.fields[0], obj, {"fields":demo_obj.fields[2].fields}]}
-        } else {
-            return {'fields':obj.map((v, i)=>raw2json(v, demo_obj.fields[i]))}
-        }
+        return {'fields':obj.map((v, i)=>raw2json(v, demo_obj.fields[i]))}
     } else {
         return obj;
     }
@@ -7390,10 +7386,6 @@ function listfromstring(s){
 function isarraytype(typename){
     const [primary, params] = decompose_type(typename);
     return primary == 'JugsawIR.JArray'
-}
-function isenumtype(typename){
-    const [primary, params] = decompose_type(typename);
-    return primary == 'JugsawIR.JEnum'
 }
 function issimplearraytype(typename){
     const [primary, params] = decompose_type(typename);

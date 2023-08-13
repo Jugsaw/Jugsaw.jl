@@ -14,7 +14,7 @@ export julia2ir, ir2julia, TypeTable, JugsawExpr
 export Call, feval, fevalself
 export JugsawDemo, ftest
 export TypeTooAbstract
-export JArray, JDataType, JDict, JEnum
+export JArray, JDataType, JDict
 
 const jp = Lark(read(joinpath(@__DIR__, "jugsawir.lark"), String),parser="lalr",lexer="contextual", start="expr")
 

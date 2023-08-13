@@ -178,9 +178,9 @@ function Base.show(io::IO, ex::JugsawExpr)
     elseif ex.head == :call
         fname, args, kwargs = ex.args
         print(io, "$(fname)(")
-        print_args(io, args)
+        print_args(io, args.args)
         print(io, "; ")
-        print_args(io, kwargs)
+        print_args(io, kwargs.args)
         print(io, ")")
     elseif ex.head == :list
         print(io, ex.args)

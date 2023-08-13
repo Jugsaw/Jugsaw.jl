@@ -158,10 +158,6 @@ function get_router(::RemoteRoute, runtime::AppRuntime)
     HTTP.register!(r, "GET", "/v1/proj/{project}/app/{appname}/ver/{version}/healthz",
         req -> JSON3.write((; status="OK"))
     )
-    # subscribe
-    # HTTP.register!(r, "GET", "/dapr/subscribe",
-    #      req-> JSON3.write([(pubsubname="jobs", topic="$(runtime.app.created_by).$(runtime.app.name).$(rumtime.app.ver)", route="/events/jobs")])
-    # )
     return r
 end
 

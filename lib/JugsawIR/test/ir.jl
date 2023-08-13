@@ -32,7 +32,6 @@ end
             new(nv)
         end
     end
-    @enum ENM e1 e2 e3
     Base.:(==)(g1::GraphT, g2::GraphT) = g1.nv == g2.nv && g1.edges == g2.edges
     # typed parse
     for (obj, demo) in [
@@ -52,7 +51,6 @@ end
         (undef, undef),
         (1:3, 2:6),
         (1:0.01:2, 1:0.03:4.0),
-        (e2, e3),
         (Union{}, Union{}),
         (Union{Integer, Float64}, Union{Integer, Float64}),
         (Array{Float64}, Array{Float64}),
@@ -91,8 +89,6 @@ end
             @test typename == "JugsawIR.JDict{$(JugsawIR.type2str(JugsawIR.key_type(obj))), $(JugsawIR.type2str(JugsawIR.value_type(obj)))}"
         elseif obj isa Array
             @test typename == "JugsawIR.JArray"
-        elseif obj isa Enum
-            @test typename == "JugsawIR.JEnum"
         elseif obj isa DataType
             @test typename == "JugsawIR.JDataType"
         elseif obj isa UnionAll

@@ -13,7 +13,6 @@ struct GraphT
         new(nv)
     end
 end
-@enum ENM e1 e2 e3
 Base.:(==)(g1::GraphT, g2::GraphT) = g1.nv == g2.nv && g1.edges == g2.edges
 
 obj_demos = [
@@ -34,7 +33,6 @@ obj_demos = [
     (undef, undef),
     (1:3, 2:6),
     (1:0.01:2, 1:0.03:4.0),
-    (e2, e3),
     (Union{}, Union{}),
     (Union{Integer, Float64}, Union{Integer, Float64}),
     (Array{Float64}, Array{Float64}),
@@ -64,7 +62,7 @@ obj_demos = [
     for (obj, demo) in obj_demos
         @info typeof(obj)
         @test test_twoway(obj, demo)
-        if !(typeof(obj) <: JugsawIR.DirectlyRepresentableTypes || obj isa JugsawIR.Call || obj === undef || obj isa Union{DataType, Array, Dict, Enum, UnionAll})
+        if !(typeof(obj) <: JugsawIR.DirectlyRepresentableTypes || obj isa JugsawIR.Call || obj === undef || obj isa Union{DataType, Array, Dict, UnionAll})
             sT = JugsawIR.type2str(typeof(obj))
             adt, = julia2adt(obj)
             @test adt.args[1] == sT

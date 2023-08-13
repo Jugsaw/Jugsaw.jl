@@ -59,8 +59,6 @@ function adt2client(lang::Julia, x)
                 elseif startswith(typename, "JugsawIR.JDict")
                     kvpairs = join([((k, v) = unpack_fields(pair); "$(adt2client(lang, k)) => $(adt2client(lang, v))") for pair in unpack_list(fields[1])], ", ")
                     "Dict($kvpairs)"
-                elseif startswith(typename, "JugsawIR.JEnum")
-                    repr(fields[2])
                 else
                     vals = [adt2client(lang, field) for field in fields]
                     "(" * join(vals, ", ") * ")"
@@ -100,8 +98,6 @@ function adt2client(lang::Python, x)
                 elseif startswith(typename, "JugsawIR.JDict")
                     kvpairs = join([((k, v) = unpack_fields(pair); "$(adt2client(lang, k)):$(adt2client(lang, v))") for pair in unpack_list(fields[1])], ", ")
                     "{$kvpairs}"
-                elseif startswith(typename, "JugsawIR.JEnum")
-                    repr(fields[2])
                 else
                     vals = [adt2client(lang, field) for field in unpack_fields(x)]
                     "(" * join(vals, ", ") * ")"
@@ -141,12 +137,8 @@ function adt2client(lang::Javascript, x)
         ::JugsawExpr => @match x.head begin
             :object => begin
                 typename, fields = unpack_object(x)
-                if startswith(typename, "JugsawIR.JEnum")
-                    repr(fields[2])
-                else
-                    vals = [adt2client(lang, field) for field in fields]
-                    """[$(join(vals, ", "))]"""
-                end
+                vals = [adt2client(lang, field) for field in fields]
+                """[$(join(vals, ", "))]"""
             end
             :list => "[" * join([adt2client(lang, v) for v in unpack_list(x)], ", ") * "]"
         end

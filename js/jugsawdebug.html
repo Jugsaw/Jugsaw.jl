@@ -293,8 +293,6 @@ function disp_value(value){
             ul.appendChild(li)
             ul.appendChild(li2)
             return foldable(value.type, ul);
-        } else if (isenumtype(value.type)){
-            return create_textblock('span', `${value.fields[1]}/[${value.fields[2]}]`)
         } else {
             const ul = document.createElement('ul');
             for (var i=0; i<value.fieldnames.length; i++){
@@ -401,18 +399,6 @@ function disp_input(value){
                 });
             }
             return [foldable(value.type, ul), [size_obj, inputs]];
-        } else if (isenumtype(value.type)){
-            const [kind, val, options] = value.fields
-            const opts = aslist(options);
-            const select = document.createElement('select')
-            // select.appendChild(document.createTextNode(`${kind} = `));
-            for (var i=0; i<opts.length; i++){
-                const option = create_textblock("option", opts[i]);
-                option.value = opts[i];
-                if (opts[i] == val){option.selected="selected";}
-                select.appendChild(option);
-            }
-            return [select, select]
         } else {
             const ul = document.createElement('ul');
             const lst = [];
@@ -468,11 +454,7 @@ function extract_data(obj, demo_obj){
     if (demo_obj instanceof Array){
         return ['list', ...obj.map((v, i) => extract_data(v, i < demo_obj.length ? demo_obj[i] : demo_obj[0]))];
     } else if (demo_obj instanceof Object){
-        if (isenumtype(demo_obj.type)){
-            return ['untyped', demo_obj.fields[0], obj.value, ['list', ...demo_obj.fields[2]]]
-        } else {
-            return ['untyped', ...obj.map((v, i)=>extract_data(v, demo_obj.fields[i]))]
-        }
+        return ['untyped', ...obj.map((v, i)=>extract_data(v, demo_obj.fields[i]))]
     } else {
         if (obj.type == 'number'){
             return obj.valueAsNumber;

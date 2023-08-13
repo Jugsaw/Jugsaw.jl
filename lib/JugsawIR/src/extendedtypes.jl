@@ -33,31 +33,6 @@ function jugsaw2native(t::JDict, demo::AbstractDict{T, V}) where {T, V}
     return typeof(demo)(t.pairs)
 end
 
-##### Enum
-"""
-$TYPEDEF
-
-The enum type in Jugsaw.
-
-### Fields
-$TYPEDFIELDS
-"""
-struct JEnum
-    kind::String
-    value::String
-    options::Storage{String}
-end
-function native2jugsaw(x::Enum)
-    JEnum(type2str(typeof(x)), string(x), Storage(String[string(v) for v in instances(typeof(x))]))
-end
-function jugsaw2native(t::JEnum, demo::Enum)
-    typeof(demo)(findfirst(==(t.value), t.options)-1)
-end
-function jugsaw2native(value::String, demo::Enum)
-    idx = findfirst(x->string(x)==(value), instances(typeof(demo)))
-    typeof(demo)(idx-1)
-end
-
 ##### Array
 """
 $TYPEDEF

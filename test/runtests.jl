@@ -4,10 +4,6 @@ using Jugsaw, Test
     include("register.jl")
 end
 
-@testset "typeuniverse" begin
-    include("typeuniverse.jl")
-end
-
 @testset "server" begin
     include("server/server.jl")
 end

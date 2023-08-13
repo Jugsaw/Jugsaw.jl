@@ -23,7 +23,6 @@ function get_endpoint()
     return """$(GLOBAL_CONFIG["host"]):$(GLOBAL_CONFIG["port"])"""
 end
 
-include("typeuniverse.jl")
 include("errors.jl")
 include("register.jl")
 include("clientcode.jl")
