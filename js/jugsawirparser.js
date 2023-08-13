@@ -7252,6 +7252,7 @@ function request_app_obj(endpoint, project, appname, version="latest") {
 
 // Launch a function call and return a job_id as string.
 function call(endpoint, project, appname, fname, args, kwargs, maxtime=60, created_by="unspecified", version="lastest"){
+    const context = this.context;
     const url = new URL(`v1/proj/${project}/app/${appname}/ver/${version}/func/${fname}`, endpoint).href
     const job_id = uuid4();
     const jobspec = ["untyped", job_id, Date.now(), created_by,
