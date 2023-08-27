@@ -1,0 +1,5 @@
+[server]
+hostname = "http://0.0.0.0"
+port = 8088
+timeout = 15.0
+query_interval = 0.1
