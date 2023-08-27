@@ -45,7 +45,7 @@ Please use `subtypes(AbstractLang)` for supported client languages.
   * `typetable` is a [`TypeTable`](JugsawIR.md#JugsawIR.TypeTable) instance with the type definitions.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/9fcd56bb2f6e7a45a3c0da3cdfa3b0ca27655231/src/clientcode.jl#L6' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5bda4a044aa11d12093d6d370e718f9c36a0cee6/src/clientcode.jl#L6' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.@register-Tuple{Symbol, Any}' href='#Jugsaw.@register-Tuple{Symbol, Any}'>#</a>
 **`Jugsaw.@register`** &mdash; *Macro*.
@@ -71,7 +71,7 @@ The [`@register`](Jugsaw.md#Jugsaw.@register-Tuple{Symbol, Any}) macro checks an
 Registered functions are stored in `Jugsaw.APP`.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/9fcd56bb2f6e7a45a3c0da3cdfa3b0ca27655231/src/register.jl#L89-L107' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5bda4a044aa11d12093d6d370e718f9c36a0cee6/src/register.jl#L89-L107' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.AppSpecification' href='#Jugsaw.AppSpecification'>#</a>
 **`Jugsaw.AppSpecification`** &mdash; *Type*.
@@ -91,7 +91,7 @@ The application specification.
   * `method_demos::Dict{String, JugsawDemo}`
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/9fcd56bb2f6e7a45a3c0da3cdfa3b0ca27655231/src/register.jl#L1' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5bda4a044aa11d12093d6d370e718f9c36a0cee6/src/register.jl#L1' class='documenter-source'>source</a><br>
 
 <a id='Jugsaw.NoDemoException' href='#Jugsaw.NoDemoException'>#</a>
 **`Jugsaw.NoDemoException`** &mdash; *Type*.
@@ -110,5 +110,5 @@ This error was thrown when a demo matching the target type signature is not foun
   * `methods::Any`
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/9fcd56bb2f6e7a45a3c0da3cdfa3b0ca27655231/src/errors.jl#L1' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5bda4a044aa11d12093d6d370e718f9c36a0cee6/src/errors.jl#L1' class='documenter-source'>source</a><br>
 
