@@ -7,7 +7,7 @@ import CloudEvents
 import Revise
 import DaprClients
 import UUIDs
-import ..AppSpecification, ..NoDemoException, ..generate_code, .._error_msg, ..TimedOutException
+import ..AppSpecification, ..NoDemoException, ..generate_code, .._error_msg, ..TimedOutException, ..GLOBAL_CONFIG
 
 export Job, JobStatus, JobSpec
 export AbstractEventService, DaprService, FileEventService, InMemoryEventService, publish_status, fetch_status, save_object, load_object, load_object_as_ir, get_timeout
@@ -18,29 +18,23 @@ include("jobhandler.jl")
 include("simpleserver.jl")
 include("liveserver.jl")
 
-const GLOBAL_CONFIG = Dict{String, Any}(
-    "network-timeout" => 15.0,
-    "query-interval" => 0.1,
-    "jugsaw-server" => get(ENV, "JUGSAW_SERVER", "LOCAL"),
-)
-
 # Return true if the service is running on a local machine.
 # When running in a docker image, the "JUGSAW_SERVER" environment variable should be "DOCKER".
-running_locally() = get(GLOBAL_CONFIG, "jugsaw-server", "LOCAL") == "LOCAL"
+running_locally() = GLOBAL_CONFIG["jugsaw-server"] == "LOCAL"
 
 """
 $(TYPEDSIGNATURES)
 
 Returns the network timeout of the event service access in seconds.
 """
-get_timeout() = get(GLOBAL_CONFIG, "network-timeout", 15.0)
+get_timeout() = GLOBAL_CONFIG["network-timeout"]
 
 """
 $(TYPEDSIGNATURES)
 
 Returns the query time interval of the event service in seconds.
 """
-get_query_interval() = get(GLOBAL_CONFIG, "query-interval", 0.1)
+get_query_interval() = GLOBAL_CONFIG["query-interval"]
 
 """
 $(TYPEDSIGNATURES)

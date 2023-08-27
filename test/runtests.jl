@@ -1,5 +1,9 @@
 using Jugsaw, Test
 
+@testset "config" begin
+    include("config.jl")
+end
+
 @testset "register" begin
     include("register.jl")
 end

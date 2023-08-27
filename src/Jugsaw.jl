@@ -15,14 +15,7 @@ export build
 export NoDemoException
 export generate_code
 
-const GLOBAL_CONFIG = Dict{String, Any}(
-    "host" => get(ENV, "JUGSAW_HOST", "http://0.0.0.0"),
-    "port" => get(ENV, "JUGSAW_PORT", 8088)
-)
-function get_endpoint()
-    return """$(GLOBAL_CONFIG["host"]):$(GLOBAL_CONFIG["port"])"""
-end
-
+include("config.jl")
 include("errors.jl")
 include("register.jl")
 include("clientcode.jl")
