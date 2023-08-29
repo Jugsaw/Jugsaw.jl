@@ -55,6 +55,80 @@ function tree2adt(t)
 end
 buildobj(type::String, fields::Vector) = JugsawExpr(:object, type, fields)
 
+function clitree2julia(t, @nospecialize(demo::T)) where T
+    @match t begin
+        ::Tree => @match t.data begin
+            "expr" || "number" || "string" => clitree2julia(t.children[], demo)
+            "true" => begin
+                @assert demo isa Bool
+                true
+            end
+            "false" => begin
+                @assert demo isa Bool
+                false
+            end
+            "null" => begin
+                @assert demo isa Nothing || demo isa Missing || demo isa UndefInitializer
+                demo
+            end
+            "object" => begin
+                @match demo begin
+                    # treat type specially
+                    ::Storage => T(clitree2julia.(t.children, Ref(demoofelement(demo.storage))))
+                    _ => begin
+                        if demo isa Type
+                            demo
+                        else
+                            _x = native2jugsaw(demo)
+                            vals = [clitree2julia(t.children[i], getfield(_x, fn)) for (i, fn) in enumerate(fieldnames(typeof(_x))) if isdefined(_x, fn)]
+                            obj = Core.eval(@__MODULE__, Expr(:new, typeof(_x), Any[:($vals[$i]) for i=1:length(vals)]...))
+                            jugsaw2native(obj, demo)
+                        end
+                    end
+                end
+            end
+            "call" => begin
+                SEP = findfirst(x->x.data == "kwarg", t.children)
+                if SEP === nothing
+                    fname, args, kwargs = t.children[1], t.children[2:end], empty(t.children)
+                else
+                    fname, args, kwargs = t.children[1], t.children[2:SEP-1], t.children[SEP:end]
+                end
+                # function name
+                fn = demo.fname
+                # args
+                ar = (clitree2julia.(args, demo.args)...,)
+                # keyword args
+                dict = Dict([Symbol(x.children[1].children[].value)=>x.children[2] for x in kwargs])
+                if any(x->x∉keys(demo.kwargs), keys(dict))
+                    throw(ArgumentError("Invalid keyword arguments, got $(keys(dict)), should be a subset of $(keys(demo.kwargs))"))
+                end
+                kw = (; [(k, haskey(dict, k) ? clitree2julia(dict[k], v) : v) for (k, v) in pairs(demo.kwargs)]...)
+                return Call(fn, ar, kw)
+            end
+            # symbol and kwarg are not parsed directly.
+        end
+        ::Token => begin
+            parsed = try
+                Meta.parse(t.value)
+            catch e
+                # wield parsing error when handling interpolated strings
+                # TODO: fix this problem!
+                Base.showerror(stdout, e)
+                println(stdout)
+                @info "try fixing! error str: $(t.value)"
+                Meta.parse(replace(t.value, "\$"=>"\\\$"))
+            end
+            @match demo begin
+                ::String => T(parsed)
+                ::Char => T(parsed[1])  # Char is represented as string Token
+                ::Union{Int16, Int32, Int64, Int128, Float16, Float32, Float64} => T(parsed)
+                _ => error("Invalid primitive data type, got: $(typeof(demo))")
+            end
+        end
+    end
+end
+
 ###################### ADT to IR
 adt2ir(x) = JSON3.write(_adt2ir(x))
 function _adt2ir(x)

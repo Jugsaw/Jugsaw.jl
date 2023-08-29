@@ -14,8 +14,10 @@ number : SIGNED_NUMBER
 true : "true"
 false : "false"
 null : "null"
+COMMENT: "#" /[^\n]/*
 
 %import common.ESCAPED_STRING
 %import common.SIGNED_NUMBER
 %import common.WS
 %ignore WS
+%ignore COMMENT

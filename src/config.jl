@@ -38,3 +38,5 @@ end
 # update configurations from the environmental variables
 load_config_env!()
 
+# How to configure Jugsaw app?
+# 1. through configuration files

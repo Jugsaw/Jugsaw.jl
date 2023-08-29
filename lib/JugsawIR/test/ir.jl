@@ -116,3 +116,31 @@ end
     @test type == "[\"object\",\"JugsawIR.JDataType\",\"Base.Complex{Core.Float64}\",[\"list\",\"re\",\"im\"],[\"list\",\"Core.Float64\",\"Core.Float64\"]]"
     println(tt)
 end
+
+@testset "clitree2julia" begin
+    cli = "sin 0.4 0.5 x=4 y=6"
+    tree = JugsawIR.cli2tree(cli)
+    # argument error
+    demo = Call(sin, (0.4,), (; x=4))
+    @test_throws ArgumentError JugsawIR.clitree2julia(tree, demo)
+    # correct flat
+    demo2 = Call(sin, (0.3, 0.4), (; x=4, y=8))
+    @test JugsawIR.clitree2julia(tree, demo2) == Call(sin, (0.4, 0.5), (; x=4, y=6))
+    # nested object
+    cli = "sin
+        ##### ARGS #####
+        0.4  # Float64
+        [  # Tuple(1, 2)
+            [  # Pair(first, second)
+                [0.5, \"x\"],  # Tuple(1, 2)
+                [[2], [0.4, 0.3]]  # JArray(size, storage)
+            ]
+        ]
+        ##### KWARGS #####
+        x=[[2], [4, 5]]  # JArray(size, storage)
+        y=6   # Int
+        "
+    tree = JugsawIR.cli2tree(cli)
+    demo3 = Call(sin, (0.3, ((0.4, "z")=>[0.5, 0.7, 0.2],)), (; x=Float64[], y=8))
+    @test JugsawIR.clitree2julia(tree, demo3) == Call(sin, (0.4, ((0.5, "x")=>[0.4, 0.3],)), (; x=[4.0, 5.0], y=6))
+end
