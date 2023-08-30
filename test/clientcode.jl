@@ -37,3 +37,10 @@ const app_promise = request_app(context, "testapp")
 app_promise.then(app=>app.call("f", [null, true, 1, 1.0, [[3], [1, 2, 3]], [[2, 2], [1, 3, 2, 4]], [[[2, 3]]], [1, 2]], [1.0e-8, [[[2, 4]]]])).then(console.log)
 </script>"""
 end
+
+@testset "CLI code" begin
+    democall = JugsawIR.Call(:f, (nothing, true, 1, 1.0, [1, 2, 3], [1 2; 3 4], Dict(2=>3), 1+2im), (; a=1e-8, b=Dict(2=>4)))
+    adt, typetable = JugsawIR.julia2adt(democall)
+    code = generate_code("CLI", "jugsaw.co", :testapp, :f, adt, typetable)
+    @test code == """jugsaw.co testapp.f null true 1 1.0 [[3], [1, 2, 3]] [[2, 2], [1, 3, 2, 4]] [[[2, 3]]] [1, 2] a=1.0e-8 b=[[[2, 4]]]"""
+end

@@ -128,6 +128,10 @@ function clitree2julia(t, @nospecialize(demo::T)) where T
         end
     end
 end
+function cli2julia(str::String, demo)
+    tree = cli2tree(str)
+    return clitree2julia(tree, demo)
+end
 
 # data are dumped to (name, value[, fieldnames])
 function julia2cli(@nospecialize(x::T)) where T

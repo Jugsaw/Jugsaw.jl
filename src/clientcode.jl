@@ -2,6 +2,7 @@ abstract type AbstractLang end
 struct Julia <: AbstractLang end
 struct Python <: AbstractLang end
 struct Javascript <: AbstractLang end
+struct CLI <: AbstractLang end
 
 """
 $TYPEDSIGNATURES
@@ -28,6 +29,8 @@ function generate_code(lang::String, endpoint, appname, fname, fcall::JugsawExpr
         Python()
     elseif lang == "Javascript"
         Javascript()
+    elseif lang == "CLI"
+        CLI()
     else
         return error("Client langauge not defined, got: $lang")
     end
@@ -146,4 +149,32 @@ function adt2client(lang::Javascript, x)
         ::Nothing => "null"
         _ => repr(x)
     end
+end
+
+function adt2client(lang::CLI, x)
+    @match x begin
+        ###################### Generic Compsite Types ######################
+        ::JugsawExpr => @match x.head begin
+            :object => begin
+                typename, fields = unpack_object(x)
+                vals = [adt2client(lang, field) for field in unpack_fields(x)]
+                "[" * join(vals, ", ") * "]"
+            end
+            :list => "[" * join([adt2client(lang, v) for v in unpack_list(x)], ", ") * "]"
+        end
+        ##################### Primitive types ###################
+        ::Nothing => "null"
+        ::Symbol => repr(String(x))
+        ::Bool => x ? "true" : "false"
+        ::JugsawIR.DirectlyRepresentableTypes => repr(x)
+    end
+end
+
+function _generate_code(::CLI, endpoint::String, appname::Symbol, fname::Symbol, fcall::JugsawExpr, typetable::TypeTable)
+    _, fargs, fkwargs = unpack_call(fcall)
+    args = join([adt2client(CLI(), arg) for arg in unpack_fields(fargs)]," ")
+    kws = typetable.defs[unpack_typename(fkwargs)].fieldnames
+    kwargs = join(["$key=$(adt2client(CLI(), arg))" for (key, arg) in zip(kws, unpack_fields(fkwargs))]," ")
+    code = """$endpoint $appname.$fname $args $kwargs"""
+    return code
 end
