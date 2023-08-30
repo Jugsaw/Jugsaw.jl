@@ -129,6 +129,49 @@ function clitree2julia(t, @nospecialize(demo::T)) where T
     end
 end
 
+# data are dumped to (name, value[, fieldnames])
+function julia2cli(@nospecialize(x::T)) where T
+    @match x begin
+        ###################### Basic Types ######################
+        ::UndefInitializer => "null"
+        ::DirectlyRepresentableTypes => JSON3.write(x)
+        ::Call => writecall(x.fname, x.args, x.kwargs)
+        ::Storage => writelist(x.storage)
+        ###################### Generic Compsite Types ######################
+        _ => begin
+            _x = native2jugsaw(x)
+            writelist(Any[isdefined(_x, fn) ? getfield(_x, fn) : undef for fn in fieldnames(typeof(_x))])
+        end
+    end
+end
+function writelist(x; separator=",")
+    io = IOBuffer()
+    print(io, "[")
+    for (k, item) in enumerate(x)
+        print(io, julia2cli(item))
+        k != length(x) && print(io, separator)
+    end
+    print(io, "]")
+    return String(take!(io))
+end
+function writecall(@nospecialize(fname), @nospecialize(args), @nospecialize(kwargs))
+    io = IOBuffer()
+    print(io, fname)
+    # write arguments
+    for item in args
+        print(io, " ")
+        print(io, julia2cli(item))
+    end
+    # write keyword arguments
+    for (k, v) in pairs(kwargs)
+        print(io, " ")
+        print(io, k)
+        print(io, "=")
+        print(io, julia2cli(v))
+    end
+    return String(take!(io))
+end
+
 ###################### ADT to IR
 adt2ir(x) = JSON3.write(_adt2ir(x))
 function _adt2ir(x)

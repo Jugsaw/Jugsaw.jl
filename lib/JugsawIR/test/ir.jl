@@ -138,9 +138,21 @@ end
         ]
         ##### KWARGS #####
         x=[[2], [4, 5]]  # JArray(size, storage)
-        y=6   # Int
+        y=[   # Dict
+            [   # Storage
+                [\"x\", 2],
+                [\"y\", 3]
+            ]
+        ]
         "
     tree = JugsawIR.cli2tree(cli)
-    demo3 = Call(sin, (0.3, ((0.4, "z")=>[0.5, 0.7, 0.2],)), (; x=Float64[], y=8))
-    @test JugsawIR.clitree2julia(tree, demo3) == Call(sin, (0.4, ((0.5, "x")=>[0.4, 0.3],)), (; x=[4.0, 5.0], y=6))
+    demo3 = Call(sin, (0.3, ((0.4, "z")=>[0.5, 0.7, 0.2],)), (; x=Float64[], y=Dict("x"=>5)))
+    parsed = JugsawIR.clitree2julia(tree, demo3)
+    @test parsed == Call(sin, (0.4, ((0.5, "x")=>[0.4, 0.3],)), (; x=[4.0, 5.0], y=Dict("x"=>2, "y"=>3)))
+
+    # julia2cli
+    cli2 = JugsawIR.julia2cli(parsed)
+    tree2 = JugsawIR.cli2tree(cli2)
+    reparsed = JugsawIR.clitree2julia(tree2, demo3)
+    @test reparsed == parsed
 end
