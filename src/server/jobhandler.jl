@@ -343,22 +343,26 @@ function addjob!(r::AppRuntime, jobspec::JobSpec)
     # Find the demo and parse the arguments
     created_at, created_by, maxtime, fname, args, kwargs = jobspec.created_at, jobspec.created_by, jobspec.maxtime, jobspec.fname, jobspec.args, jobspec.kwargs
     # match demo or throw
-    if !haskey(r.app.method_demos, fname)
-        err = NoDemoException(fname, r.app)
-        publish_status(r.dapr, JobStatus(id=jobspec.id, status=failed, description=_error_msg(err)))
-        throw(err)
-    end
-
-    thisdemo = r.app.method_demos[fname]
-    # IF tree is a function call, return an `object_id` for return value.
-    #     recurse over args and kwargs to get `Call` parsed.
+    thisdemo = get_demo(r.app, jobspec.id, fname)
+    # parse args and kwargs
     args_fields = JugsawIR.unpack_fields(args)
     newargs = ntuple(i->renderobj!(r, created_at, created_by, maxtime, args_fields[i], thisdemo.fcall.args[i]), length(args_fields))
     kwargs_fields = JugsawIR.unpack_fields(kwargs)
     newkwargs = typeof(thisdemo.fcall.kwargs)(ntuple(i->renderobj!(r, created_at, created_by, maxtime, kwargs_fields[i], thisdemo.fcall.kwargs[i]), length(kwargs_fields)))
-
-    # add task to the queue
     job = Job(jobspec.id, created_at, created_by, maxtime, thisdemo, newargs, newkwargs)
+    addjob!(r, job)
+end
+function get_demo(app::AppSpecification, job_id, fname)
+    if !haskey(app.method_demos, fname)
+        err = NoDemoException(fname, app)
+        publish_status(r.dapr, JobStatus(id=job_id, status=failed, description=_error_msg(err)))
+        throw(err)
+    end
+    return app.method_demos[fname]
+end
+
+function addjob!(r::AppRuntime, job::Job)
+    # add task to the queue
     @info "adding job to the queue: $job"
 
     # submit job

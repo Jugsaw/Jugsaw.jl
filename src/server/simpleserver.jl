@@ -10,6 +10,38 @@ A Jugsaw IR that corresponds to a [`JobSpec`](@ref) instance.
 * [Success]: a JSON object `{"job_id" : ...}`.
 * [NoDemoException]: a JSON object `{"error" : ...}`.
 """
+function cli_handler(r::AppRuntime, req::HTTP.Request)
+    # top level must be a function call
+    # add jobs recursively to the queue
+    try
+        evt = CloudEvents.from_http(req.headers, req.body)
+        job_id, created_at, created_by, maxtime, fname, args, kwargs = JSON3.read(evt.data)
+        # get demo so that we can parse args and kwargs
+        thisdemo = get_demo(app, job_id, fname)
+        jargs = JugsawIR.cli2julia(args, thisdemo.fcall.args)
+        jkwargs = JugsawIR.cli2julia(args, thisdemo.fcall.kwargs)
+        jobspec = Job(job_id, created_at, created_by, maxtime, thisdemo, jargs, jkwargs)
+        @info "get job: $jobspec"
+        addjob!(r, jobspec)
+        return HTTP.Response(200, JSON_HEADER, JSON3.write((; job_id=job_id)))
+    catch e
+        showerror(stdout, e, catch_backtrace())
+        return _error_response(e)
+    end
+end
+
+"""
+$TYPEDSIGNATURES
+
+Handle the request of function call and returns a response with job id.
+
+### Request
+A Jugsaw IR that corresponds to a [`JobSpec`](@ref) instance.
+
+### Response
+* [Success]: a JSON object `{"job_id" : ...}`.
+* [NoDemoException]: a JSON object `{"error" : ...}`.
+"""
 function job_handler(r::AppRuntime, req::HTTP.Request)
     # top level must be a function call
     # add jobs recursively to the queue
@@ -141,6 +173,10 @@ function get_router(::RemoteRoute, runtime::AppRuntime)
     # job
     HTTP.register!(r, "POST", "/v1/proj/{project}/app/{appname}/ver/{version}/func/{fname}",
         req->job_handler(runtime, req)
+    )
+    # cli-job
+    HTTP.register!(r, "POST", "/v1/proj/{project}/app/{appname}/ver/{version}/cli/{fname}",
+        req->cli_handler(runtime, req)
     )
     # fetch
     HTTP.register!(r, "POST", "/v1/job/{job_id}/result",

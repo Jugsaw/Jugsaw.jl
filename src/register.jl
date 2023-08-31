@@ -69,7 +69,8 @@ function register!(app::AppSpecification, f, args::Tuple, kwargs::NamedTuple, en
                 "docstring"=>doc,
                 "api_julialang"=>generate_code("Julia", endpoint, app.name, fname, adt, type_table),
                 "api_python"=>generate_code("Python", endpoint, app.name, fname, adt, type_table),
-                "api_javascript"=>generate_code("Javascript", endpoint, app.name, fname, adt, type_table)
+                "api_javascript"=>generate_code("Javascript", endpoint, app.name, fname, adt, type_table),
+                "api_cli"=>generate_code("CLI", endpoint, app.name, fname, adt, type_table)
             ))
     else
         @warn "Repeated registration of function will be ignored: $fname"
