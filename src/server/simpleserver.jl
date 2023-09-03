@@ -15,12 +15,10 @@ function cli_handler(r::AppRuntime, req::HTTP.Request)
     # add jobs recursively to the queue
     try
         evt = CloudEvents.from_http(req.headers, req.body)
-        job_id, created_at, created_by, maxtime, fname, args, kwargs = JSON3.read(evt.data)
+        jb = JSON3.read(evt.data)
         # get demo so that we can parse args and kwargs
-        thisdemo = get_demo(app, job_id, fname)
-        jargs = JugsawIR.cli2julia(args, thisdemo.fcall.args)
-        jkwargs = JugsawIR.cli2julia(args, thisdemo.fcall.kwargs)
-        jobspec = Job(job_id, created_at, created_by, maxtime, thisdemo, jargs, jkwargs)
+        thisdemo = _get_demo(app, jb.job_id, jb.fname)
+        jobspec = Job(jb.job_id, jb.created_at, jb.created_by, jb.maxtime, thisdemo, jb.args,jb.jkwargs)
         @info "get job: $jobspec"
         addjob!(r, jobspec)
         return HTTP.Response(200, JSON_HEADER, JSON3.write((; job_id=job_id)))

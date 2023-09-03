@@ -343,7 +343,7 @@ function addjob!(r::AppRuntime, jobspec::JobSpec)
     # Find the demo and parse the arguments
     created_at, created_by, maxtime, fname, args, kwargs = jobspec.created_at, jobspec.created_by, jobspec.maxtime, jobspec.fname, jobspec.args, jobspec.kwargs
     # match demo or throw
-    thisdemo = get_demo(r.app, jobspec.id, fname)
+    thisdemo = _get_demo(r.app, jobspec.id, fname)
     # parse args and kwargs
     args_fields = JugsawIR.unpack_fields(args)
     newargs = ntuple(i->renderobj!(r, created_at, created_by, maxtime, args_fields[i], thisdemo.fcall.args[i]), length(args_fields))
@@ -352,7 +352,7 @@ function addjob!(r::AppRuntime, jobspec::JobSpec)
     job = Job(jobspec.id, created_at, created_by, maxtime, thisdemo, newargs, newkwargs)
     addjob!(r, job)
 end
-function get_demo(app::AppSpecification, job_id, fname)
+function _get_demo(app::AppSpecification, job_id, fname)
     if !haskey(app.method_demos, fname)
         err = NoDemoException(fname, app)
         publish_status(r.dapr, JobStatus(id=job_id, status=failed, description=_error_msg(err)))

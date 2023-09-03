@@ -63,10 +63,9 @@ function register!(app::AppSpecification, f, args::Tuple, kwargs::NamedTuple, en
     if !haskey(app.method_demos, fname)
         push!(app.method_names, fname)
         # create a new demo
-        doc = string(Base.Docs.doc(Base.Docs.Binding(module_and_symbol(f)...)))
         app.method_demos[fname] = JugsawDemo(jf, result,
             Dict{String,String}(
-                "docstring"=>doc,
+                "docstring"=>JugsawIR.description(f),
                 "api_julialang"=>generate_code("Julia", endpoint, app.name, fname, adt, type_table),
                 "api_python"=>generate_code("Python", endpoint, app.name, fname, adt, type_table),
                 "api_javascript"=>generate_code("Javascript", endpoint, app.name, fname, adt, type_table),
@@ -77,10 +76,7 @@ function register!(app::AppSpecification, f, args::Tuple, kwargs::NamedTuple, en
     end
     return result
 end
-module_and_symbol(f::DataType) = f.name.module, f.name.name
-module_and_symbol(f::Function) = typeof(f).name.module, Symbol(f)
-module_and_symbol(f::UnionAll) = module_and_symbol(f.body)
-module_and_symbol(::Type{T}) where T = module_and_symbol(T)
+
 function safe_f2str(f)
     sf = string(f)
     '.' ∈ sf && throw("function must be imported to the `Main` module before it can be exposed!")

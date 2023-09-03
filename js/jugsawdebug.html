@@ -77,7 +77,7 @@ function disp_app(app){
 function disp_demo(fname, demo){
     const id = `${fname}`
 
-    // render args
+    // render APIs
     const apis = document.createElement('div');
     const langs = ["julia", "python", "javascript"];
     for (var i=0; i<langs.length; i++){
@@ -107,32 +107,6 @@ function disp_demo(fname, demo){
         codeblock.appendChild(code);
         details.appendChild(codeblock);
         apis.appendChild(details);
-    }
-
-    // render args
-    const ul1 = document.createElement('ul');
-    const args = demo.args
-    const obj_args = [];
-    for (let i=0; i<args.length; i++){
-        li1 = document.createElement('li');
-        li1.appendChild(document.createTextNode(`#${i+1} = `));
-        const [html, obj] = disp_input(args[i].data);
-        li1.appendChild(html);
-        obj_args.push(obj);
-        ul1.appendChild(li1);
-    }
-
-    // render kwargs
-    const kwargs = demo.kwargs
-    const ul2 = document.createElement('ul');
-    const obj_kwargs = [];
-    for (let i=0; i<kwargs.length; i++){
-        li2 = document.createElement('li');
-        li2.appendChild(document.createTextNode(`${kwargs[i].arg_name} = `));
-        const [html, obj] = disp_input(kwargs[i].data);
-        li2.appendChild(html);
-        obj_kwargs.push(obj);
-        ul2.appendChild(li2)
     }
 
     // render result
@@ -338,134 +312,6 @@ function foldable(name, obj){
     div.appendChild(obj);
     div.appendChild(typeend);
     return div
-}
-
-// display input gadgets
-function disp_input(value){
-    if (value instanceof Array){
-        const ul = document.createElement('ul');
-        const lst = [];
-        for (var i=0; i<value.length; i++){
-            const [li, obj_li] = disp_input(value[i]);
-            ul.appendChild(li);
-            lst.push(obj_li)
-        }
-        return [ul, lst]
-    } else if (value instanceof Object){
-        // special case: Array
-        if (isarraytype(value.type)){
-            // const div = document.createElement('div');
-            // const obj = document.createElement('textarea');
-            // obj.placeholder = "Input an array in the CSV format. Elements are separated by ',', rows are separated by line breaks."
-            // div.appendChild(obj);
-            // return [div, obj]
-            const [size, vec] = value.fields;
-            const ul = document.createElement('ul');
-            const li = document.createElement('li');
-            li.appendChild(create_textblock('span', `size = `));
-            const [size_item, size_obj] = disp_input(size);
-            li.appendChild(size_item);
-            const li2 = document.createElement('li');
-            const div = document.createElement('div');
-            li2.appendChild(create_textblock('span', `storage = `));
-            const htmls = [];
-            const inputs = [];
-            vec.map(v=>{
-                const [item, obj_li] = disp_input(v);
-                htmls.push(item);
-                inputs.push(obj_li);
-            })
-            html_array(div, htmls, size);
-            li2.appendChild(div);
-            ul.appendChild(li)
-            ul.appendChild(li2)
-
-            // detect size change of array
-            for (const dim of size_obj){
-                dim.addEventListener('change', ()=>{
-                    htmls.length = 0;
-                    inputs.length = 0;
-                    const newsize = size_obj.map(x=>x.value);
-                    const newlength = newsize.reduce((x, y)=>x*y, 1);
-                    const newvec = structuredClone(vec);
-                    const default_v = (vec.length > 0) ? vec[0] : "";
-                    resize(newvec, newlength, default_v)
-                    newvec.map(v=>{
-                        const [item, obj_li] = disp_input(v);
-                        htmls.push(item);
-                        inputs.push(obj_li);
-                    })
-                    html_array(div, htmls, newsize);
-                });
-            }
-            return [foldable(value.type, ul), [size_obj, inputs]];
-        } else {
-            const ul = document.createElement('ul');
-            const lst = [];
-            for (var i=0; i<value.fieldnames.length; i++){
-                const li = document.createElement('li');
-                li.appendChild(create_textblock('span', `${value.fieldnames[i]} = `));
-                const [item, obj_li] = disp_input(value.fields[i]);
-                li.appendChild(item);
-                ul.appendChild(li);
-                lst.push(obj_li)
-            }
-            return [foldable(value.type, ul), lst]
-        }
-    } else if (typeof value === 'string'){
-        const obj = create_textblock('textarea', value);
-        return [obj, obj]
-    } else if (typeof value === 'number'){
-        const obj = document.createElement('input');
-        obj.setAttribute('value', value)
-        obj.setAttribute('type', 'number')
-        return [obj, obj]
-    } else if (typeof value === 'boolean'){
-        const obj = document.createElement('input');
-        obj.checked = value;
-        obj.setAttribute('type', 'checkbox');
-        return [obj, obj]
-    } else if (value === null) {
-        const obj = document.createElement('input');
-        obj.setAttribute('value', value)
-        obj.setAttribute('type', 'null')
-        obj.setAttribute('disabled', true)
-        return [obj, obj]
-    } else {
-        const obj = document.createElement('input');
-        obj.setAttribute('value',`got unsupported type ${typeof(value)}`)
-        return [obj, obj]
-    }
-}
-
-function resize(arr, size, defval) {
-    var delta = arr.length - size;
-
-    if (delta > 0) {
-        arr.length = size;
-    }
-    else {
-        while (delta++ < 0) { arr.push(defval); }
-    }
-    return arr
-}
-// extract data from inputs
-function extract_data(obj, demo_obj){
-    if (demo_obj instanceof Array){
-        return ['list', ...obj.map((v, i) => extract_data(v, i < demo_obj.length ? demo_obj[i] : demo_obj[0]))];
-    } else if (demo_obj instanceof Object){
-        return ['untyped', ...obj.map((v, i)=>extract_data(v, demo_obj.fields[i]))]
-    } else {
-        if (obj.type == 'number'){
-            return obj.valueAsNumber;
-        } else if (obj.type == 'checkbox'){
-            return obj.checked;
-        } else if (obj.type == 'null'){
-            return null
-        } else {
-            return obj.value;
-        }
-    }
 }
 
 // create a simple text block

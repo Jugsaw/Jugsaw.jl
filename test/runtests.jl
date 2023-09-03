@@ -27,7 +27,3 @@ end
 @testset "template" begin
     include("template.jl")
 end
-
-# @testset "checkapp" begin
-#     include("checkapp.jl")
-# end

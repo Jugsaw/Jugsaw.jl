@@ -10,7 +10,7 @@ end
 @testset "cli" begin
     fcall = "sin 3 [2, 4] z=5 c=[4, [3, \"5\"]]"
     res = JugsawIR.cli2tree(fcall)
-    @test res isa JugsawIR.Lerche.Tree
+    @test res isa JugsawIR.Call
 end
 
 @testset "type string" begin
@@ -87,10 +87,9 @@ end
         # get type
         tree = JugsawIR.Lerche.parse(JugsawIR.jp, str)
         adt = JugsawIR.tree2adt(tree)
-        typename = adt isa JugsawExpr && adt.head == :object ? JugsawIR.unpack_typename(adt) : ""
         if typeof(obj) <: JugsawIR.DirectlyRepresentableTypes || obj === undef
         elseif obj isa Vector
-            @test adt isa JugsawExpr
+            @test adt isa Vector
         elseif obj isa Dict
             @test typename == "JugsawIR.JDict{$(JugsawIR.type2str(JugsawIR.key_type(obj))), $(JugsawIR.type2str(JugsawIR.value_type(obj)))}"
         elseif obj isa Array

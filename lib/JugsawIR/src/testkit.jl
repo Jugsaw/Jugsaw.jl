@@ -1,6 +1,6 @@
 function test_twoway(obj, demo=obj)
-    adt, typeadt = julia2adt(obj)
-    res = adt2julia(adt, demo)
+    ir = JSON3.write(obj)
+    res = JSON3.read(ir, typeof(demo))
     return isthesame(obj, res)
 end
 

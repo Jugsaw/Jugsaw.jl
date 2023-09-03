@@ -5,25 +5,21 @@ module JugsawIR
 import JSON3
 using MLStyle: @active, @match
 import MLStyle
-using Lerche
 using AbstractTrees
 using AbstractTrees: print_tree
 using DocStringExtensions
 
-export julia2ir, ir2julia, TypeTable, JugsawExpr
+export TypeTable
 export Call, feval, fevalself
 export JugsawDemo, ftest
 export TypeTooAbstract
-export JArray, JDataType, JDict
-
-const jp = Lark(read(joinpath(@__DIR__, "jugsawir.lark"), String),parser="lalr",lexer="contextual", start="expr")
-const jcli = Lark(read(joinpath(@__DIR__, "jugsawcli.lark"), String),parser="lalr",lexer="contextual", start="call")
+export JDataType
+export SizedArray
 
 include("Core.jl")
 include("errors.jl")
-include("extendedtypes.jl")
-include("adt.jl")
-include("ir.jl")
+include("typetable.jl")
 include("testkit.jl")
+include("typeext.jl")
 
 end

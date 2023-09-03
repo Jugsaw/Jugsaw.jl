@@ -1,12 +1,8 @@
 using Test
 using JugsawIR
 
-@testset "lark" begin
-    include("lark.jl")
-end
-
-@testset "adt" begin
-    include("adt.jl")
+@testset "typeext" begin
+    include("typeext.jl")
 end
 
 @testset "ir" begin

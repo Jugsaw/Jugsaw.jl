@@ -8,6 +8,7 @@ using UUIDs: uuid4
 using HTTP
 using Distributed: Future
 using TOML
+using JSON3
 
 export AppSpecification, AppRuntime
 export serve, @register
@@ -22,6 +23,5 @@ include("clientcode.jl")
 include("server/server.jl")
 include("client/Client.jl")
 include("template.jl")
-include("checkapp.jl")
 
 end # module
