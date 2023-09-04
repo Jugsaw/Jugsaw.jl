@@ -13,7 +13,7 @@ export TypeTable
 export Call, feval, fevalself
 export JugsawDemo, ftest
 export TypeTooAbstract
-export JDataType
+export TypeSpec
 export SizedArray
 
 include("Core.jl")

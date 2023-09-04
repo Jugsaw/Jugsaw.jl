@@ -5,19 +5,61 @@ The type for specifying data type in Jugsaw.
 
 ### Fields
 $TYPEDFIELDS
+
+- `name` is the name of the type,
+- `structtype` is the type of the JSON3 struct. Please check https://quinnj.github.io/JSON3.jl/dev/#DataTypes
+- `fieldtypes` is the type of the fields. It is a vector of `TypeSpec` instances.
+For Array structtype, it is a single element vector of `TypeSpec` instances of the element type.
 """
-struct JDataType
+struct TypeSpec
     name::String
-    fieldnames::Vector{String}   # can not use tuple!
-    fieldtypes::Vector{String}
-    meta::Dict{String, String}
+    structtype::String
+    description::String
+
+    # for struct types
+    fieldnames::Vector{String}
+    fieldtypes::Vector{TypeSpec}
+    fielddescriptions::Vector{String}
 end
-function JDataType(x::DataType)
-    isconcretetype(x) || return JDataType(type2str(x), String[], String[])
-    JDataType(type2str(x),
-        String[string(x) for x in fieldnames(x)],
-        String[type2str(x) for x in x.types],
-        Dict("docstring"=>description(x)))
+function TypeSpec(::Type{T}; fielddescriptions=nothing) where T
+    @info T
+    structtype = String(typeof(JSON3.StructTypes.StructType(T)).name.name)
+    # field names and fields
+    if structtype == "NumberType"
+        fieldnames = String[]
+        fts = TypeSpec[]
+    elseif structtype == "StringType"
+        fieldnames = String[]
+        fts = TypeSpec[]
+    elseif structtype == "BoolType"
+        fieldnames = String[]
+        fts = TypeSpec[]
+    elseif structtype == "NullType"
+        fieldnames = String[]
+        fts = TypeSpec[]
+    elseif structtype == "DictType"
+        if T <: NamedTuple
+        else
+        end
+    elseif structtype == "CustomStruct"
+        return TypeSpec(JSON3.StructTypes.lowertype(T))
+    elseif structtype == "Struct"
+        fieldnames = String[fieldnames(T)...]
+        fts = TypeSpec[TypeSpec(x) for x in fieldtypes(T)]
+    elseif structtype == "ArrayType"
+        fieldnames = String[]
+        if T <: Tuple
+            fts = TypeSpec[TypeSpec(x) for x in T.parameters]
+        else
+            fts = TypeSpec[TypeSpec(eltype(T))]
+        end
+    else
+        error("`$T` of StructType: `$structtype` not supported yet!!!!")
+    end
+    name = type2str(T)
+    desc = description(T)
+    fdesc = fielddescriptions === nothing ? fill("", length(fieldnames)) : fielddescriptions
+    return TypeSpec(name, structtype, desc, fieldnames, fts, fdesc)
 end
 
 ############ TypeTable
@@ -29,11 +71,11 @@ The type definitions.
 ### Fields
 $(TYPEDFIELDS)
 
-The `defs` defines a mapping from the type name to a [`JDataType`](@ref) instance.
+The `defs` defines a mapping from the type name to a [`TypeSpec`](@ref) instance.
 """
 struct TypeTable
     names::Vector{String}
-    defs::Dict{String, JDataType}
+    defs::Dict{String, TypeSpec}
 end
 TypeTable() = TypeTable(String[], Dict{String, Tuple{Vector{String}, Vector{String}}}())
 function pushtype!(tt::TypeTable, type::Type{T}) where T
@@ -116,5 +158,12 @@ function str2type(m::Module, str::String)
     end
 end
 
-value_type(::AbstractDict{T, V}) where {T,V} = V
-key_type(::AbstractDict{T}) where {T} = T
+################# generate type table
+function generate_typetable(obj)
+    tt = TypeTable()
+    generate_typetable!(tt, obj)
+    return tt
+end
+
+function generate_typetable!(tt::TypeTable, obj)
+end

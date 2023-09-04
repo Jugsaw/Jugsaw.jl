@@ -53,7 +53,7 @@ For example, to represent a complex number type, we can create the following IR
 
 ```julia
 julia> julia2ir(ComplexF64)[1] |> println
-{"fields":["Base.Complex{Core.Float64}",["re","im"],["Core.Float64","Core.Float64"]],"type":"JugsawIR.JDataType"}
+{"fields":["Base.Complex{Core.Float64}",["re","im"],["Core.Float64","Core.Float64"]],"type":"JugsawIR.TypeSpec"}
 ```
 
 For convenience, JugsawIR returns a [`TypeTable`](@ref) instance to represent the types used in parsing.

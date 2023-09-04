@@ -68,12 +68,16 @@ obj_demos = [
         @test test_twoway(obj, demo)
     end
     @testset "datatype" begin
-        type = JDataType(ComplexF64)
+        type = TypeSpec(ComplexF64)
         @test type.name == "Base.Complex{Core.Float64}"
         @test type.fieldnames == ["re", "im"]
         @test type.fieldtypes == ["Core.Float64", "Core.Float64"]
         @test type.meta["docstring"] == "```\nComplex{T<:Real} <: Number\n```\n\nComplex number type with real and imaginary part of type `T`.\n\n`ComplexF16`, `ComplexF32` and `ComplexF64` are aliases for `Complex{Float16}`, `Complex{Float32}` and `Complex{Float64}` respectively.\n\nSee also: [`Real`](@ref), [`complex`](@ref), [`real`](@ref).\n"
     end
+end
+
+@testset "typespec" begin
+    @show TypeSpec(GraphT)
 end
 
 end

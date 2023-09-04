@@ -90,12 +90,10 @@ end
         if typeof(obj) <: JugsawIR.DirectlyRepresentableTypes || obj === undef
         elseif obj isa Vector
             @test adt isa Vector
-        elseif obj isa Dict
-            @test typename == "JugsawIR.JDict{$(JugsawIR.type2str(JugsawIR.key_type(obj))), $(JugsawIR.type2str(JugsawIR.value_type(obj)))}"
         elseif obj isa Array
             @test typename == "JugsawIR.JArray"
         elseif obj isa DataType
-            @test typename == "JugsawIR.JDataType"
+            @test typename == "JugsawIR.TypeSpec"
         elseif obj isa UnionAll
             @test adt == JugsawIR.type2str(obj)
         else
@@ -112,7 +110,7 @@ end
 
 @testset "datatype" begin
     type, tt = julia2ir(ComplexF64)
-    @test type == "[\"object\",\"JugsawIR.JDataType\",\"Base.Complex{Core.Float64}\",[\"list\",\"re\",\"im\"],[\"list\",\"Core.Float64\",\"Core.Float64\"]]"
+    @test type == "[\"object\",\"JugsawIR.TypeSpec\",\"Base.Complex{Core.Float64}\",[\"list\",\"re\",\"im\"],[\"list\",\"Core.Float64\",\"Core.Float64\"]]"
     println(tt)
 end
 
