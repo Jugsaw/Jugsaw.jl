@@ -62,56 +62,6 @@ function TypeSpec(::Type{T}; fielddescriptions=nothing) where T
     return TypeSpec(name, structtype, desc, fieldnames, fts, fdesc)
 end
 
-############ TypeTable
-"""
-$(TYPEDEF)
-
-The type definitions.
-
-### Fields
-$(TYPEDFIELDS)
-
-The `defs` defines a mapping from the type name to a [`TypeSpec`](@ref) instance.
-"""
-struct TypeTable
-    names::Vector{String}
-    defs::Dict{String, TypeSpec}
-end
-TypeTable() = TypeTable(String[], Dict{String, Tuple{Vector{String}, Vector{String}}}())
-function pushtype!(tt::TypeTable, type::Type{T}) where T
-    JT = native2jugsaw(T)
-    if !haskey(tt.defs, JT.name)
-        push!(tt.names, JT.name)
-        tt.defs[JT.name] = JT
-    end
-    return tt
-end
-Base.show(io::IO, ::MIME"text/plain", t::TypeTable) = Base.show(io, t)
-function Base.show(io::IO, t::TypeTable)
-    println(io, "TypeTable")
-    for (k, typename) in enumerate(t.names)
-        println(io, "  - $typename")
-        if !haskey(t.defs, typename)
-            println(io, "    - not exist")
-            continue
-        end
-        type = t.defs[typename]
-        fns, fts = type.fieldnames, type.fieldtypes
-        for (l, (fn, ft)) in enumerate(zip(fns, fts))
-            print(io, "    - $fn::$ft")
-            if !(k == length(t.names) && l == length(fns))
-                println(io)
-            end
-        end
-    end
-end
-function Base.merge!(t1::TypeTable, t2::TypeTable)
-    for name in t2.names
-        pushtype!(t1, t2.defs[name])
-    end
-    return t1
-end
-
 ####################
 # the string representation of basic types
 function type2str(::Type{T}) where T
@@ -156,14 +106,4 @@ function str2type(m::Module, str::String)
             ::Symbol || :($name{$(paras...)}) => Core.eval(m, ex)
         _ => Any
     end
-end
-
-################# generate type table
-function generate_typetable(obj)
-    tt = TypeTable()
-    generate_typetable!(tt, obj)
-    return tt
-end
-
-function generate_typetable!(tt::TypeTable, obj)
 end

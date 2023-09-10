@@ -10,45 +10,13 @@ A Jugsaw IR that corresponds to a [`JobSpec`](@ref) instance.
 * [Success]: a JSON object `{"job_id" : ...}`.
 * [NoDemoException]: a JSON object `{"error" : ...}`.
 """
-function cli_handler(r::AppRuntime, req::HTTP.Request)
-    # top level must be a function call
-    # add jobs recursively to the queue
-    try
-        evt = CloudEvents.from_http(req.headers, req.body)
-        jb = JSON3.read(evt.data)
-        # get demo so that we can parse args and kwargs
-        thisdemo = _get_demo(app, jb.job_id, jb.fname)
-        jobspec = Job(jb.job_id, jb.created_at, jb.created_by, jb.maxtime, thisdemo, jb.args,jb.jkwargs)
-        @info "get job: $jobspec"
-        addjob!(r, jobspec)
-        return HTTP.Response(200, JSON_HEADER, JSON3.write((; job_id=job_id)))
-    catch e
-        showerror(stdout, e, catch_backtrace())
-        return _error_response(e)
-    end
-end
-
-"""
-$TYPEDSIGNATURES
-
-Handle the request of function call and returns a response with job id.
-
-### Request
-A Jugsaw IR that corresponds to a [`JobSpec`](@ref) instance.
-
-### Response
-* [Success]: a JSON object `{"job_id" : ...}`.
-* [NoDemoException]: a JSON object `{"error" : ...}`.
-"""
 function job_handler(r::AppRuntime, req::HTTP.Request)
     # top level must be a function call
     # add jobs recursively to the queue
     try
         evt = CloudEvents.from_http(req.headers, req.body)
         # CloudEvent
-        jobadt = JugsawIR.ir2adt(String(evt.data))
-        job_id, created_at, created_by, maxtime, fname, args, kwargs = JugsawIR.unpack_fields(jobadt)
-        jobspec = JobSpec(job_id, created_at, created_by, maxtime, fname, args, kwargs)
+        jobspec = JugsawIR.read_object(evt.data, JobSpec)
         @info "get job: $jobspec"
         addjob!(r, jobspec)
         return HTTP.Response(200, JSON_HEADER, JSON3.write((; job_id=job_id)))
@@ -96,9 +64,8 @@ Handle the request of getting application specification, including registered fu
 * [Success]: Jugsaw IR in the form of a JSON object.
 """
 function demos_handler(app::AppSpecification)
-    (demos, types) = JugsawIR.julia2ir(app)
-    ir = "['list', $demos, $types]"
-    return HTTP.Response(200, JSON_HEADER, ir)
+    obj = JugsawIR.write_object(app)
+    return HTTP.Response(200, JSON_HEADER, JSON3.write((; app=obj, typespec=JugsawIR.TypeSpec(obj))))
 end
 
 """
@@ -116,15 +83,12 @@ function code_handler(req::HTTP.Request, app::AppSpecification)
     params = HTTP.getparams(req)
     lang = params["lang"]
     # get request
-    adt = JugsawIR.ir2adt(String(req.body))
-    endpoint, fcall = JugsawIR.unpack_fields(adt)
-    fname, args, kwargs = JugsawIR.unpack_call(fcall)
-    if !haskey(app.method_demos, fname)
-        return _error_response(NoDemoException(fcall, app))
+    obj = JugsawIR.read_object(req.body)
+    if !haskey(app.method_demos, obj.fcall.fname)
+        return _error_response(NoDemoException(obj.fcall, app))
     else
         try
-            adt, type_table = JugsawIR.julia2adt(app)
-            code = generate_code(lang, endpoint, app.name, fname, fcall, type_table)
+            code = generate_code(lang, obj.endpoint, app.name, obj.fcall.fname, obj.fcall, app.typespec)
             return HTTP.Response(200, JSON_HEADER, JSON3.write((; code=code)))
         catch e
             return _error_response(e)
@@ -171,10 +135,6 @@ function get_router(::RemoteRoute, runtime::AppRuntime)
     # job
     HTTP.register!(r, "POST", "/v1/proj/{project}/app/{appname}/ver/{version}/func/{fname}",
         req->job_handler(runtime, req)
-    )
-    # cli-job
-    HTTP.register!(r, "POST", "/v1/proj/{project}/app/{appname}/ver/{version}/cli/{fname}",
-        req->cli_handler(runtime, req)
     )
     # fetch
     HTTP.register!(r, "POST", "/v1/job/{job_id}/result",

@@ -56,7 +56,6 @@ end
 function register!(app::AppSpecification, f, args::Tuple, kwargs::NamedTuple, endpoint = get_endpoint())
     #f = protect_type(_f)
     jf = Call(f, args, kwargs)
-    adt, type_table = JugsawIR.julia2adt(jf)
     fname = safe_f2str(f)
     result = f(args...; kwargs...)
     # if the function is not yet registered, add a new method
@@ -65,11 +64,7 @@ function register!(app::AppSpecification, f, args::Tuple, kwargs::NamedTuple, en
         # create a new demo
         app.method_demos[fname] = JugsawDemo(jf, result,
             Dict{String,String}(
-                "docstring"=>JugsawIR.description(f),
-                "api_julialang"=>generate_code("Julia", endpoint, app.name, fname, adt, type_table),
-                "api_python"=>generate_code("Python", endpoint, app.name, fname, adt, type_table),
-                "api_javascript"=>generate_code("Javascript", endpoint, app.name, fname, adt, type_table),
-                "api_cli"=>generate_code("CLI", endpoint, app.name, fname, adt, type_table)
+                "docstring"=>JugsawIR.description(f)
             ))
     else
         @warn "Repeated registration of function will be ignored: $fname"
@@ -182,11 +177,11 @@ end
 # save demos to the disk
 function save_demos(dir::String, methods::AppSpecification)
     mkpath(dir)
-    demos, types = JugsawIR.julia2ir(methods)
+    demos = JugsawIR.write_object(methods)
     fdemos = joinpath(dir, "demos.json")
     @info "dumping demos to: $fdemos"
     open(fdemos, "w") do f
-        write(f, "['list', $demos, $types]")
+        write(f, demos)
     end
 end
 
@@ -196,8 +191,7 @@ function load_demos_from_dir(dir::String, demos)
     return load_demos(sdemos, demos)
 end
 function load_demos(sdemos::String, demos)
-    adt = JugsawIR.ir2adt(sdemos)
-    appadt, typesadt = unpack_list(adt)
-    return JugsawIR.adt2julia(appadt, demos), JugsawIR.adt2julia(typesadt, JugsawIR.demoof(JugsawIR.TypeTable))
+    obj = JugsawIR.read_object(sdemos, demos)
+    return obj
 end
 

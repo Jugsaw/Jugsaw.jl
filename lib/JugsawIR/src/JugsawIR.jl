@@ -18,8 +18,16 @@ export SizedArray
 
 include("Core.jl")
 include("errors.jl")
-include("typetable.jl")
+include("typespec.jl")
 include("testkit.jl")
 include("typeext.jl")
+
+function read_object(io::IO, demo)
+    return JSON3.read(io, typeof(demo))
+end
+
+function write_object(io::IO, obj)
+    return JSON3.write(io, obj)
+end
 
 end

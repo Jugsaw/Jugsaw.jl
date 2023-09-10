@@ -14,10 +14,10 @@ Generate code for target language.
 Please use `subtypes(AbstractLang)` for supported client languages.
 * `endpoint` is the url for service provider, e.g. it can be [https://www.jugsaw.co](https://www.jugsaw.co).
 * `appname` is the application name.
-* `fcall` is a [`JugsawExpr`](@ref) that specifies the function call.
+* `fcall` is a object that specifies the function call.
 * `typetable` is a [`TypeTable`](@ref) instance with the type definitions.
 """
-function generate_code(lang::String, endpoint, appname, fname, fcall::JugsawExpr, typetable::JugsawExpr)
+function generate_code(lang::String, endpoint, appname, fname, fcall, typetable)
     @assert fcall.head == :call
     if isempty(endpoint)
         @warn("The endpoint of this server is not set properly.")
@@ -38,7 +38,7 @@ function generate_code(lang::String, endpoint, appname, fname, fcall::JugsawExpr
 end
 
 # converting IR to different languages
-function _generate_code(::Julia, endpoint::String, appname::Symbol, fname::Symbol, fcall::JugsawExpr, typetable::TypeTable)
+function _generate_code(::Julia, endpoint::String, appname::Symbol, fname::Symbol, fcall, typetable::TypeTable)
     _, fargs, fkwargs = unpack_call(fcall)
     args = join([adt2client(Julia(), arg) for arg in unpack_fields(fargs)],", ")
     kws = typetable.defs[unpack_typename(fkwargs)].fieldnames
