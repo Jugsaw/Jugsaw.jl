@@ -7,7 +7,7 @@ using Jugsaw.Client
 @testset "routes" begin
     context = Client.ClientContext(; localurl=true)
     app = Jugsaw.APP; empty!(app)
-    dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
+    dapr = InMemoryEventService()
     @register testapp sin(cos(0.5))::Float64
     ar = AppRuntime(app, dapr)
     r = Jugsaw.Server.get_router(Jugsaw.Server.LocalRoute(), ar)
@@ -18,7 +18,7 @@ using Jugsaw.Client
     @test r(Jugsaw.Client.new_request_obj(context, Val(:demos))).status == 200
 
     # api
-    fcall = JugsawIR.julia2adt(JugsawIR.Call("sin", (0.5,), (;)))[1]
+    fcall = JugsawIR.write_object(JugsawIR.Call("sin", (0.5,), (;)))
     req = Jugsaw.Client.new_request_obj(context, Val(:api), fcall, "Julia")
     @test r(req).status == 200
     # language not defined
@@ -30,7 +30,7 @@ using Jugsaw.Client
 
     # launch a job
     job_id = string(Jugsaw.uuid4())
-    fcall2 = JugsawIR.julia2adt(JugsawIR.Call(sin, (0.5,), (;)))[1]
+    fcall2 = JugsawIR.write_object(JugsawIR.Call(sin, (0.5,), (;)))
     req = Jugsaw.Client.new_request_obj(context, Val(:job), job_id, fcall2)
     ret = r(req)
     @test ret.status == 200

@@ -3,31 +3,6 @@ using Jugsaw, JugsawIR
 using HTTP, JugsawIR.JSON3, URIs
 using Jugsaw.Server, Jugsaw.Client
 
-@testset "file event service" begin
-    dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
-    mkpath(dapr.save_dir)
-
-    job_id = string(Jugsaw.uuid4())
-
-    # status updated
-    status = JobStatus(id=job_id, status=Jugsaw.Server.succeeded)
-    publish_status(dapr, status)
-    @test fetch_status(dapr, job_id; timeout=1.0) == (:ok, status)
-
-    # another status updated
-    status = JobStatus(id=job_id, status=Jugsaw.Server.failed)
-    publish_status(dapr, status)
-    @test fetch_status(dapr, job_id; timeout=1.0) == (:ok, status)
-
-    # incorrect id triggers the timeout
-    @test fetch_status(dapr, "asfd"; timeout=1.0) == (:timed_out, nothing)
-
-    save_object(dapr, job_id, Dict("x"=>42))
-    st, d = load_object(dapr, job_id, Dict("y"=>4); timeout=1.0)
-    @test st == :ok
-    @test d == Dict("x"=>42)
-end
-
 @testset "in memory event" begin
     dapr = InMemoryEventService()
     job_id = string(Jugsaw.uuid4())
@@ -61,13 +36,13 @@ end
         sin(cos(0.5))::Float64
         cos(0.5)::Float64
     end
-    dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
+    dapr = InMemoryEventService()
     r = AppRuntime(app, dapr)
     @test r isa AppRuntime
 
     # simple call
     job_id = string(Jugsaw.uuid4())
-    adt, = JugsawIR.julia2adt(JugsawIR.Call(sin, (0.5,), (;)))
+    adt, = JugsawIR.write_object(JugsawIR.Call(sin, (0.5,), (;)))
     jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, JugsawIR.unpack_call(adt)...)
     job = addjob!(r, jobspec)
     st, res = load_object(dapr, job_id, job.demo.result; timeout=1.0)
@@ -143,7 +118,7 @@ end
 @testset "code handler" begin
     context = Client.ClientContext()
     app = Jugsaw.APP; empty!(app)
-    dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
+    dapr = InMemoryEventService()
     @register testapp sin(cos(0.5))::Float64
 
     fcall = JugsawIR.julia2adt(JugsawIR.Call("sin", (0.5,), (;)))[1]

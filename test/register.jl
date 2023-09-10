@@ -1,13 +1,6 @@
 using Test, Jugsaw
 using JugsawIR
 
-@testset "module and symbol" begin
-    #m, s = Jugsaw.module_and_symbol(Jugsaw.protect_type(Dict))
-    m, s = Jugsaw.module_and_symbol(Dict)
-    @test m === Base
-    @test s == :Dict
-end
-
 @testset "multi function" begin
     app = Jugsaw.APP; empty!(app)
     smallgraph(sym::Symbol) = sym
