@@ -39,7 +39,11 @@ function TypeSpec(::Type{T}; fielddescriptions=nothing) where T
         fts = TypeSpec[]
     elseif structtype == "DictType"
         if T <: NamedTuple
+            fieldnames = String[String(x) for x in fieldnames(T)]
+            fts = TypeSpec[TypeSpec(x) for x in fieldtypes(T)]
         else
+            fieldnames = String[]
+            fts = TypeSpec[TypeSpec(eltype(T))]
         end
     elseif structtype == "CustomStruct"
         return TypeSpec(JSON3.StructTypes.lowertype(T))

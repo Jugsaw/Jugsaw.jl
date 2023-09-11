@@ -77,7 +77,8 @@ obj_demos = [
 end
 
 @testset "typespec" begin
-    @show TypeSpec(GraphT)
+    typespec = TypeSpec(GraphT)
+    @test JSON3.write(typespec) isa String
 end
 
 end
