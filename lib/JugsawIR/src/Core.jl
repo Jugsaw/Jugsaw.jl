@@ -12,10 +12,10 @@ $(TYPEDEF)
 ### Fields
 $(TYPEDFIELDS)
 """
-struct Call
-    fname
-    args::Tuple
-    kwargs::NamedTuple
+struct Call{FT, argsT, kwargsT}
+    fname::FT
+    args::argsT
+    kwargs::kwargsT
 end
 Base.:(==)(a::Call, b::Call) = a.fname == b.fname && a.args == b.args && a.kwargs == b.kwargs
 

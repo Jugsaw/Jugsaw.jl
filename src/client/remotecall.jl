@@ -100,9 +100,8 @@ end
 
 
 function _new_request(context::ClientContext, ::Val{:job}, job_id::String, fcall; maxtime=10.0, created_by="jugsaw")
-    fname, args, kwargs = unpack_call(fcall)
     # create a job
-    jobspec = (; job_id, created_at=round(Int, time()), created_by, maxtime, fname, args, kwargs)
+    jobspec = (; job_id, created_at=round(Int, time()), created_by, maxtime, fcall.fname, fcall.args, fcall.kwargs)
     ir = JugsawIR.write_object(jobspec)
     # NOTE: UGLY!
     # create a cloud event
@@ -111,7 +110,7 @@ function _new_request(context::ClientContext, ::Val{:job}, job_id::String, fcall
         "ce-specversion"=>"1.0"
         ]
     return ("POST", joinpath(context.endpoint,
-        context.localurl ? "events/jobs/" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/func/$(first(unpack_call(fcall)))"
+        context.localurl ? "events/jobs/" : "v1/proj/$(context.project)/app/$(context.appname)/ver/$(context.version)/func/$(fcall.fname)"
     ), header, ir)
 end
 function _new_request(context::ClientContext, ::Val{:healthz})

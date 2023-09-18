@@ -33,13 +33,4 @@ function write_object(obj)
     return JSON3.write(obj)
 end
 
-function read_call(obj::String, demo)
-    res = JSON3.read(obj)
-    return demo.fname
-end
-function write_call(obj::Call)
-    return JSON3.write(obj)
-end
-
-
 end

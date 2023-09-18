@@ -81,4 +81,11 @@ end
     @test JSON3.write(typespec) isa String
 end
 
+@testset "Call" begin
+    demo = Call(sin, (0.5,), (;))
+    s = JugsawIR.write_object(demo)
+    obj = JugsawIR.read_object(s, demo)
+    @test obj == demo
+end
+
 end

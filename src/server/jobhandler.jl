@@ -14,29 +14,6 @@ end
 """
 $(TYPEDEF)
 
-A job with function payload.
-
-### Fields
-$(TYPEDFIELDS)
-
-Here `id` is the job id that used to store and fetch computed results.
-"""
-struct JobSpec
-    # meta information
-    id::String
-    created_at::Float64
-    created_by::String
-    maxtime::Float64
-
-    # payload
-    fname::String
-    args::Tuple
-    kwargs::NamedTuple
-end
-
-"""
-$(TYPEDEF)
-
 A resolved job can be queued and executed in a [`AppRuntime`](@ref).
 
 ### Fields
@@ -253,33 +230,9 @@ function AppRuntime(app::AppSpecification, dapr::AbstractEventService)
     return AppRuntime(app, dapr, channel)
 end
 
-function addjob!(r::AppRuntime, jobspec::JobSpec)
-    # Find the demo and parse the arguments
-    created_at, created_by, maxtime, fname, args, kwargs = jobspec.created_at, jobspec.created_by, jobspec.maxtime, jobspec.fname, jobspec.args, jobspec.kwargs
-    # match demo or throw
-    thisdemo = _get_demo(r.app, jobspec.id, fname)
-    # parse args and kwargs
-    newargs = ntuple(i->JugsawIR.read_object(args[i], thisdemo.fcall.args[i]), length(args))
-    newkwargs = typeof(thisdemo.fcall.kwargs)(ntuple(i->JugsawIR.read_object(kwargs[i], thisdemo.fcall.kwargs[i]), length(thisdmeo.fcall.kwargs)))
-    # submit a job
-    job = Job(jobspec.id, created_at, created_by, maxtime, thisdemo, newargs, newkwargs)
-    addjob!(r, job)
-end
-
-function _get_demo(app::AppSpecification, job_id, fname)
-    if !haskey(app.method_demos, fname)
-        err = NoDemoException(fname, app)
-        publish_status(r.dapr, JobStatus(id=job_id, status=failed, description=_error_msg(err)))
-        throw(err)
-    end
-    return app.method_demos[fname]
-end
-
-function addjob!(r::AppRuntime, job::Job)
-    # add task to the queue
+# submit a job to the channel
+function submitjob!(r::AppRuntime, job::Job)
     @info "adding job to the queue: $job"
-
-    # submit job
     res = timedwait(get_timeout()) do
         put!(r.channel, job)
         publish_status(r.dapr, JobStatus(id=job.id, status=processing))

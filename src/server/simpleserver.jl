@@ -4,24 +4,42 @@ $TYPEDSIGNATURES
 Handle the request of function call and returns a response with job id.
 
 ### Request
-A Jugsaw IR that corresponds to a [`JobSpec`](@ref) instance.
+A JSON payload that specifies the function call as `{"id" : ..., "created_at" : ..., "created_by" : ..., "maxtime" : ..., "fname" : ..., "args" : ..., "kwargs" : ...}`.
 
 ### Response
 * [Success]: a JSON object `{"job_id" : ...}`.
 * [NoDemoException]: a JSON object `{"error" : ...}`.
 """
 function job_handler(r::AppRuntime, req::HTTP.Request)
-    # top level must be a function call
-    # add jobs recursively to the queue
+    params = HTTP.getparams(req)
+    fname = params["fname"]
     try
+        # 1. Find the demo
+        if !haskey(r.app.method_demos, fname)
+            err = NoDemoException(fname, app)
+            throw(err)
+        end
+        demo = r.app.method_demos[fname]
+        # 2. Parse job
         evt = CloudEvents.from_http(req.headers, req.body)
+        job = JugsawIR.read_object(evt.data,
+            Job("", 0.0, "", 0.0, demo, demo.fcall.args, demo.fcall.kwargs)
+        )
+        newkwargs = NamedTuple((isdefined(kwargs, fn) ? getfield(x, fn) : getfield(demo.fcall.kwargs, fn)) for fn in keys(job.kwargs))
+        # 3. Submit a job
         # CloudEvent
-        jobspec = JugsawIR.read_object(evt.data, JobSpec)
-        @info "get job: $jobspec"
-        addjob!(r, jobspec)
+        job = Job(job.id, job.created_at, job.created_by, job.maxtime, job.thisdemo, job.args, newkwargs)
+        @info "get job: $job"
+        submitjob!(r, job)
         return HTTP.Response(200, JSON_HEADER, JSON3.write((; job_id=job_id)))
     catch e
-        showerror(stdout, e, catch_backtrace())
+        if e isa NoDemoException
+            evt = CloudEvents.from_http(req.headers, req.body)
+            job_id = JugsawIR.JSON3.read(evt.data, Job).id
+            publish_status(r.dapr, JobStatus(id=job_id, status=failed, description=_error_msg(err)))
+        else
+            showerror(stdout, e, catch_backtrace())
+        end
         return _error_response(e)
     end
 end

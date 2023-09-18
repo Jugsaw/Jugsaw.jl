@@ -8,3 +8,9 @@ JSON3.StructTypes.StructType(::Type{SizedArray{T, N}}) where {T, N} = JSON3.Stru
 
 # parse complex number
 JSON3.StructTypes.StructType(::Type{Complex{T}}) where T = JSON3.StructTypes.Struct()
+
+# parse a call
+JSON3.StructTypes.StructType(::Type{<:Call}) = JSON3.StructTypes.CustomStruct()
+JSON3.StructTypes.lower(x::Call) = (string(x.fname), x.args, x.kwargs)
+JSON3.StructTypes.lowertype(::Type{<:Call}) = Tuple{String, Tuple, NamedTuple}
+JSON3.StructTypes.construct(::Type{<:Call{FT}}, x) where FT = Call(FT.instance, x[2], x[3])

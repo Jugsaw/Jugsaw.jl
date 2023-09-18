@@ -9,7 +9,7 @@ import DaprClients
 import UUIDs
 import ..AppSpecification, ..NoDemoException, ..generate_code, .._error_msg, ..TimedOutException, ..GLOBAL_CONFIG
 
-export Job, JobStatus, JobSpec
+export Job, JobStatus
 export AbstractEventService, DaprService, FileEventService, InMemoryEventService, publish_status, fetch_status, save_object, load_object, load_object_as_ir, get_timeout
 export AppRuntime, addjob!
 export demos_handler, code_handler, fetch_handler, job_handler
