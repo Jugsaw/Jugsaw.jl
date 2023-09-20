@@ -51,7 +51,7 @@ function call(context::ClientContext, demo::Demo, args...; kwargs...)
     # fetch kwargs, if not set, use demo
     kws = fieldnames(typeof(demo.fcall.kwargs))
     kwargs = Dict([k=>(isdefined(kwargs, fn) ? JugsawIR.julia2adt(getfield(x, fn))[1] : getfield(demo.fcall.kwargs, fn)) for (k, fn) in enumerate(kws)])
-    fcall = Call(demo.fcall.fname, args, kwargs)
+    fcall = Call(demo.fcall.fname, args, (; kwargs...))
     job_id = string(uuid4())
     safe_request(()->new_request(context, Val(:job), job_id, fcall; maxtime=60.0, created_by="jugsaw"))
     return LazyReturn(context, job_id, demo.result)

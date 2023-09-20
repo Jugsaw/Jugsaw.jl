@@ -4,15 +4,13 @@ function load_app(context::ClientContext, str::String)
     return _load_app(context, obj.app, obj.typespec)
 end
 function _load_app(context::ClientContext, app, tt)
-    _, method_names = unpack_fields(app.method_names)
-    method_demos = makeordereddict(app.method_demos)
     demos = OrderedDict{Symbol, Demo}()
-    for _fname in unpack_list(method_names)
+    for _fname in app.method_names
         fname = Symbol(_fname)
-        (_fcall, result, meta) = unpack_fields(method_demos[_fname])
-        _fname, args, kwargs = unpack_call(_fcall)
-        jf = Call(fname, (unpack_fields(args)...,), (; zip(Symbol.(JugsawIR.get_fieldnames(kwargs, tt)), unpack_fields(kwargs))...))
-        demos[fname] = Demo(jf, result, meta)
+        demo = app.method_demos[_fname]
+        ((_fname, args, kwargs), result, meta) = demo.fcall, demo.result, demo.meta
+        jf = Call(fname, (args...,), (; kwargs...))
+        demos[fname] = Demo(jf, result, Dict([String(x)=>y for (x,y) in meta]))
     end
     app = App(Symbol(app.name), demos, tt, context)
     return app

@@ -177,7 +177,11 @@ end
 # save demos to the disk
 function save_demos(dir::String, methods::AppSpecification)
     mkpath(dir)
-    demos = JugsawIR.write_object(methods)
+    typespec = Dict{String,TypeSpec}()
+    for (fname, demo) in methods.method_demos
+        typespec[fname] = JugsawIR.TypeSpec(typeof(demo))
+    end
+    demos = JugsawIR.write_object((; app=methods, typespec))
     fdemos = joinpath(dir, "demos.json")
     @info "dumping demos to: $fdemos"
     open(fdemos, "w") do f

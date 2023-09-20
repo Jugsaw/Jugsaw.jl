@@ -43,13 +43,17 @@ function TypeSpec(::Type{T}; fielddescriptions=nothing) where T
             fts = TypeSpec[TypeSpec(x) for x in fieldtypes(T)]
         else
             fieldnames = String[]
-            fts = TypeSpec[TypeSpec(eltype(T))]
+            fts = TypeSpec[TypeSpec(et) for et in T.parameters]
         end
     elseif structtype == "CustomStruct"
         return TypeSpec(JSON3.StructTypes.lowertype(T))
-    elseif structtype == "Struct"
-        fieldnames = String[fieldnames(T)...]
-        fts = TypeSpec[TypeSpec(x) for x in fieldtypes(T)]
+    elseif structtype == "UnorderedStruct"
+        if isabstracttype(T)
+            fieldnames, fts = String[], TypeSpec[]
+        else
+            fieldnames = String[String(fn) for fn in Base.fieldnames(T)]
+            fts = TypeSpec[TypeSpec(x) for x in fieldtypes(T)]
+        end
     elseif structtype == "ArrayType"
         fieldnames = String[]
         if T <: Tuple

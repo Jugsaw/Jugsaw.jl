@@ -120,7 +120,7 @@ end
     @test isfile(joinpath(path, "demos.json"))
     # loading demos
     newdemos = Jugsaw.load_demos_from_dir(path)
-    @test length(newdemos.method_demos) == length(app.method_demos)
+    @test length(newdemos.app.method_demos) == length(app.method_demos)
 
     # empty!
     empty!(app)

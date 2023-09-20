@@ -16,7 +16,7 @@ function job_handler(r::AppRuntime, req::HTTP.Request)
     try
         # 1. Find the demo
         if !haskey(r.app.method_demos, fname)
-            err = NoDemoException(fname, app)
+            err = NoDemoException(fname, r.app)
             throw(err)
         end
         demo = r.app.method_demos[fname]
@@ -33,8 +33,8 @@ function job_handler(r::AppRuntime, req::HTTP.Request)
     catch e
         if e isa NoDemoException
             evt = CloudEvents.from_http(req.headers, req.body)
-            job_id = JugsawIR.JSON3.read(evt.data, Job).id
-            publish_status(r.dapr, JobStatus(id=job_id, status=failed, description=_error_msg(err)))
+            job_id = evt.data["id"]
+            publish_status(r.dapr, JobStatus(id=job_id, status=failed, description=_error_msg(e)))
         else
             showerror(stdout, e, catch_backtrace())
         end
@@ -80,8 +80,7 @@ Handle the request of getting application specification, including registered fu
 * [Success]: Jugsaw IR in the form of a JSON object.
 """
 function demos_handler(app::AppSpecification)
-    obj = JugsawIR.write_object(app)
-    return HTTP.Response(200, JSON_HEADER, JSON3.write((; app=obj, typespec=JugsawIR.TypeSpec(typeof(obj)))))
+    return HTTP.Response(200, JSON_HEADER, JSON3.write((; app, typespec=JugsawIR.TypeSpec(typeof(app)))))
 end
 
 """
