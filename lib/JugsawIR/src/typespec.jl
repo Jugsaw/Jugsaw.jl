@@ -22,7 +22,6 @@ struct TypeSpec
     fielddescriptions::Vector{String}
 end
 function TypeSpec(::Type{T}; fielddescriptions=nothing) where T
-    @info T
     structtype = String(typeof(JSON3.StructTypes.StructType(T)).name.name)
     # field names and fields
     if structtype == "NumberType"

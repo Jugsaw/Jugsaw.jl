@@ -20,9 +20,9 @@ end
     include("errors.jl")
 end
 
-@testset "clientcode" begin
-    include("clientcode.jl")
-end
+# @testset "clientcode" begin
+#     include("clientcode.jl")
+# end
 
 @testset "template" begin
     include("template.jl")

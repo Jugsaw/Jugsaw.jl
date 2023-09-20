@@ -6,6 +6,6 @@ julia = "1"
 
 [jugsaw]
 name = "Testapp"
-uuid = "4f23a161-b4d1-40d8-be5c-ddbdddc12bb7"
+uuid = "93ea2caa-0798-4ade-af54-a083b4b60fbc"
 authors = "GiggleLiu <cacate0129@gmail.com> and contributors"
 version = "1.0.0-DEV"
