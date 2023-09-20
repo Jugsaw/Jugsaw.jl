@@ -101,7 +101,7 @@ end
 
 function _new_request(context::ClientContext, ::Val{:job}, job_id::String, fcall; maxtime=10.0, created_by="jugsaw")
     # create a job
-    jobspec = (; job_id, created_at=round(Int, time()), created_by, maxtime, fcall.fname, fcall.args, fcall.kwargs)
+    jobspec = (; job_id, created_at=time(), created_by, maxtime, fcall)
     ir = JugsawIR.write_object(jobspec)
     # NOTE: UGLY!
     # create a cloud event

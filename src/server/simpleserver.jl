@@ -21,15 +21,14 @@ function job_handler(r::AppRuntime, req::HTTP.Request)
         end
         demo = r.app.method_demos[fname]
         # 2. Parse job
-        evt = CloudEvents.from_http(req.headers, req.body)
-        job = JugsawIR.read_object(evt.data,
-            Job("", 0.0, "", 0.0, demo, demo.fcall.args, demo.fcall.kwargs)
-        )
-        newkwargs = NamedTuple((isdefined(kwargs, fn) ? getfield(x, fn) : getfield(demo.fcall.kwargs, fn)) for fn in keys(job.kwargs))
+        jobT = Job{typeof(demo), typeof(demo.fcall.args), typeof(demo.fcall.kwargs)}
+        evt = CloudEvents.from_http(req.headers, req.body, jobT)
+        job = evt.data #JugsawIR.read_object(evt.data, )
+        #newkwargs = NamedTuple((isdefined(kwargs, fn) ? getfield(x, fn) : getfield(demo.fcall.kwargs, fn)) for fn in keys(job.kwargs))
+        #job = Job(job.id, job.created_at, job.created_by, job.maxtime, job.thisdemo, job.args, newkwargs)
+        @info "get job: $job"
         # 3. Submit a job
         # CloudEvent
-        job = Job(job.id, job.created_at, job.created_by, job.maxtime, job.thisdemo, job.args, newkwargs)
-        @info "get job: $job"
         submitjob!(r, job)
         return HTTP.Response(200, JSON_HEADER, JSON3.write((; job_id=job_id)))
     catch e

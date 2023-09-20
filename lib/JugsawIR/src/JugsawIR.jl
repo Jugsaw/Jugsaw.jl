@@ -22,8 +22,11 @@ include("typespec.jl")
 include("testkit.jl")
 include("typeext.jl")
 
+function read_object(obj::String, ::Type{T}) where T
+    return JSON3.read(obj, T)
+end
 function read_object(obj::String, demo)
-    return JSON3.read(obj, typeof(demo))
+    return read_object(obj, typeof(demo))
 end
 
 function write_object(io::IO, obj)

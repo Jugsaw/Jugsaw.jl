@@ -12,7 +12,7 @@ $(TYPEDEF)
 ### Fields
 $(TYPEDFIELDS)
 """
-struct Call{FT, argsT, kwargsT}
+struct Call{FT, argsT<:Tuple, kwargsT<:NamedTuple}
     fname::FT
     args::argsT
     kwargs::kwargsT

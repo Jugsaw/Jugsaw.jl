@@ -19,7 +19,7 @@ A resolved job can be queued and executed in a [`AppRuntime`](@ref).
 ### Fields
 $(TYPEDFIELDS)
 """
-struct Job
+struct Job{FT, argsT, kwargsT}
     # meta information
     id::String
     created_at::Float64
@@ -27,9 +27,7 @@ struct Job
     maxtime::Float64
 
     # payload
-    demo::JugsawDemo
-    args::Tuple
-    kwargs::NamedTuple
+    fcall::Call{FT, argsT, kwargsT}
 end
 
 """
@@ -216,7 +214,7 @@ function AppRuntime(app::AppSpecification, dapr::AbstractEventService)
     channel = Channel{Job}() do ch
         for job in ch
             try
-                res = fevalself(Call(job.demo.fcall.fname, job.args, job.kwargs))
+                res = fevalself(job.fcall)
                 save_object(dapr, job.id, res)
                 publish_status(dapr, JobStatus(id=job.id, status=succeeded))
             catch ex

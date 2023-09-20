@@ -14,3 +14,6 @@ JSON3.StructTypes.StructType(::Type{<:Call}) = JSON3.StructTypes.CustomStruct()
 JSON3.StructTypes.lower(x::Call) = (string(x.fname), x.args, x.kwargs)
 JSON3.StructTypes.lowertype(::Type{<:Call}) = Tuple{String, Tuple, NamedTuple}
 JSON3.StructTypes.construct(::Type{<:Call{FT}}, x) where FT = Call(FT.instance, x[2], x[3])
+
+# pirate for NamedTuple
+Base.@NamedTuple{}() = (;)

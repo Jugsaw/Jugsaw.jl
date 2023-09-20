@@ -42,12 +42,12 @@ end
 
     # simple call
     job_id = string(Jugsaw.uuid4())
-    demo = JugsawIR.Call(sin, (0.5,), (;))
-    adt = JugsawIR.write_object(JugsawIR.Call("sin", (0.5,), (;)))
-    obj = JugsawIR.read_object(adt, demo)
-    jobspec = Job(job_id, round(Int, time()), "jugsaw", 1.0, obj.fname, obj.args, obj.kwargs)
-    job = addjob!(r, jobspec)
-    st, res = load_object(dapr, job_id, job.demo.result; timeout=1.0)
+    fcall = JugsawIR.Call(sin, (0.5,), (;))
+    adt = JugsawIR.write_object(JugsawIR.Call(sin, (0.5,), (;)))
+    obj = JugsawIR.read_object(adt, fcall)
+    job = Job(job_id, time(), "jugsaw", 1.0, Call(sin, obj.args, obj.kwargs))
+    Jugsaw.Server.submitjob!(r, job)
+    st, res = load_object(dapr, job_id, fevalself(fcall); timeout=1.0)
     @test res ≈ sin(0.5)
     @test fetch_status(dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.succeeded
 end
@@ -66,21 +66,21 @@ end
     r = AppRuntime(app, dapr)
 
     job_id = string(Jugsaw.uuid4())
-    demo = JugsawIR.Call(buggy, (1.0,), (;))
-    adt1 = JugsawIR.write_object(JugsawIR.Call("buggy", (1.0,), (;)))
+    fcall = JugsawIR.Call(buggy, (1.0,), (;))
+    adt1 = JugsawIR.write_object(JugsawIR.Call(buggy, (1.0,), (;)))
     # normal call
-    obj = JugsawIR.read_object(adt1, demo)
-    jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, obj.fname, obj.args, obj.kwargs)
-    job = addjob!(r, jobspec)
-    st, res = load_object(dapr, job_id, job.demo.result; timeout=1.0)
+    obj = JugsawIR.read_object(adt1, fcall)
+    job = Job(job_id, time(), "jugsaw", 1.0, Call(buggy, obj.args, obj.kwargs))
+    Jugsaw.Server.submitjob!(r, job)
+    st, res = load_object(dapr, job_id, fevalself(fcall); timeout=1.0)
     @test fetch_status(dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.succeeded
     # trigger error
-    demo = JugsawIR.Call(buggy, (-1.0,), (;))
-    adt2 = JugsawIR.write_object(JugsawIR.Call("buggy", (-1.0,), (;)))
-    obj = JugsawIR.read_object(adt2, demo)
-    jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, obj.fname, obj.args, obj.kwargs)
-    job = addjob!(r, jobspec)
-    st, res = load_object(dapr, job_id, job.demo.result; timeout=1.0)
+    fcall = JugsawIR.Call(buggy, (-1.0,), (;))
+    adt2 = JugsawIR.write_object(JugsawIR.Call(buggy, (-1.0,), (;)))
+    obj = JugsawIR.read_object(adt2, fcall)
+    job = Job(job_id, time(), "jugsaw", 1.0, Call(buggy, obj.args, obj.kwargs))
+    Jugsaw.Server.submitjob!(r, job)
+    st, res = load_object(dapr, job_id, nothing; timeout=1.0)
     @test fetch_status(dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.failed
 end
 
