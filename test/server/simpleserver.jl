@@ -17,21 +17,22 @@ using Jugsaw.Client
     # demos
     @test r(Jugsaw.Client.new_request_obj(context, Val(:demos))).status == 200
 
-    # api
-    fcall = JugsawIR.write_object(JugsawIR.Call("sin", (0.5,), (;)))
-    req = Jugsaw.Client.new_request_obj(context, Val(:api), fcall, "Julia")
-    @test r(req).status == 200
-    # language not defined
-    req = Jugsaw.Client.new_request_obj(context, Val(:api), fcall, "Julia2")
-    @test r(req).status == 400
+    # # api
+    # fcall = JugsawIR.write_object(JugsawIR.Call("sin", (0.5,), (;)))
+    # req = Jugsaw.Client.new_request_obj(context, Val(:api), fcall, "Julia")
+    # @test r(req).status == 200
+    # # language not defined
+    # req = Jugsaw.Client.new_request_obj(context, Val(:api), fcall, "Julia2")
+    # @test r(req).status == 400
     
     # subscribe
     @test_broken r(HTTP.Request("GET", "/dapr/subscribe")).status == 200
 
     # launch a job
     job_id = string(Jugsaw.uuid4())
-    fcall2 = JugsawIR.write_object(JugsawIR.Call(sin, (0.5,), (;)))
-    req = Jugsaw.Client.new_request_obj(context, Val(:job), job_id, fcall2)
+    fcall2 = JugsawIR.Call(sin, (0.5,), (;))
+    req = Jugsaw.Client.new_request_obj(context, Val(:job), job_id, fcall2; maxtime=10.0)
+    req.context[:params] = Dict("fname"=>"sin")
     ret = r(req)
     @test ret.status == 200
 

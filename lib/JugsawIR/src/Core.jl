@@ -32,9 +32,9 @@ function Base.show(io::IO, f::Call)
 end
 Base.show(io::IO, ::MIME"text/plain", f::Call) = Base.show(io, f)
 
-struct JugsawDemo
-    fcall::Call
-    result
+struct JugsawDemo{CT<:Call, RT}
+    fcall::CT
+    result::RT
     meta::Dict{String, String}
 end
 Base.:(==)(d1::JugsawDemo, d2::JugsawDemo) = d1.fcall == d2.fcall && d1.result == d2.result && d1.meta == d2.meta

@@ -186,12 +186,12 @@ function save_demos(dir::String, methods::AppSpecification)
 end
 
 # load demos from the disk
-function load_demos_from_dir(dir::String, demos)
+function load_demos_from_dir(dir::String)
     sdemos = read(joinpath(dir, "demos.json"), String)
-    return load_demos(sdemos, demos)
+    return load_demos(sdemos)
 end
-function load_demos(sdemos::String, demos)
-    obj = JugsawIR.read_object(sdemos, demos)
+function load_demos(sdemos::String)
+    obj = JugsawIR.read_object(sdemos)
     return obj
 end
 

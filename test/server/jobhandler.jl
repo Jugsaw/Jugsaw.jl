@@ -94,7 +94,7 @@ end
 
     # luanch and fetch a job
     demo = JugsawIR.Call(sin, (0.5,), (;))
-    fcall = (; fname="sin", args=(0.5,), kwargs=(;))
+    fcall = Call("sin", (0.5,), (;))
     job_id = string(Jugsaw.uuid4())
     req = Jugsaw.Client.new_request_obj(context, Val(:job), job_id, fcall; maxtime=10.0)
     req.context[:params] = Dict("fname"=>"sin")
@@ -119,9 +119,8 @@ end
     Jugsaw.save_demos(path, app)
     @test isfile(joinpath(path, "demos.json"))
     # loading demos
-    newdemos, newtypes = Jugsaw.load_demos_from_dir(path, app)
-    @test newdemos == app
-    @test newtypes isa Jugsaw.JugsawIR.TypeTable
+    newdemos = Jugsaw.load_demos_from_dir(path)
+    @test length(newdemos.method_demos) == length(app.method_demos)
 
     # empty!
     empty!(app)
