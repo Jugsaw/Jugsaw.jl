@@ -6,6 +6,7 @@
 <!--<script type="text/javascript" src="https://cdn.jsdelivr.net/gh/Jugsaw/Jugsaw/src/js/jugsawirparser.js"></script>-->
 <script type="module" src="https://md-block.verou.me/md-block.js"></script>
 <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/a11y-dark.min.css">
+<link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
 <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/10.0.0/highlight.min.js"></script>
 <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/10.0.0/languages/julia.min.js"></script>
 <script type="text/x-mathjax-config">
@@ -44,11 +45,12 @@ MathJax.Hub.Config({
 
 const endpoint = new URL(window.location.href);
 const host = `${endpoint.protocol}//${endpoint.hostname}`;
-document.getElementById("input-endpoint").value = host;
 const port = endpoint.port;
+const projectname = "unspecified";
+const appname = "helloworld";
+document.getElementById("input-endpoint").value = host;
 document.getElementById("input-port").value = port;
-const app_and_method = request_app_obj(`${host}:${port}`, "unspecified", "helloworld").then(r=>r.text()).then(ir2adt);
-const app = app_and_method.then(render_app);
+const app_types = request_app_obj(`${host}:${port}`, projectname, appname).then(r=>r.json());
 
 const appbox = document.getElementById("jugsaw-demos");
 const errorbox = document.createElement('jugsaw-demos-error');
@@ -61,25 +63,26 @@ function disp_app(app){
 
     // append 
     const ul = document.createElement('div');
-    for (let i=0; i < app.function_list.length; i++){
-        const fi = app.function_list[i];
+    for (let i=0; i < app.method_names.length; i++){
+        const fi = app.method_demos[app.method_names[i]];
         const div2 = document.createElement('div');
-        div2.appendChild(create_textblock('md-block', fi.demo.docstring));
-        div2.appendChild(disp_demo(fi.function_name, fi.demo));
+        div2.appendChild(create_textblock('md-block', fi.meta.docstring));
+        div2.appendChild(disp_demo(fi));
         const details = document.createElement('details');
-        details.appendChild(create_textblock('summary', fi.function_name));
+        details.appendChild(create_textblock('summary', fi.fcall.fname));
         details.appendChild(div2);
         ul.appendChild(details);
     }
     toplevel.appendChild(ul);
     return toplevel
 }
-function disp_demo(fname, demo){
+function disp_demo(demo){
+    const fname = demo.fcall.fname
     const id = `${fname}`
 
     // render APIs
     const apis = document.createElement('div');
-    const langs = ["julia", "python", "javascript"];
+    const langs = []// ["julia", "python", "javascript"];
     for (var i=0; i<langs.length; i++){
         const details= document.createElement('details');
         const title = create_textblock('summary', langs[i]);
@@ -123,8 +126,27 @@ function disp_demo(fname, demo){
     form.setAttribute('id', `${id}-call`);
     form.appendChild(apis);
     form.appendChild(create_textblock('strong', 'Args:'));
+    const ul1 = document.createElement("ul");
+    const obj_args = [];
+    for (var i=0; i<demo.fcall.args.length; i++){
+        const desc = create_textblock("div", `#${i+1} = `)
+        const input = document.createElement("textarea")
+        ul1.appendChild(desc)
+        ul1.appendChild(input)
+        obj_args.push(input)
+    }
     form.appendChild(ul1);
+
     form.appendChild(create_textblock('strong', 'Kwargs:'));
+    const ul2 = document.createElement("ul");
+    const obj_kwargs = {};
+    for (let key in demo.fcall.kwargs){
+        const desc = create_textblock("div", `${key} = `)
+        const input = document.createElement("textarea")
+        ul2.appendChild(desc)
+        ul2.appendChild(input)
+        obj_kwargs[key] = input;
+    };
     form.appendChild(ul2);
     form.appendChild(divsub);
 
@@ -152,7 +174,7 @@ function disp_demo(fname, demo){
     const fetcherr = adderrorbox(div);
 
     // bind events
-    btn.addEventListener('click', event=>handle_fcall_form(event, fname, demo.type_args, obj_args, demo.args, demo.type_kwargs, obj_kwargs, demo.kwargs, job_id, callerr));
+    btn.addEventListener('click', event=>handle_fcall_form(event, fname, obj_args, demo.fcall.args, obj_kwargs, demo.fcall.kwargs, job_id, callerr));
     fbtn.addEventListener('click', event=>handle_fetch_form(event, job_id, demo.result, output, fetcherr));
 
     return div
@@ -193,13 +215,19 @@ function adderrorbox(parent){
     return obj
 }
 
-function handle_fcall_form(event, fname, type_args, obj_args, demo_args, type_kwargs, obj_kwargs, demo_kwargs, job_id, err){
+function handle_fcall_form(event, fname, obj_args, demo_args, obj_kwargs, demo_kwargs, job_id, err){
     event.preventDefault();
     const args = demo_args.map((darg, i)=>extract_data(obj_args[i], darg.data));
-    const kwargs = demo_kwargs.map((darg,i)=>extract_data(obj_kwargs[i], darg.data));
-    call(`${host}:${port}`, "unspecified", app.appname, fname,
-        ['untyped', ...args],
-        ['untyped', ...kwargs]).then(resp=>resp.json()).then(obj=>{
+    const kwargs = {}
+    for (let key in demo_kwargs){
+        kwarg[key] = extract_data(obj_kwargs[i], demo_kwargs[key].data)
+    }
+    call(`${host}:${port}`,
+        projectname,
+        appname,
+        fname,
+        args,
+        kwargs).then(resp=>resp.json()).then(obj=>{
             if ("error" in obj){
                 err.innerHTML = obj.error;
                 job_id.setAttribute('value', "<job id>");
@@ -211,16 +239,18 @@ function handle_fcall_form(event, fname, type_args, obj_args, demo_args, type_kw
     )
     return true
 }
+function extract_data(arg, demo){
+    return JSON.parse(arg.value)
+}
 
 function handle_fetch_form(event, job_id, output_demo, output, err){
     event.preventDefault();
     const id = job_id.value;
     const res = fetch_result(`${host}:${port}`, id).then(resp => {
         if (resp.status == 200){
-            resp.text().then(ir=>{
+            resp.json().then(json=>{
                 // create type map
-                const jsonobj = add_fieldnames(ir2adt(ir), output_demo);
-                output.replaceChildren(disp_value(jsonobj));
+                output.replaceChildren(disp_value(json));
                 err.innerHTML = "";
             })
         } else {
@@ -244,73 +274,7 @@ function add_fieldnames(value, demo){
 }
 
 function disp_value(value){
-    if (value instanceof Array){
-        const ul = document.createElement('ul');
-        for (var i=0; i<value.length; i++){
-            const li = document.createElement('li');
-            li.appendChild(disp_value(value[i]));
-            ul.appendChild(li);
-        }
-        return ul
-    } else if (value instanceof Object){
-        if (isarraytype(value.type)){
-            const [size, vec] = value.fields;
-            const ul = document.createElement('ul');
-            const li = document.createElement('li');
-            li.appendChild(create_textblock('span', `size = `));
-            li.appendChild(create_textblock('span', `[${size.join(', ')}]`));
-            const li2 = document.createElement('li');
-            const div = document.createElement('div');
-            li2.appendChild(create_textblock('span', `storage = `));
-            html_array(div, vec.map(disp_value), size);
-            li2.appendChild(div);
-            ul.appendChild(li)
-            ul.appendChild(li2)
-            return foldable(value.type, ul);
-        } else {
-            const ul = document.createElement('ul');
-            for (var i=0; i<value.fieldnames.length; i++){
-                const li = document.createElement('li');
-                li.appendChild(create_textblock('span', `${value.fieldnames[i]} = `));
-                li.appendChild(disp_value(value.fields[i]));
-                ul.appendChild(li);
-            }
-            return foldable(value.type, ul)
-        }
-    } else {
-        return document.createTextNode(JSON.stringify(value))
-    }
-}
-
-function html_array(parent, vec, size){
-    const strides = size.map((s, i)=>size.slice(0, i).reduce((acc, val) => acc * val, 1))
-    const items = vec.map((v, i)=>{
-        const div = document.createElement('div');
-        ci = cartesian_index(i, strides);
-        div.appendChild(create_textblock('span', `[${ci.join(', ')}] = `));
-        div.appendChild(v);
-        return div;
-    })
-    parent.replaceChildren(...items);
-}
-function cartesian_index(idx, strides){
-    const v = [];
-    for (var i=0; i<strides.length; i++){
-        if (i < strides.length-1){
-            v.push(Math.floor((idx % strides[i+1]) / strides[i]))
-        } else {
-            v.push(Math.floor(idx / strides[i]))
-        }
-    }
-    return v
-}
-function foldable(name, obj){
-    const div = document.createElement('div');
-    const typebegin = create_textblock('div', `${name}(`);
-    const typeend = create_textblock('div', `)`);
-    div.appendChild(typebegin);
-    div.appendChild(obj);
-    div.appendChild(typeend);
+    const div = create_textblock("div", value);
     return div
 }
 
@@ -322,7 +286,7 @@ function create_textblock(tag, text){
     return header;
 }
 
-app.then(app => appbox.appendChild(disp_app(app)));
+app_types.then(app => appbox.appendChild(disp_app(app.app)));
 </script>
 
 </body>
