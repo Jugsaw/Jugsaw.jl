@@ -23,11 +23,8 @@ function job_handler(r::AppRuntime, req::HTTP.Request)
         # 2. Parse job
         jobT = Job{typeof(demo.fcall.fname), typeof(demo.fcall.args), typeof(demo.fcall.kwargs)}
         job = CloudEvents.from_http(req.headers, req.body, jobT).data
-        #newkwargs = NamedTuple((isdefined(kwargs, fn) ? getfield(x, fn) : getfield(demo.fcall.kwargs, fn)) for fn in keys(job.kwargs))
-        #job = Job(job.id, job.created_at, job.created_by, job.maxtime, job.thisdemo, job.args, newkwargs)
         @info "get job: $job"
         # 3. Submit a job
-        # CloudEvent
         submitjob!(r, job)
         return HTTP.Response(200, JSON_HEADER, JSON3.write((; job_id=job.id)))
     catch e
@@ -61,13 +58,26 @@ function fetch_handler(r::AppRuntime, req::HTTP.Request)
     @info "fetching: $s"
     job_id = JSON3.read(s)["job_id"]
     timeout = get_timeout()
-    status, ir = load_object_as_ir(r.dapr, job_id; timeout=timeout)
-    if status != :ok
-        return _error_response(ErrorException("object not ready yet!"))
-    elseif status == :timed_out
-        return _error_response(TimedOutException(job_id, timeout))
+    code, status = fetch_status(r.dapr, job_id; timeout=timeout)
+    if code != :ok
+        return _error_response(ErrorException("can not find any information about target job: $job_id"))
+    end
+    # starting processing pending succeeded failed canceled
+    if status.status == succeeded
+        st, ir = load_object_as_ir(r.dapr, job_id; timeout=timeout)
+        if st != :ok
+            return _error_response(ErrorException("object not ready yet!"))
+        elseif st == :timed_out
+            return _error_response(TimedOutException(job_id, timeout))
+        else
+            return HTTP.Response(200, JSON_HEADER, ir)
+        end
+    elseif status.status == failed
+        return _error_response(ErrorException("an error occured! status: $(status)"))
+    elseif status.status == canceled
+        return _error_response(ErrorException("job has been canceled! status: $(status)"))
     else
-        return HTTP.Response(200, JSON_HEADER, ir)
+        return _error_response(ErrorException("job not ready yet! status: $(status)"))
     end
 end
 

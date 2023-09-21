@@ -7,7 +7,7 @@ import CloudEvents
 import Revise
 import DaprClients
 import UUIDs
-import ..AppSpecification, ..NoDemoException, ..generate_code, .._error_msg, ..TimedOutException, ..GLOBAL_CONFIG
+import ..AppSpecification, ..NoDemoException, .._error_msg, ..TimedOutException, ..GLOBAL_CONFIG
 
 export Job, JobStatus
 export AbstractEventService, DaprService, FileEventService, InMemoryEventService, publish_status, fetch_status, save_object, load_object, load_object_as_ir, get_timeout

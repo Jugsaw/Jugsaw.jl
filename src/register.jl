@@ -97,7 +97,7 @@ Otherwise, both the top level function call and those appear in the input argume
 
 Registered functions are stored in `Jugsaw.APP`.
 """
-macro register(appname::Symbol, ex)
+macro register(appname::Symbol, ex, check_validity = true)
     app = APP
     if app.name == :__unspecified__
         app.name = appname
@@ -107,39 +107,54 @@ macro register(appname::Symbol, ex)
         app.name = appname
     end
     reg_statements = []
-    register_by_expr(app, ex, reg_statements)
+    register_by_expr(app, ex, reg_statements, check_validity)
     return esc(:($(reg_statements...); $app))
 end
 
-function register_by_expr(app, ex, exs)
+function register_by_expr(app, ex, exs, check_validity::Bool)
     @match ex begin
         :($a == $b) => begin
-            ra = register_by_expr(app, a, exs)
-            rb = register_by_expr(app, b, exs)
+            ra = register_by_expr(app, a, exs, check_validity)
+            rb = register_by_expr(app, b, exs, check_validity)
             :(@assert $ra == $b)
         end
         :($a::$T) => begin
-            ra = register_by_expr(app, a, exs)
+            ra = register_by_expr(app, a, exs, check_validity)
             :(@assert $ra isa $T)  # return value is stored at the end!
         end
         :($fname($(args...); $(kwargs...))) => begin
             ret = gensym("ret")
             push!(exs, :($ret = $register!($app, $fname, ($(render_args.(Ref(app), args, Ref(exs))...),),
                 (; $(render_kwargs.(Ref(app), kwargs, Ref(exs))...)))))
+            if check_validity
+                testexpr = :(for arg in [$(args...), $([ex.args[2] for ex in kwargs]...)]
+                    try
+                        @assert $JugsawIR.test_twoway(arg, arg)
+                    catch e
+                        error("the argument `$(repr(arg))` does not pass the test!")
+                    end
+                end)
+                push!(exs, testexpr)
+            end
             ret
         end
         :($fname($(args...))) => begin
-            if fname in [:(==), :(≈)]
-                # these are for tests
-                :(@assert $fname($(render_args.(Ref(app), args, Ref(exs))...)))
-            else
-                ret = gensym("ret")
-                push!(exs, :($ret = $register!($app, $fname, ($(render_args.(Ref(app), args, Ref(exs))...),), NamedTuple())))
-                ret
+            ret = gensym("ret")
+            push!(exs, :($ret = $register!($app, $fname, ($(render_args.(Ref(app), args, Ref(exs))...),), NamedTuple())))
+            if check_validity
+                testexpr = :(for arg in [$(args...)]
+                    try
+                        @assert $JugsawIR.test_twoway(arg, arg)
+                    catch e
+                        error("the argument `$(repr(arg))` does not pass the test!")
+                    end
+                end)
+                push!(exs, testexpr)
             end
+            ret
         end
         :(begin $(body...) end) => begin
-            register_by_expr.(Ref(app), body, Ref(exs))
+            register_by_expr.(Ref(app), body, Ref(exs), check_validity)
         end 
         ::LineNumberNode => nothing
         _ => (@debug("not handled expression: $(repr(ex))"); ex)

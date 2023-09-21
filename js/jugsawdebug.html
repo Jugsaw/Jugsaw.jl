@@ -112,14 +112,16 @@ function disp_demo(demo){
         apis.appendChild(details);
     }
 
-    // render result
-    const divr = document.createElement('div');
-    divr.appendChild(disp_value(demo.result));
+    // submit button
     const divsub = document.createElement('div');
-    divsub.appendChild(create_textblock('strong', 'Expected Result:'));
-    divsub.appendChild(divr)
     const btn = create_textblock('button', 'submit');
     divsub.appendChild(btn);
+
+    // expected output
+    const divr = document.createElement('div');
+    divr.appendChild(create_textblock('strong', 'Expected Result:'));
+    divr.appendChild(disp_value(demo.result));
+    divsub.appendChild(divr)
 
     // form for launching a function call
     const form = document.createElement('form')
@@ -129,10 +131,7 @@ function disp_demo(demo){
     const ul1 = document.createElement("ul");
     const obj_args = [];
     for (var i=0; i<demo.fcall.args.length; i++){
-        const desc = create_textblock("div", `#${i+1} = `)
-        const input = document.createElement("textarea")
-        ul1.appendChild(desc)
-        ul1.appendChild(input)
+        input = appendInputbox(`#${i+1} = `, JSON.stringify(demo.fcall.args[i]), ul1)
         obj_args.push(input)
     }
     form.appendChild(ul1);
@@ -141,10 +140,7 @@ function disp_demo(demo){
     const ul2 = document.createElement("ul");
     const obj_kwargs = {};
     for (let key in demo.fcall.kwargs){
-        const desc = create_textblock("div", `${key} = `)
-        const input = document.createElement("textarea")
-        ul2.appendChild(desc)
-        ul2.appendChild(input)
+        input = appendInputbox(`${key} = `, JSON.stringify(demo.fcall.kwargs[key]), ul2)
         obj_kwargs[key] = input;
     };
     form.appendChild(ul2);
@@ -178,6 +174,15 @@ function disp_demo(demo){
     fbtn.addEventListener('click', event=>handle_fetch_form(event, job_id, demo.result, output, fetcherr));
 
     return div
+}
+
+function appendInputbox(label, value, parent){
+    const desc = create_textblock("div", label)
+    const input = document.createElement("textarea")
+    parent.appendChild(desc)
+    parent.appendChild(input)
+    input.value = value
+    return input
 }
 
 async function copytext(text, block) {
@@ -230,10 +235,11 @@ function handle_fcall_form(event, fname, obj_args, demo_args, obj_kwargs, demo_k
         kwargs).then(resp=>resp.json()).then(obj=>{
             if ("error" in obj){
                 err.innerHTML = obj.error;
-                job_id.setAttribute('value', "<job id>");
+                job_id.value = "<job id>";
             } else {
                 err.innerHTML = "";
-                job_id.setAttribute('value', obj.job_id);
+                console.log(obj);
+                job_id.value = obj.job_id;
             }
         }
     )
@@ -274,7 +280,7 @@ function add_fieldnames(value, demo){
 }
 
 function disp_value(value){
-    const div = create_textblock("div", value);
+    const div = create_textblock("div", JSON.stringify(value));
     return div
 }
 
