@@ -14,35 +14,12 @@ end
 """
 $(TYPEDEF)
 
-A job with function payload specified as a [`JugsawExpr`](@ref).
-
-### Fields
-$(TYPEDFIELDS)
-
-Here `id` is the job id that used to store and fetch computed results.
-"""
-struct JobSpec
-    # meta information
-    id::String
-    created_at::Float64
-    created_by::String
-    maxtime::Float64
-
-    # payload
-    fname::String
-    args::JugsawExpr
-    kwargs::JugsawExpr
-end
-
-"""
-$(TYPEDEF)
-
 A resolved job can be queued and executed in a [`AppRuntime`](@ref).
 
 ### Fields
 $(TYPEDFIELDS)
 """
-struct Job
+struct Job{FT, argsT, kwargsT}
     # meta information
     id::String
     created_at::Float64
@@ -50,9 +27,7 @@ struct Job
     maxtime::Float64
 
     # payload
-    demo::JugsawDemo
-    args::Tuple
-    kwargs::NamedTuple
+    fcall::Call{FT, argsT, kwargsT}
 end
 
 """
@@ -75,7 +50,6 @@ end
 
 The abstract type for event service. Its concrete subtypes include
 * [`DaprService`](@ref)
-* [`FileEventService`](@ref)
 * [`InMemoryEventService`](@ref)
 
 ### Required Interfaces
@@ -107,7 +81,7 @@ The keyword argument `timeout` is should be greater than the expected job run ti
 function load_object(dapr::AbstractEventService, job_id::AbstractString, resdemo; timeout::Real)
     status, obj = load_object_as_ir(dapr, job_id; timeout)
     if status == :ok
-        return status, ir2julia(obj, resdemo)
+        return status, JugsawIR.read_object(obj, resdemo)
     else
         return status, nothing
     end
@@ -159,91 +133,6 @@ function save_object(dapr::DaprService, job_id::AbstractString, res)
 end
 function load_object_as_ir(dapr::DaprService, job_id::AbstractString; timeout::Real)
     error("Not implemented")
-end
-
-############# The mock event service for printing job status and saving results
-"""
-    FileEventService <: AbstractEventService
-
-Mocked event service for storing and fetching events and results from the local file system.
-Please check [`AbstractEventService`](@ref) for implemented interfaces.
-"""
-struct FileEventService <: AbstractEventService
-    print_event::Bool
-    save_dir::String
-    timeout::Float64
-    query_interval::Float64
-end
-function FileEventService(save_dir::String; print_event::Bool=true, timeout=1.0, query_interval=0.1)
-    return FileEventService(print_event, save_dir, timeout, query_interval)
-end
-# update job status to Dapr
-function publish_status(dapr::FileEventService, job_status::JobStatus)
-    dapr.print_event && @info "[PUBLISH STATUS] $job_status"
-    # log into file
-    dir = joinpath(dapr.save_dir, job_status.id)
-    mkpath(dir)
-    filename = joinpath(dir, "status.log")
-    if isfile(filename)
-        open(filename, "a") do f
-            write(f, "\n")
-            JSON3.write(f, job_status)
-        end
-    else
-        open(filename, "w") do f
-            JSON3.write(f, job_status)
-        end
-    end
-    return nothing
-end
-function fetch_status(dapr::FileEventService, job_id::String; timeout::Real=get_timeout())
-    dapr.print_event && @info "[FETCH STATUS] $job_id"
-    filename = joinpath(dapr.save_dir, job_id, "status.log")
-
-    # load last line
-    s = Ref{JobStatus}()
-    status = timedwait(timeout; pollint=get_query_interval()) do
-        if isfile(filename)
-            s[] = JSON3.read(last(eachline(filename)), JobStatus)
-            return true
-        end
-        return false
-    end
-
-    if status == :ok
-        return status, s[]
-    else
-        return status, nothing
-    end
-end
-function save_object(dapr::FileEventService, job_id::AbstractString, res)
-    key = "JUGSAW-JOB-RESULT:$(job_id)"
-    dapr.print_event && @info "[$key] $res"
-    # save to file
-    ir, tt = julia2ir(res)
-    dir = joinpath(dapr.save_dir, job_id)
-    mkpath(dir)
-    open(joinpath(dir, "result.jug"), "w") do f
-        write(f, ir)
-    end
-    return nothing
-end
-function load_object_as_ir(dapr::FileEventService, job_id::AbstractString; timeout::Real)
-    key = "JUGSAW-JOB-RESULT:$(job_id)"
-    dapr.print_event && @info "Fetching [$key]"
-    filename = joinpath(dapr.save_dir, job_id, "result.jug")
-
-    s = Ref("")
-    status = timedwait(timeout; pollint=get_query_interval()) do
-        if isfile(filename)
-            s[] = open(filename, "r") do f
-                read(f, String)
-            end
-            return true
-        end
-        return false
-    end
-    return status, s[]
 end
 
 """
@@ -301,7 +190,7 @@ function load_object(dapr::InMemoryEventService, job_id::AbstractString, resdemo
 end
 function load_object_as_ir(dapr::InMemoryEventService, job_id::AbstractString; timeout::Real)
     status, obj = load_object(dapr, job_id, nothing; timeout)
-    return status, julia2ir(obj)[1]
+    return status, JugsawIR.write_object(obj)
 end
 
 ########################## Application Runtime
@@ -325,7 +214,7 @@ function AppRuntime(app::AppSpecification, dapr::AbstractEventService)
     channel = Channel{Job}() do ch
         for job in ch
             try
-                res = fevalself(Call(job.demo.fcall.fname, job.args, job.kwargs))
+                res = fevalself(job.fcall)
                 save_object(dapr, job.id, res)
                 publish_status(dapr, JobStatus(id=job.id, status=succeeded))
             catch ex
@@ -339,29 +228,9 @@ function AppRuntime(app::AppSpecification, dapr::AbstractEventService)
     return AppRuntime(app, dapr, channel)
 end
 
-function addjob!(r::AppRuntime, jobspec::JobSpec)
-    # Find the demo and parse the arguments
-    created_at, created_by, maxtime, fname, args, kwargs = jobspec.created_at, jobspec.created_by, jobspec.maxtime, jobspec.fname, jobspec.args, jobspec.kwargs
-    # match demo or throw
-    if !haskey(r.app.method_demos, fname)
-        err = NoDemoException(fname, r.app)
-        publish_status(r.dapr, JobStatus(id=jobspec.id, status=failed, description=_error_msg(err)))
-        throw(err)
-    end
-
-    thisdemo = r.app.method_demos[fname]
-    # IF tree is a function call, return an `object_id` for return value.
-    #     recurse over args and kwargs to get `Call` parsed.
-    args_fields = JugsawIR.unpack_fields(args)
-    newargs = ntuple(i->renderobj!(r, created_at, created_by, maxtime, args_fields[i], thisdemo.fcall.args[i]), length(args_fields))
-    kwargs_fields = JugsawIR.unpack_fields(kwargs)
-    newkwargs = typeof(thisdemo.fcall.kwargs)(ntuple(i->renderobj!(r, created_at, created_by, maxtime, kwargs_fields[i], thisdemo.fcall.kwargs[i]), length(kwargs_fields)))
-
-    # add task to the queue
-    job = Job(jobspec.id, created_at, created_by, maxtime, thisdemo, newargs, newkwargs)
+# submit a job to the channel
+function submitjob!(r::AppRuntime, job::Job)
     @info "adding job to the queue: $job"
-
-    # submit job
     res = timedwait(get_timeout()) do
         put!(r.channel, job)
         publish_status(r.dapr, JobStatus(id=job.id, status=processing))
@@ -371,18 +240,6 @@ function addjob!(r::AppRuntime, jobspec::JobSpec)
         publish_status(r.dapr, JobStatus(id=job.id, status=pending, description="Failed to submit job after $maxtime seconds."))
     end
     return job
-end
-
-# if adt is a function call, launch a job and return an object getter, else, return an object.
-function renderobj!(r::AppRuntime, created_at, created_by, maxtime, adt, thisdemo)
-    if adt isa JugsawExpr && adt.head == :call
-        object_id = string(UUIDs.uuid4())
-        addjob!(r, JobSpec(object_id, created_at, created_by, maxtime, adt.args...))
-        # Return an object getter, which is a `Call` instance that fetches objects from the event service.
-        return object_getter(r.dapr, object_id, thisdemo; timeout=get_timeout()+maxtime)
-    else
-        return JugsawIR.adt2julia(adt, thisdemo)
-    end
 end
 
 # an object getter to load return values of a function call from the state store

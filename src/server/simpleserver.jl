@@ -4,26 +4,37 @@ $TYPEDSIGNATURES
 Handle the request of function call and returns a response with job id.
 
 ### Request
-A Jugsaw IR that corresponds to a [`JobSpec`](@ref) instance.
+A JSON payload that specifies the function call as `{"id" : ..., "created_at" : ..., "created_by" : ..., "maxtime" : ..., "fname" : ..., "args" : ..., "kwargs" : ...}`.
 
 ### Response
 * [Success]: a JSON object `{"job_id" : ...}`.
 * [NoDemoException]: a JSON object `{"error" : ...}`.
 """
 function job_handler(r::AppRuntime, req::HTTP.Request)
-    # top level must be a function call
-    # add jobs recursively to the queue
+    params = HTTP.getparams(req)
+    fname = params["fname"]
     try
-        evt = CloudEvents.from_http(req.headers, req.body)
-        # CloudEvent
-        jobadt = JugsawIR.ir2adt(String(evt.data))
-        job_id, created_at, created_by, maxtime, fname, args, kwargs = JugsawIR.unpack_fields(jobadt)
-        jobspec = JobSpec(job_id, created_at, created_by, maxtime, fname, args, kwargs)
-        @info "get job: $jobspec"
-        addjob!(r, jobspec)
-        return HTTP.Response(200, JSON_HEADER, JSON3.write((; job_id=job_id)))
+        # 1. Find the demo
+        if !haskey(r.app.method_demos, fname)
+            err = NoDemoException(fname, r.app)
+            throw(err)
+        end
+        demo = r.app.method_demos[fname]
+        # 2. Parse job
+        jobT = Job{typeof(demo.fcall.fname), typeof(demo.fcall.args), typeof(demo.fcall.kwargs)}
+        job = CloudEvents.from_http(req.headers, req.body, jobT).data
+        @info "get job: $job"
+        # 3. Submit a job
+        submitjob!(r, job)
+        return HTTP.Response(200, JSON_HEADER, JSON3.write((; job_id=job.id)))
     catch e
-        showerror(stdout, e, catch_backtrace())
+        if e isa NoDemoException
+            evt = CloudEvents.from_http(req.headers, req.body)
+            job_id = evt.data["id"]
+            publish_status(r.dapr, JobStatus(id=job_id, status=failed, description=_error_msg(e)))
+        else
+            showerror(stdout, e, catch_backtrace())
+        end
         return _error_response(e)
     end
 end
@@ -47,13 +58,26 @@ function fetch_handler(r::AppRuntime, req::HTTP.Request)
     @info "fetching: $s"
     job_id = JSON3.read(s)["job_id"]
     timeout = get_timeout()
-    status, ir = load_object_as_ir(r.dapr, job_id; timeout=timeout)
-    if status != :ok
-        return _error_response(ErrorException("object not ready yet!"))
-    elseif status == :timed_out
-        return _error_response(TimedOutException(job_id, timeout))
+    code, status = fetch_status(r.dapr, job_id; timeout=timeout)
+    if code != :ok
+        return _error_response(ErrorException("can not find any information about target job: $job_id"))
+    end
+    # starting processing pending succeeded failed canceled
+    if status.status == succeeded
+        st, ir = load_object_as_ir(r.dapr, job_id; timeout=timeout)
+        if st != :ok
+            return _error_response(ErrorException("object not ready yet!"))
+        elseif st == :timed_out
+            return _error_response(TimedOutException(job_id, timeout))
+        else
+            return HTTP.Response(200, JSON_HEADER, ir)
+        end
+    elseif status.status == failed
+        return _error_response(ErrorException("an error occured! status: $(status)"))
+    elseif status.status == canceled
+        return _error_response(ErrorException("job has been canceled! status: $(status)"))
     else
-        return HTTP.Response(200, JSON_HEADER, ir)
+        return _error_response(ErrorException("job not ready yet! status: $(status)"))
     end
 end
 
@@ -66,40 +90,7 @@ Handle the request of getting application specification, including registered fu
 * [Success]: Jugsaw IR in the form of a JSON object.
 """
 function demos_handler(app::AppSpecification)
-    (demos, types) = JugsawIR.julia2ir(app)
-    ir = "['list', $demos, $types]"
-    return HTTP.Response(200, JSON_HEADER, ir)
-end
-
-"""
-$TYPEDSIGNATURES
-
-Handle the request of generating the API for calling from a specific client language.
-
-### Response
-* [Success]: a JSON object with requested API code `{"code" : ...}`.
-* [NoDemoException]: a JSON object `{"error" : ...}`.
-* [ErrorException]: a JSON object `{"error" : ...}`.
-"""
-function code_handler(req::HTTP.Request, app::AppSpecification)
-    # get language
-    params = HTTP.getparams(req)
-    lang = params["lang"]
-    # get request
-    adt = JugsawIR.ir2adt(String(req.body))
-    endpoint, fcall = JugsawIR.unpack_fields(adt)
-    fname, args, kwargs = JugsawIR.unpack_call(fcall)
-    if !haskey(app.method_demos, fname)
-        return _error_response(NoDemoException(fcall, app))
-    else
-        try
-            adt, type_table = JugsawIR.julia2adt(app)
-            code = generate_code(lang, endpoint, app.name, fname, fcall, type_table)
-            return HTTP.Response(200, JSON_HEADER, JSON3.write((; code=code)))
-        catch e
-            return _error_response(e)
-        end
-    end
+    return HTTP.Response(200, JSON_HEADER, JSON3.write((; app, typespec=JugsawIR.TypeSpec(typeof(app)))))
 end
 
 struct RemoteRoute end
@@ -119,8 +110,6 @@ function get_router(::LocalRoute, runtime::AppRuntime)
     HTTP.register!(r, "POST", "/events/jobs", req->job_handler(runtime, req))
     HTTP.register!(r, "POST", "/events/jobs/fetch", req -> fetch_handler(runtime, req))
     HTTP.register!(r, "GET", "/demos", _ -> demos_handler(runtime.app))
-    # TODO: we need context about endpoint here!
-    HTTP.register!(r, "GET", "/api/{lang}", req -> code_handler(req, runtime.app))
     # TODO: complete subscribe
     HTTP.register!(r, "GET", "/dapr/subscribe",
         _ -> JSON3.write([(pubsubname="jobs", topic="$(runtime.app.created_by).$(runtime.app.name).$(rumtime.app.ver)", route="/events/jobs")])
@@ -150,18 +139,10 @@ function get_router(::RemoteRoute, runtime::AppRuntime)
     HTTP.register!(r, "GET", "/v1/proj/{project}/app/{appname}/ver/{version}/func",
         req -> demos_handler(runtime.app)
     )
-    # api
-    HTTP.register!(r, "GET", "/v1/proj/{project}/app/{appname}/ver/{version}/func/{fname}/api/{lang}",
-        req -> code_handler(req, runtime.app)
-    )
     # healthz
     HTTP.register!(r, "GET", "/v1/proj/{project}/app/{appname}/ver/{version}/healthz",
         req -> JSON3.write((; status="OK"))
     )
-    # subscribe
-    # HTTP.register!(r, "GET", "/dapr/subscribe",
-    #      req-> JSON3.write([(pubsubname="jobs", topic="$(runtime.app.created_by).$(runtime.app.name).$(rumtime.app.ver)", route="/events/jobs")])
-    # )
     return r
 end
 

@@ -74,7 +74,7 @@ $(TYPEDFIELDS)
 struct App
     name::Symbol
     method_demos::OrderedDict{Symbol, Demo}
-    type_table::TypeTable
+    type_table
     context::ClientContext
 end
 function Base.getproperty(app::App, fname::Symbol)
@@ -97,15 +97,3 @@ end
 # for printing docstring
 Base.Docs.Binding(app::App, sym::Symbol) = getproperty(app, sym)
 test_demo(app::App) = all(name->test_demo(getproperty(app, name)), propertynames(app))
-
-##### Utilities
-function makedict(adt::JugsawExpr)
-    typename, fields = unpack_object(adt)
-    pairs = unpack_list(fields[1])
-    return Dict([pair.args[2]=>pair.args[3] for pair in pairs])
-end
-function makeordereddict(adt::JugsawExpr)
-    typename, fields = unpack_object(adt)
-    pairs = unpack_list(fields[1])
-    return OrderedDict([pair.args[2]=>pair.args[3] for pair in pairs])
-end

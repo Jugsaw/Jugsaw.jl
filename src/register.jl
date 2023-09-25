@@ -56,30 +56,22 @@ end
 function register!(app::AppSpecification, f, args::Tuple, kwargs::NamedTuple, endpoint = get_endpoint())
     #f = protect_type(_f)
     jf = Call(f, args, kwargs)
-    adt, type_table = JugsawIR.julia2adt(jf)
     fname = safe_f2str(f)
     result = f(args...; kwargs...)
     # if the function is not yet registered, add a new method
     if !haskey(app.method_demos, fname)
         push!(app.method_names, fname)
         # create a new demo
-        doc = string(Base.Docs.doc(Base.Docs.Binding(module_and_symbol(f)...)))
         app.method_demos[fname] = JugsawDemo(jf, result,
             Dict{String,String}(
-                "docstring"=>doc,
-                "api_julialang"=>generate_code("Julia", endpoint, app.name, fname, adt, type_table),
-                "api_python"=>generate_code("Python", endpoint, app.name, fname, adt, type_table),
-                "api_javascript"=>generate_code("Javascript", endpoint, app.name, fname, adt, type_table)
+                "docstring"=>JugsawIR.description(f)
             ))
     else
         @warn "Repeated registration of function will be ignored: $fname"
     end
     return result
 end
-module_and_symbol(f::DataType) = f.name.module, f.name.name
-module_and_symbol(f::Function) = typeof(f).name.module, Symbol(f)
-module_and_symbol(f::UnionAll) = module_and_symbol(f.body)
-module_and_symbol(::Type{T}) where T = module_and_symbol(T)
+
 function safe_f2str(f)
     sf = string(f)
     '.' ∈ sf && throw("function must be imported to the `Main` module before it can be exposed!")
@@ -105,7 +97,7 @@ Otherwise, both the top level function call and those appear in the input argume
 
 Registered functions are stored in `Jugsaw.APP`.
 """
-macro register(appname::Symbol, ex)
+macro register(appname::Symbol, ex, check_validity = true)
     app = APP
     if app.name == :__unspecified__
         app.name = appname
@@ -115,39 +107,54 @@ macro register(appname::Symbol, ex)
         app.name = appname
     end
     reg_statements = []
-    register_by_expr(app, ex, reg_statements)
+    register_by_expr(app, ex, reg_statements, check_validity)
     return esc(:($(reg_statements...); $app))
 end
 
-function register_by_expr(app, ex, exs)
+function register_by_expr(app, ex, exs, check_validity::Bool)
     @match ex begin
         :($a == $b) => begin
-            ra = register_by_expr(app, a, exs)
-            rb = register_by_expr(app, b, exs)
+            ra = register_by_expr(app, a, exs, check_validity)
+            rb = register_by_expr(app, b, exs, check_validity)
             :(@assert $ra == $b)
         end
         :($a::$T) => begin
-            ra = register_by_expr(app, a, exs)
+            ra = register_by_expr(app, a, exs, check_validity)
             :(@assert $ra isa $T)  # return value is stored at the end!
         end
         :($fname($(args...); $(kwargs...))) => begin
             ret = gensym("ret")
             push!(exs, :($ret = $register!($app, $fname, ($(render_args.(Ref(app), args, Ref(exs))...),),
                 (; $(render_kwargs.(Ref(app), kwargs, Ref(exs))...)))))
+            if check_validity
+                testexpr = :(for arg in [$(args...), $([ex.args[2] for ex in kwargs]...)]
+                    try
+                        @assert $JugsawIR.test_twoway(arg, arg)
+                    catch e
+                        error("the argument `$(repr(arg))` does not pass the test!")
+                    end
+                end)
+                push!(exs, testexpr)
+            end
             ret
         end
         :($fname($(args...))) => begin
-            if fname in [:(==), :(≈)]
-                # these are for tests
-                :(@assert $fname($(render_args.(Ref(app), args, Ref(exs))...)))
-            else
-                ret = gensym("ret")
-                push!(exs, :($ret = $register!($app, $fname, ($(render_args.(Ref(app), args, Ref(exs))...),), NamedTuple())))
-                ret
+            ret = gensym("ret")
+            push!(exs, :($ret = $register!($app, $fname, ($(render_args.(Ref(app), args, Ref(exs))...),), NamedTuple())))
+            if check_validity
+                testexpr = :(for arg in [$(args...)]
+                    try
+                        @assert $JugsawIR.test_twoway(arg, arg)
+                    catch e
+                        error("the argument `$(repr(arg))` does not pass the test!")
+                    end
+                end)
+                push!(exs, testexpr)
             end
+            ret
         end
         :(begin $(body...) end) => begin
-            register_by_expr.(Ref(app), body, Ref(exs))
+            register_by_expr.(Ref(app), body, Ref(exs), check_validity)
         end 
         ::LineNumberNode => nothing
         _ => (@debug("not handled expression: $(repr(ex))"); ex)
@@ -185,22 +192,25 @@ end
 # save demos to the disk
 function save_demos(dir::String, methods::AppSpecification)
     mkpath(dir)
-    demos, types = JugsawIR.julia2ir(methods)
+    typespec = Dict{String,TypeSpec}()
+    for (fname, demo) in methods.method_demos
+        typespec[fname] = JugsawIR.TypeSpec(typeof(demo))
+    end
+    demos = JugsawIR.write_object((; app=methods, typespec))
     fdemos = joinpath(dir, "demos.json")
     @info "dumping demos to: $fdemos"
     open(fdemos, "w") do f
-        write(f, "['list', $demos, $types]")
+        write(f, demos)
     end
 end
 
 # load demos from the disk
-function load_demos_from_dir(dir::String, demos)
+function load_demos_from_dir(dir::String)
     sdemos = read(joinpath(dir, "demos.json"), String)
-    return load_demos(sdemos, demos)
+    return load_demos(sdemos)
 end
-function load_demos(sdemos::String, demos)
-    adt = JugsawIR.ir2adt(sdemos)
-    appadt, typesadt = unpack_list(adt)
-    return JugsawIR.adt2julia(appadt, demos), JugsawIR.adt2julia(typesadt, JugsawIR.demoof(JugsawIR.TypeTable))
+function load_demos(sdemos::String)
+    obj = JugsawIR.read_object(sdemos)
+    return obj
 end
 

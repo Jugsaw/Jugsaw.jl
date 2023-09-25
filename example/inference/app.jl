@@ -1,6 +1,6 @@
 # Please check Jugsaw documentation: TBD
 using Jugsaw
-using TensorInference: TensorNetworkModel, MMAPModel, TreeSA, read_instance_from_string, set_evidence!, set_query!
+using TensorInference: TensorNetworkModel, MMAPModel, TreeSA, read_model_from_string
 import TensorInference
 
 """
@@ -14,10 +14,9 @@ Compute the probability.
 * `optimize_level` is an integer to specify the level of effort to optimize the tensor network contraction order.
 """
 function probability(uai::String; evidence::Dict, optimize_level::Int)
-    instance = read_instance_from_string(uai)
-    set_evidence!(instance, evidence...)
+    instance = read_model_from_string(uai)
     optimizer = TreeSA(ntrials=2, niters=optimize_level, βs=0.1:0.1:100)
-    tn = TensorNetworkModel(instance; optimizer)
+    tn = TensorNetworkModel(instance; optimizer, evidence)
     return TensorInference.probability(tn)[]
 end
 
@@ -32,10 +31,9 @@ Compute the marginal probabilities for each variable.
 * `optimize_level` is an integer to specify the level of effort to optimize the tensor network contraction order.
 """
 function marginals(uai::String; evidence::Dict, optimize_level::Int)
-    instance = read_instance_from_string(uai)
-    set_evidence!(instance, evidence...)
+    instance = read_model_from_string(uai)
     optimizer = TreeSA(ntrials=2, niters=optimize_level, βs=0.1:0.1:100)
-    tn = TensorNetworkModel(instance; optimizer)
+    tn = TensorNetworkModel(instance; optimizer, evidence)
     return TensorInference.marginals(tn)
 end
 
@@ -51,11 +49,9 @@ Find the most probable configuration and its probability.
 * `optimize_level` is an integer to specify the level of effort to optimize the tensor network contraction order.
 """
 function most_probable_config(uai; evidence::Dict, queryvars, optimize_level::Int)
-    instance = read_instance_from_string(uai)
-    set_evidence!(instance, evidence...)
-    set_query!(instance, queryvars)
+    instance = read_model_from_string(uai)
     optimizer = TreeSA(ntrials=2, niters=optimize_level, βs=0.1:0.1:100)
-    tn = MMAPModel(instance; optimizer)
+    tn = MMAPModel(instance; optimizer, evidence, queryvars)
     logp, solution = TensorInference.most_probable_config(tn)
     return (; probability=exp(logp), configuration=solution)
 end
@@ -72,10 +68,9 @@ Sample from the probability model.
 * `optimize_level` is an integer to specify the level of effort to optimize the tensor network contraction order.
 """
 function sample(uai::String; evidence::Dict, num_sample, optimize_level::Int)
-    instance = read_instance_from_string(uai)
-    set_evidence!(instance, evidence...)
+    instance = read_model_from_string(uai)
     optimizer = TreeSA(ntrials=2, niters=optimize_level, βs=0.1:0.1:100)
-    tnet = TensorNetworkModel(instance; optimizer)
+    tnet = TensorNetworkModel(instance; optimizer, evidence)
     return TensorInference.sample(tnet, num_sample)
 end
 

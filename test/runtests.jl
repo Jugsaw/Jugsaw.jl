@@ -1,11 +1,11 @@
 using Jugsaw, Test
 
-@testset "register" begin
-    include("register.jl")
+@testset "config" begin
+    include("config.jl")
 end
 
-@testset "typeuniverse" begin
-    include("typeuniverse.jl")
+@testset "register" begin
+    include("register.jl")
 end
 
 @testset "server" begin
@@ -20,14 +20,6 @@ end
     include("errors.jl")
 end
 
-@testset "clientcode" begin
-    include("clientcode.jl")
-end
-
 @testset "template" begin
     include("template.jl")
 end
-
-# @testset "checkapp" begin
-#     include("checkapp.jl")
-# end
