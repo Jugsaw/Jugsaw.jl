@@ -1,6 +1,6 @@
 function test_twoway(obj, demo=obj)
-    adt, typeadt = julia2adt(obj)
-    res = adt2julia(adt, demo)
+    ir = write_object(obj)
+    res = read_object(ir, typeof(demo))
     return isthesame(obj, res)
 end
 

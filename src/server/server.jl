@@ -7,9 +7,9 @@ import CloudEvents
 import Revise
 import DaprClients
 import UUIDs
-import ..AppSpecification, ..NoDemoException, ..generate_code, .._error_msg, ..TimedOutException
+import ..AppSpecification, ..NoDemoException, .._error_msg, ..TimedOutException, ..GLOBAL_CONFIG
 
-export Job, JobStatus, JobSpec
+export Job, JobStatus
 export AbstractEventService, DaprService, FileEventService, InMemoryEventService, publish_status, fetch_status, save_object, load_object, load_object_as_ir, get_timeout
 export AppRuntime, addjob!
 export demos_handler, code_handler, fetch_handler, job_handler
@@ -18,29 +18,23 @@ include("jobhandler.jl")
 include("simpleserver.jl")
 include("liveserver.jl")
 
-const GLOBAL_CONFIG = Dict{String, Any}(
-    "network-timeout" => 15.0,
-    "query-interval" => 0.1,
-    "jugsaw-server" => get(ENV, "JUGSAW_SERVER", "LOCAL"),
-)
-
 # Return true if the service is running on a local machine.
 # When running in a docker image, the "JUGSAW_SERVER" environment variable should be "DOCKER".
-running_locally() = get(GLOBAL_CONFIG, "jugsaw-server", "LOCAL") == "LOCAL"
+running_locally() = GLOBAL_CONFIG["jugsaw-server"] == "LOCAL"
 
 """
 $(TYPEDSIGNATURES)
 
 Returns the network timeout of the event service access in seconds.
 """
-get_timeout() = get(GLOBAL_CONFIG, "network-timeout", 15.0)
+get_timeout() = GLOBAL_CONFIG["network-timeout"]
 
 """
 $(TYPEDSIGNATURES)
 
 Returns the query time interval of the event service in seconds.
 """
-get_query_interval() = get(GLOBAL_CONFIG, "query-interval", 0.1)
+get_query_interval() = GLOBAL_CONFIG["query-interval"]
 
 """
 $(TYPEDSIGNATURES)
@@ -71,7 +65,6 @@ In the local mode, the project name and application name are not required in the
 * ("POST", "/v1/proj/{project}/app/{appname}/ver/{version}/func/{fname}") -> call a function and return a job id, please check [`job_handler`](@ref).
 * ("POST", "/v1/job/{job_id}/result") -> fetch results with a job id, please check [`fetch_handler`](@ref).
 * ("GET", "/v1/proj/{project}/app/{appname}/ver/{version}/func") -> get application information, please check [`demos_handler`](@ref).
-* ("GET", "/v1/proj/{project}/app/{appname}/ver/{version}/func/{fname}/api/{lang}") -> get the API call for a client language, please check [`code_handler`](@ref).
 * ("GET", "/v1/proj/{project}/app/{appname}/ver/{version}/healthz") -> get the status of current application.
 """
 function serve(app::AppSpecification;

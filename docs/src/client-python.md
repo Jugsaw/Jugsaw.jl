@@ -40,7 +40,7 @@ More applications could be found in the [Jugsaw website](https://apps.jugsaw.co)
 
 4. The fourth line launches a function call request to the remote.
 ```python
-lazyreturn = app.greet[0]("Jugsaw")
+lazyreturn = app.greet("Jugsaw")
 ```
 Since a function may support multiple *input patterns*, we use `app.greet[0]` to select the first registered implementation of the `greet` function.
 The indexing can be ommited in this case because the `greet` function here has only one implementation, i.e. `lazyreturn = app.greet("Jugsaw")` is also correct here.

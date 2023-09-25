@@ -6,10 +6,12 @@ using UUIDs
 # TODO: sanity check for the input symbol
 
 function init(appname::Symbol; version::VersionNumber=v"1.0.0-DEV",
-    authors::AbstractString=default_authors(),
-    basedir::AbstractString=pwd(),
-    juliaversion::VersionNumber=default_version(),
-    dockerport::Int=8081)
+        authors::AbstractString=default_authors(),
+        basedir::AbstractString=pwd(),
+        juliaversion::VersionNumber=default_version(),
+        dockerport::Int=8081,
+        instantiate::Bool=false
+    )
     appdir = joinpath(basedir, String(appname))
     @info "Generated Jugsaw app `$appname` at folder: $appdir"
     mkpath(appdir)
@@ -29,8 +31,10 @@ function init(appname::Symbol; version::VersionNumber=v"1.0.0-DEV",
     open(joinpath(appdir, "server.jl"), "w") do f
         println(f, server_demo())
     end
-    Pkg.activate(appdir)
-    Pkg.instantiate()
+    if instantiate
+        Pkg.activate(appdir)
+        Pkg.instantiate()
+    end
     @info("Success, please type `julia --project server.jl` to debug your application locally.
 To upload your application to Jugsaw website, please check https://jugsaw.github.io/Jugsaw/dev/developer")
 end
@@ -80,28 +84,35 @@ function compat_version(v::VersionNumber)
     end
 end
 
-function docker_config(; juliaversion::VersionNumber=default_version(), dockerport::Int=8081)
-    """
-    ARG JULIA_VERSION=$(juliaversion)
-    FROM julia:\$JULIA_VERSION
+function docker_config(; juliaversion::VersionNumber=default_version(), hostname::String="0.0.0.0", dockerport::Int=7860)
+"""
+ARG JULIA_VERSION=$juliaversion
+# The environment varialbe `JUGSAW_SERVER=DOCKER` turns the local mode off
+ARG JUGSAW_SERVER=DOCKER
+FROM julia:\$JULIA_VERSION
 
-    # FIXME: no need to develop Jugsaw once it is registered
-    COPY . /app
-    WORKDIR /app
-    # The environment varialbe `JUGSAW_SERVER=DOCKER` turns the local mode off
-    RUN JUGSAW_SERVER=DOCKER julia --project=. -e "using Pkg; Pkg.instantiate()"
+# FIXME: no need to develop Jugsaw once it is registered
+COPY . /app
+WORKDIR /app
+# The `JULIA_DEPOT_PATH` is the path to store Julia packages
+ARG JULIA_DEPOT_PATH=/app
+RUN julia --project=/app -e "using Pkg; Pkg.instantiate()"
+# Change Julia package permission to 777, because Huggingface entry point is not executed by root!!
+RUN chmod -R 777 /app
 
-    EXPOSE $dockerport
-    ENTRYPOINT ["julia", "--project=.", "-e", "include(\"app.jl\"); Jugsaw.Server.serve(Jugsaw.APP, localurl=true);"]
-    """
+EXPOSE $dockerport
+# To affect entrypoint, set `ENV` rather than `ARG`
+ENV JULIA_DEPOT_PATH=\$JULIA_DEPOT_PATH
+ENTRYPOINT ["julia", "--project=/app", "-e", "import Jugsaw; include(\"app.jl\"); Jugsaw.Server.serve(Jugsaw.APP, host=$hostname, port=$dockerport);"]
+"""
 end
 
 function app_demo(appname::Symbol)
     """
-    # Please check Jugsaw documentation: TBD
+    # Jugsaw Developer Guide: TBD
     using Jugsaw
 
-    "
+    \"\"\"
         greet(x)
 
     This is the docstring, in which **markdown** grammar and math equations are supported
@@ -109,7 +120,7 @@ function app_demo(appname::Symbol)
     ```math
     x^2
     ```
-    "
+    \"\"\"
     greet(x::String) = "Hello, \$(x)!"
 
     # create an application

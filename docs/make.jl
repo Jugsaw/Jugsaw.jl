@@ -29,9 +29,8 @@ for fmt in formats
         format = format,
         pages=[
             "Home" => "index.md",
-            "Get Started" => ["get-started.md"],
-            "Builder Guide" => "developer.md",
-            "End User Guides" => ["client-julia.md", "client-python.md", "client-javascript.md"],
+            "Develop Jugsaw Apps" => "developer.md",
+            "Clients" => ["client-julia.md", "client-python.md"],
             "Package Manuals" => ["man/JugsawIR.md", "man/Jugsaw.md", "man/JugsawServer.md", "man/JugsawClient.md"],
             "Contributor Guide" => ["design.md", "framework.md"]
         ],

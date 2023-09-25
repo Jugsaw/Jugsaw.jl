@@ -1,24 +1,18 @@
 using Test, JugsawIR
 
-@testset "demoof" begin
-    for T in [Int64, String, Tuple{Int64, String}, Vector{Int64}, JugsawIR.TypeTable]
-        @test JugsawIR.demoof(T) isa T
-    end
-end
-
 @testset "Call and JugsawDemo" begin
     jf = JugsawIR.Call(isapprox, (1.0, 1.0001), (; atol = 1e-2))
     println(jf)
     @test fevalself(jf)
     @test !feval(jf, 1.0, 1.2)
-    str, types = julia2ir(jf)
-    loaded = ir2julia(str, jf)
+    str = JugsawIR.write_object(jf)
+    loaded = JugsawIR.read_object(str, jf |> typeof)
     @test loaded == jf
     @test fevalself(loaded)
 
     demo = JugsawDemo(jf, fevalself(jf), Dict("docstring"=>"test"))
-    str, types = julia2ir(demo)
-    ld = ir2julia(str, demo)
+    str = JugsawIR.write_object(demo)
+    ld = JugsawIR.read_object(str, demo |> typeof)
     println(ld)
     @test ftest(ld)
 
@@ -35,8 +29,6 @@ end
                 (Tuple{}, "Core.Tuple{}")
             ]
         @test JugsawIR.type2str(A) == B
-        @test JugsawIR.str2type(@__MODULE__, B) == A
     end
-    @test JugsawIR.str2type(@__MODULE__, "Core.UInt8") == UInt8
 end
 

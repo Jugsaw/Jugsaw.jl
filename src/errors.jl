@@ -23,7 +23,7 @@ function Base.showerror(io::IO, e::TimedOutException, trace)
 end
 
 struct BadSyntax <: Exception
-    adt::JugsawExpr
+    adt
 end
 function Base.showerror(io::IO, e::BadSyntax, trace)
     buffer = IOBuffer()

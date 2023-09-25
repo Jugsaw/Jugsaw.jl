@@ -23,8 +23,6 @@ using Test, Jugsaw.Client, Jugsaw, Jugsaw.Server
         @test as isa DemoRef
         @test test_demo(as)
         @test test_demo(app)
-        #@test (@doc as)
-        #@test length(@doc as) > 3
     catch e
         #rethrow(e)
         println(e)

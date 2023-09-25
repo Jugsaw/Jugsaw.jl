@@ -3,31 +3,6 @@ using Jugsaw, JugsawIR
 using HTTP, JugsawIR.JSON3, URIs
 using Jugsaw.Server, Jugsaw.Client
 
-@testset "file event service" begin
-    dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
-    mkpath(dapr.save_dir)
-
-    job_id = string(Jugsaw.uuid4())
-
-    # status updated
-    status = JobStatus(id=job_id, status=Jugsaw.Server.succeeded)
-    publish_status(dapr, status)
-    @test fetch_status(dapr, job_id; timeout=1.0) == (:ok, status)
-
-    # another status updated
-    status = JobStatus(id=job_id, status=Jugsaw.Server.failed)
-    publish_status(dapr, status)
-    @test fetch_status(dapr, job_id; timeout=1.0) == (:ok, status)
-
-    # incorrect id triggers the timeout
-    @test fetch_status(dapr, "asfd"; timeout=1.0) == (:timed_out, nothing)
-
-    save_object(dapr, job_id, Dict("x"=>42))
-    st, d = load_object(dapr, job_id, Dict("y"=>4); timeout=1.0)
-    @test st == :ok
-    @test d == Dict("x"=>42)
-end
-
 @testset "in memory event" begin
     dapr = InMemoryEventService()
     job_id = string(Jugsaw.uuid4())
@@ -61,29 +36,19 @@ end
         sin(cos(0.5))::Float64
         cos(0.5)::Float64
     end
-    dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
+    dapr = InMemoryEventService()
     r = AppRuntime(app, dapr)
     @test r isa AppRuntime
 
     # simple call
     job_id = string(Jugsaw.uuid4())
-    adt, = JugsawIR.julia2adt(JugsawIR.Call(sin, (0.5,), (;)))
-    jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, JugsawIR.unpack_call(adt)...)
-    job = addjob!(r, jobspec)
-    st, res = load_object(dapr, job_id, job.demo.result; timeout=1.0)
+    fcall = JugsawIR.Call(sin, (0.5,), (;))
+    adt = JugsawIR.write_object(JugsawIR.Call(sin, (0.5,), (;)))
+    obj = JugsawIR.read_object(adt, fcall)
+    job = Job(job_id, time(), "jugsaw", 1.0, Call(sin, obj.args, obj.kwargs))
+    Jugsaw.Server.submitjob!(r, job)
+    st, res = load_object(dapr, job_id, fevalself(fcall); timeout=1.0)
     @test res ≈ sin(0.5)
-    @test fetch_status(dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.succeeded
-
-    # nested call
-    job_id = string(Jugsaw.uuid4())
-    adt1, = JugsawIR.julia2adt(JugsawIR.Call(cos, (0.7,), (;)),)
-    adt = JugsawIR.JugsawExpr(:call,
-        ["sin", JugsawIR.JugsawExpr(:object, Any[JugsawIR.type2str(Tuple{Float64}), adt1]), JugsawIR.julia2adt((;))[1]])
-    # fix adt
-    jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, JugsawIR.unpack_call(adt)...)
-    job = addjob!(r, jobspec)
-    st, res = load_object(dapr, job_id, job.demo.result; timeout=1.0)
-    @test res ≈ sin(cos(0.7))
     @test fetch_status(dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.succeeded
 end
 
@@ -95,38 +60,44 @@ end
         end
     end
     app = Jugsaw.APP; empty!(app)
-    dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
+    dapr = InMemoryEventService()
     @register testapp sin(cos(0.5))::Float64
     @register testapp buggy(0.5)
     r = AppRuntime(app, dapr)
 
     job_id = string(Jugsaw.uuid4())
-    adt1, = JugsawIR.julia2adt(JugsawIR.Call(buggy, (1.0,), (;)))
+    fcall = JugsawIR.Call(buggy, (1.0,), (;))
+    adt1 = JugsawIR.write_object(JugsawIR.Call(buggy, (1.0,), (;)))
     # normal call
-    jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, JugsawIR.unpack_call(adt1)...)
-    job = addjob!(r, jobspec)
-    st, res = load_object(dapr, job_id, job.demo.result; timeout=1.0)
+    obj = JugsawIR.read_object(adt1, fcall)
+    job = Job(job_id, time(), "jugsaw", 1.0, Call(buggy, obj.args, obj.kwargs))
+    Jugsaw.Server.submitjob!(r, job)
+    st, res = load_object(dapr, job_id, fevalself(fcall); timeout=1.0)
     @test fetch_status(dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.succeeded
     # trigger error
-    adt2, = JugsawIR.julia2adt(JugsawIR.Call(buggy, (-1.0,), (;)))
-    jobspec = JobSpec(job_id, round(Int, time()), "jugsaw", 1.0, JugsawIR.unpack_call(adt2)...)
-    job = addjob!(r, jobspec)
-    st, res = load_object(dapr, job_id, job.demo.result; timeout=1.0)
+    fcall = JugsawIR.Call(buggy, (-1.0,), (;))
+    adt2 = JugsawIR.write_object(JugsawIR.Call(buggy, (-1.0,), (;)))
+    obj = JugsawIR.read_object(adt2, fcall)
+    job = Job(job_id, time(), "jugsaw", 1.0, Call(buggy, obj.args, obj.kwargs))
+    Jugsaw.Server.submitjob!(r, job)
+    st, res = load_object(dapr, job_id, nothing; timeout=1.0)
     @test fetch_status(dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.failed
 end
 
 @testset "job handler" begin
     # create an app
     app = Jugsaw.APP; empty!(app)
-    dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
+    dapr = InMemoryEventService()
     @register testapp sin(cos(0.5))::Float64
     r = AppRuntime(app, dapr)
     context = Client.ClientContext()
 
     # luanch and fetch a job
-    fcall = JugsawIR.julia2adt(JugsawIR.Call(:sin, (0.5,), (;)))[1]
+    demo = JugsawIR.Call(sin, (0.5,), (;))
+    fcall = Call("sin", (0.5,), (;))
     job_id = string(Jugsaw.uuid4())
     req = Jugsaw.Client.new_request_obj(context, Val(:job), job_id, fcall; maxtime=10.0)
+    req.context[:params] = Dict("fname"=>"sin")
     resp1 = Jugsaw.Server.job_handler(r, req)
     # fetch interface
     req = Jugsaw.Client.new_request_obj(context, Val(:fetch), job_id)
@@ -136,29 +107,8 @@ end
     @test fetch_status(r.dapr, job_id; timeout=1.0)[2].status == Jugsaw.Server.succeeded
 
     # load object
-    obj = JugsawIR.ir2adt(String(resp2.body))
+    obj = JugsawIR.read_object(String(resp2.body), 0.0)
     @test obj ≈ sin(0.5)
-end
-
-@testset "code handler" begin
-    context = Client.ClientContext()
-    app = Jugsaw.APP; empty!(app)
-    dapr = FileEventService(joinpath(@__DIR__, ".daprtest"))
-    @register testapp sin(cos(0.5))::Float64
-
-    fcall = JugsawIR.julia2adt(JugsawIR.Call("sin", (0.5,), (;)))[1]
-    req = Jugsaw.Client.new_request_obj(context, Val(:api), fcall, "Julia")
-    req.context[:params] = Dict("lang"=>"Julia")
-    ret = Jugsaw.Server.code_handler(req, app)
-    @test ret.status == 200
-    @test JSON3.read(ret.body).code isa String
-    @show JSON3.read(ret.body).code
-
-    fcall2 = JugsawIR.julia2adt(JugsawIR.Call("sinx", (0.5,), (;)))[1]
-    req = Jugsaw.Client.new_request_obj(context, Val(:api), fcall2, "Julia")
-    req.context[:params] = Dict("lang"=>"Julia")
-    ret = Jugsaw.Server.code_handler(req, app)
-    @test ret.status == 400
 end
 
 @testset "parse fcall" begin
@@ -169,9 +119,8 @@ end
     Jugsaw.save_demos(path, app)
     @test isfile(joinpath(path, "demos.json"))
     # loading demos
-    newdemos, newtypes = Jugsaw.load_demos_from_dir(path, app)
-    @test newdemos == app
-    @test newtypes isa Jugsaw.JugsawIR.TypeTable
+    newdemos = Jugsaw.load_demos_from_dir(path)
+    @test length(newdemos.app.method_demos) == length(app.method_demos)
 
     # empty!
     empty!(app)

@@ -1,5 +1,5 @@
-# Jugsaw Type Universe
-The goal of Jugsaw Type Universe (JTU) is to simplify the definition and display of arguments.
+# Jugsaw Type System
+The goal of Jugsaw Type System (JTU) is to simplify the definition and display of arguments.
 
 > Why not using JSON schema?
 > JSON schema is designed for sophisticated input verification.
@@ -111,14 +111,6 @@ Array data has type `Union{Payload, Array{T,N} where {T,N}}`.
 ```
 
 NOTE: data does not contain type or shape information.
-
-### Enum
-```json
-{
-    "__type__" : "Enum",
-    "options" : ["English", "Japanese", "Chinese"]
-}
-```
 
 ### Tuple
 ```json

@@ -1,16 +1,16 @@
-using Jugsaw
-using Jugsaw.Universe
-
+using Jugsaw, Jugsaw.JugsawIR, Jugsaw.JugsawIR.JSON3
 using GenericTensorNetworks
 using GenericTensorNetworks: AbstractProperty
 import GenericTensorNetworks.Graphs
 using GenericTensorNetworks.Random
 
-# TODO: we need to support SELECT better! Maybe automatically categorize functions.
+JSON3.StructTypes.StructType(::Type{<:Max2Poly}) = JSON3.StructTypes.Struct()
+JSON3.StructTypes.StructType(::Type{<:Tropical}) = JSON3.StructTypes.Struct()
+JSON3.StructTypes.StructType(::Type{<:CountingTropical}) = JSON3.StructTypes.Struct()
 
 abstract type GraphProblemConfig end
 Base.@kwdef struct IndependentSetConfig <: GraphProblemConfig
-    graph::Graph
+    graph::JugsawIR.Graph
     weights::Vector{Int}=ones(nv(g))
     openvertices::Vector{Int}=Int[]
     fixedvertices::Dict{Int,Int}=Dict{Int, Int}()
@@ -66,7 +66,7 @@ end
 
 function smallgraph(s::Symbol)
     g = Graphs.smallgraph(s)
-    return Graph(Graphs.nv(g), hcat(collect.(Tuple.(Graphs.edges(g)))...))
+    return JugsawIR.Graph(Graphs.nv(g), hcat(collect.(Tuple.(Graphs.edges(g)))...))
 end
 # :MaximalIS, :SpinGlass, :Coloring, :DominatingSet,
 # :HyperSpinGlass, :Matching, :MaxCut, :OpenPitMining,
