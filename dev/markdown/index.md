@@ -16,11 +16,38 @@
 
 
 
+<a id='Get-started'></a>
+
+<a id='Get-started-1'></a>
+
+# Get started
+
+
+The *developer* guide and *end user* guides can be found bellow.
+
+
+The *developer* guide is about how to create and register a Jugsaw app. A Jugsaw app must be written in [Julia](https://julialang.org/) or contained in a Julia wrapper.
+
+
+  * Get started as Jugsaw app [developer](developer.md).
+
+
+The *end user* guides are about how to access the Jugsaw app through the application web page or multi-language clients. The list of supported client languages include
+
+
+  * Get started as [Julia](client-julia.md) end user.
+  * Get started as [Python](client-python.md) end user.
+
+
 <a id='Manual'></a>
 
 <a id='Manual-1'></a>
 
 ## Manual
 
-- [Get started](get-started.md#Get-started)
+- [Develop and deploy a Jugsaw app](developer.md#Develop-and-deploy-a-Jugsaw-app)
+- [Julia Client](client-julia.md#Julia-Client)
+- [Python Client](client-python.md#Python-Client)
+- [Jugsaw](man/Jugsaw.md#Jugsaw)
+- [JugsawIR](man/JugsawIR.md#JugsawIR)
 

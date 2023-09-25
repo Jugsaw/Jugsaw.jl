@@ -70,7 +70,7 @@ Here, we use the "helloworld" application as an example. A Jugsaw app contains a
 
 
 ```julia
-lazyreturn = app.greet[0]("Jugsaw")
+lazyreturn = app.greet("Jugsaw")
 ```
 
 

@@ -16,7 +16,7 @@ Jugsaw IR can represent data, data types, and function calls. The basic rule is 
 
 1. Integers, floating point numbers, `Nothing`, `Missing`, `UndefInitializer`, `Symbol` and `String` are directly representable.
 2. Generic objects are represented by a JSON object with at most two fields: `fields` and `type` (optional).
-3. Some objects are specialized, including `Array`, `Tuple`, `Dict`, `DataType` and `Enum`.
+3. Some objects are specialized, including `Array`, `Tuple`, `Dict`, `DataType`.
 
 
 <a id=':-Representing-Data'></a>
@@ -56,7 +56,7 @@ Or when calling a remote function, one can ommit the `"type"` specification, sin
 
 
 !!! note
-    The `julia2ir` function returns a two element tuple, a representation of object, and a [`TypeTable`](JugsawIR.md#JugsawIR.TypeTable) to delare types.
+    The `julia2ir` function returns a two element tuple, a representation of object, and a [`TypeTable`](@ref) to delare types.
 
 
 
@@ -71,7 +71,7 @@ To customize a Jugsaw data type for your own data type, the following two functi
 
 
   * [`native2jugsaw`](@ref) is for converting a native Julia object to a Jugsaw compatible object.
-  * [`construct_object`](@ref) is for reconstructing the native Julia object from an object of type [`JugsawExpr`](JugsawIR.md#JugsawIR.JugsawExpr). The return value must have the same data type as the second argument.
+  * [`construct_object`](@ref) is for reconstructing the native Julia object from an object of type [`JugsawExpr`](@ref). The return value must have the same data type as the second argument.
 
 
 <a id='Dictionary'></a>
@@ -81,7 +81,7 @@ To customize a Jugsaw data type for your own data type, the following two functi
 #### Dictionary
 
 
-A dictionary is parsed to a [`JugsawIR.JDict`](JugsawIR.md#JugsawIR.JDict) instance, which has two fields `keys` and `vals`.
+A dictionary is parsed to a [`JugsawIR.JDict`](@ref) instance, which has two fields `keys` and `vals`.
 
 
 <a id='Array'></a>
@@ -91,17 +91,7 @@ A dictionary is parsed to a [`JugsawIR.JDict`](JugsawIR.md#JugsawIR.JDict) insta
 #### Array
 
 
-An array is parsed to a [`JugsawIR.JArray`](JugsawIR.md#JugsawIR.JArray) instance, which has two fields `size` and `storage`.
-
-
-<a id='Enum'></a>
-
-<a id='Enum-1'></a>
-
-#### Enum
-
-
-An enum instance is parsed to a [`JugsawIR.JEnum`](JugsawIR.md#JugsawIR.JEnum) instance, which has three fields `kind`, `value` and `options`.
+An array is parsed to a [`JugsawIR.JArray`](@ref) instance, which has two fields `size` and `storage`.
 
 
 <a id=':-Representing-Data-Type'></a>
@@ -111,16 +101,16 @@ An enum instance is parsed to a [`JugsawIR.JEnum`](JugsawIR.md#JugsawIR.JEnum) i
 ## 2: Representing Data Type
 
 
-An data type is parsed to a [`JugsawIR.JDataType`](JugsawIR.md#JugsawIR.JDataType) instance, which has three fields `name`, `fieldnames` and `fieldtypes`. For example, to represent a complex number type, we can create the following IR
+An data type is parsed to a [`JugsawIR.JDataType`](@ref) instance, which has three fields `name`, `fieldnames` and `fieldtypes`. For example, to represent a complex number type, we can create the following IR
 
 
 ```julia
 julia> julia2ir(ComplexF64)[1] |> println
-{"fields":["Base.Complex{Core.Float64}",["re","im"],["Core.Float64","Core.Float64"]],"type":"JugsawIR.JDataType"}
+{"fields":["Base.Complex{Core.Float64}",["re","im"],["Core.Float64","Core.Float64"]],"type":"JugsawIR.TypeSpec"}
 ```
 
 
-For convenience, JugsawIR returns a [`TypeTable`](JugsawIR.md#JugsawIR.TypeTable) instance to represent the types used in parsing.
+For convenience, JugsawIR returns a [`TypeTable`](@ref) instance to represent the types used in parsing.
 
 
 <a id=':-Representing-Function-Call'></a>
@@ -190,87 +180,13 @@ null : "null"
 
 ## APIs
 
-<a id='JugsawIR.ir2julia-Tuple{String, Any}' href='#JugsawIR.ir2julia-Tuple{String, Any}'>#</a>
-**`JugsawIR.ir2julia`** &mdash; *Method*.
-
-
-
-```julia
-ir2julia(str::String, demo) -> Any
-
-```
-
-Convert Jugsaw IR to julia object, given a demo object as a reference. Please check [`julia2ir`](JugsawIR.md#JugsawIR.julia2ir-Tuple{Any}) for the inverse map.
-
-**Examples**
-
-```julia-repl
-julia> JugsawIR.ir2julia("{\"fields\" : [3, 4]}", 1+2im)
-3 + 4im
-```
-
-
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5bda4a044aa11d12093d6d370e718f9c36a0cee6/lib/JugsawIR/src/ir.jl#L3' class='documenter-source'>source</a><br>
-
-<a id='JugsawIR.jugsaw2native-Tuple{Any, Any}' href='#JugsawIR.jugsaw2native-Tuple{Any, Any}'>#</a>
-**`JugsawIR.jugsaw2native`** &mdash; *Method*.
-
-
-
-```julia
-jugsaw2native(jugsaw_object, demo_object)
-```
-
-Reconstruct the native Julia object from an plain Jugsaw object. The return value must have the same data type as the second argument.
-
-
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5bda4a044aa11d12093d6d370e718f9c36a0cee6/lib/JugsawIR/src/extendedtypes.jl#L8-L13' class='documenter-source'>source</a><br>
-
-<a id='JugsawIR.julia2ir-Tuple{Any}' href='#JugsawIR.julia2ir-Tuple{Any}'>#</a>
-**`JugsawIR.julia2ir`** &mdash; *Method*.
-
-
-
-```julia
-julia2ir(obj) -> Tuple{Any, Any}
-
-```
-
-Convert julia object to Jugsaw IR and a type table, where the type table is a special Jugsaw IR that stores the type definitions. Please check [`ir2julia`](JugsawIR.md#JugsawIR.ir2julia-Tuple{String, Any}) for the inverse map.
-
-**Examples**
-
-```julia-repl
-julia> ir, typetable = JugsawIR.julia2ir(1+2im);
-
-julia> ir
-"{\"fields\":[1,2],\"type\":\"Base.Complex{Core.Int64}\"}"
-```
-
-
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5bda4a044aa11d12093d6d370e718f9c36a0cee6/lib/JugsawIR/src/ir.jl#L68' class='documenter-source'>source</a><br>
-
-<a id='JugsawIR.native2jugsaw-Tuple{Any}' href='#JugsawIR.native2jugsaw-Tuple{Any}'>#</a>
-**`JugsawIR.native2jugsaw`** &mdash; *Method*.
-
-
-
-```julia
-native2jugsaw(object)
-```
-
-Convert a native Julia object to a Jugsaw compatible object.
-
-
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5bda4a044aa11d12093d6d370e718f9c36a0cee6/lib/JugsawIR/src/extendedtypes.jl#L1-L5' class='documenter-source'>source</a><br>
-
 <a id='JugsawIR.Call' href='#JugsawIR.Call'>#</a>
 **`JugsawIR.Call`** &mdash; *Type*.
 
 
 
 ```julia
-struct Call
+struct Call{FT, argsT<:Tuple, kwargsT<:NamedTuple}
 ```
 
 **Fields**
@@ -280,34 +196,34 @@ struct Call
   * `kwargs::NamedTuple`
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5bda4a044aa11d12093d6d370e718f9c36a0cee6/lib/JugsawIR/src/Core.jl#L63' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/67fe35adcb19f0ef135dac9c8cd8ecae936fd21d/lib/JugsawIR/src/Core.jl#L10' class='documenter-source'>source</a><br>
 
-<a id='JugsawIR.JArray' href='#JugsawIR.JArray'>#</a>
-**`JugsawIR.JArray`** &mdash; *Type*.
+<a id='JugsawIR.Graph' href='#JugsawIR.Graph'>#</a>
+**`JugsawIR.Graph`** &mdash; *Type*.
 
 
 
 ```julia
-struct JArray{T}
+Graph
 ```
 
-The data type for arrays in Jugsaw.
+The data type for representing a graph.
 
 **Fields**
 
-  * `size::JugsawIR.Storage{Int64}`
-  * `storage::JugsawIR.Storage`
+  * `nv::Int` is the number of vertices. The vertices are `{1, 2, ..., nv}`.
+  * `edges::Matrix{Int}` is a 2 x n matrix, each column is an edge.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5bda4a044aa11d12093d6d370e718f9c36a0cee6/lib/JugsawIR/src/extendedtypes.jl#L62' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/67fe35adcb19f0ef135dac9c8cd8ecae936fd21d/lib/JugsawIR/src/typeext.jl#L25-L33' class='documenter-source'>source</a><br>
 
-<a id='JugsawIR.JDataType' href='#JugsawIR.JDataType'>#</a>
-**`JugsawIR.JDataType`** &mdash; *Type*.
+<a id='JugsawIR.TypeSpec' href='#JugsawIR.TypeSpec'>#</a>
+**`JugsawIR.TypeSpec`** &mdash; *Type*.
 
 
 
 ```julia
-struct JDataType
+struct TypeSpec
 ```
 
 The type for specifying data type in Jugsaw.
@@ -315,101 +231,20 @@ The type for specifying data type in Jugsaw.
 **Fields**
 
   * `name::String`
-  * `fieldnames::JugsawIR.Storage{String}`
-  * `fieldtypes::JugsawIR.Storage{String}`
+  * `structtype::String`
+  * `description::String`
+  * `fieldnames::Vector{String}`
+  * `fieldtypes::Vector{TypeSpec}`
+  * `fielddescriptions::Vector{String}`
+
+  * `name` is the name of the type,
+  * `structtype` is the type of the JSON3 struct. Please check https://quinnj.github.io/JSON3.jl/dev/#DataTypes
+  * `fieldtypes` is the type of the fields. It is a vector of `TypeSpec` instances.
+
+For Array structtype, it is a single element vector of `TypeSpec` instances of the element type.
 
 
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5bda4a044aa11d12093d6d370e718f9c36a0cee6/lib/JugsawIR/src/extendedtypes.jl#L82' class='documenter-source'>source</a><br>
-
-<a id='JugsawIR.JDict' href='#JugsawIR.JDict'>#</a>
-**`JugsawIR.JDict`** &mdash; *Type*.
-
-
-
-```julia
-struct JDict{K, V}
-```
-
-The dictionary type in Jugsaw, which represents a dictionary in key-value pairs.
-
-**Fields**
-
-  * `pairs::JugsawIR.Storage{Pair{K, V}} where {K, V}`
-
-
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5bda4a044aa11d12093d6d370e718f9c36a0cee6/lib/JugsawIR/src/extendedtypes.jl#L17' class='documenter-source'>source</a><br>
-
-<a id='JugsawIR.JEnum' href='#JugsawIR.JEnum'>#</a>
-**`JugsawIR.JEnum`** &mdash; *Type*.
-
-
-
-```julia
-struct JEnum
-```
-
-The enum type in Jugsaw.
-
-**Fields**
-
-  * `kind::String`
-  * `value::String`
-  * `options::JugsawIR.Storage{String}`
-
-
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5bda4a044aa11d12093d6d370e718f9c36a0cee6/lib/JugsawIR/src/extendedtypes.jl#L37' class='documenter-source'>source</a><br>
-
-<a id='JugsawIR.JugsawExpr' href='#JugsawIR.JugsawExpr'>#</a>
-**`JugsawIR.JugsawExpr`** &mdash; *Type*.
-
-
-
-```julia
-struct JugsawExpr
-```
-
-**Fields**
-
-  * `head::Symbol`
-  * `args::Vector{Any}`
-
-`JugsawExpr` is an intermediate representation between Jugsaw IR data type and Julia native data type. The head can be one of [:object, :untyped, :list, :call]
-
-**Examples**
-
-The Jugsaw object representation for `2+3im` is
-
-```julia-repl
-julia> JugsawExpr(:object, Any["Base.ComplexF64", 2, 3])
-JugsawExpr(:object, ["Base.ComplexF64", 2, 3])
-
-julia> JugsawExpr(:list, [2, 3])
-JugsawExpr(:list, [2, 3])
-```
-
-
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5bda4a044aa11d12093d6d370e718f9c36a0cee6/lib/JugsawIR/src/Core.jl#L137' class='documenter-source'>source</a><br>
-
-<a id='JugsawIR.TypeTable' href='#JugsawIR.TypeTable'>#</a>
-**`JugsawIR.TypeTable`** &mdash; *Type*.
-
-
-
-```julia
-struct TypeTable
-```
-
-The type definitions.
-
-**Fields**
-
-  * `names::Vector{String}`
-  * `defs::Dict{String, JDataType}`
-
-The `defs` defines a mapping from the type name to a [`JDataType`](JugsawIR.md#JugsawIR.JDataType) instance.
-
-
-<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/5bda4a044aa11d12093d6d370e718f9c36a0cee6/lib/JugsawIR/src/adt.jl#L6' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/Jugsaw/Jugsaw.jl/blob/67fe35adcb19f0ef135dac9c8cd8ecae936fd21d/lib/JugsawIR/src/typespec.jl#L1' class='documenter-source'>source</a><br>
 
 
 !!! warning "Missing docstring."
