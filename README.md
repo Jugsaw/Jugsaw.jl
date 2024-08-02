@@ -8,9 +8,9 @@
 Step 1. Start the live server.
 
 ```bash
-julia .ci/run.jl doc   # intialize documentation environment
+make init   # intialize documentation environment
 
-bash docs/servedoc.sh  # live server
+make serve  # live server
 ```
 
 Step 2. Edit the files in `docs` folder.

@@ -193,7 +193,6 @@ docs/site/
 # environment.
 Manifest.toml
 !example/**/Manifest.toml
-example/**/Dockerfile
 /src/jl/Jugsaw/test/Testapp/
 
 # codecov

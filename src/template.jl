@@ -9,7 +9,7 @@ function init(appname::Symbol; version::VersionNumber=v"1.0.0-DEV",
         authors::AbstractString=default_authors(),
         basedir::AbstractString=pwd(),
         juliaversion::VersionNumber=default_version(),
-        dockerport::Int=8081,
+        dockerport::Int=7860,
         instantiate::Bool=false
     )
     appdir = joinpath(basedir, String(appname))
@@ -55,7 +55,7 @@ function project_config(; version::VersionNumber,
     )
 end
 
-default_version() = VersionNumber(VERSION.major)
+default_version() = VersionNumber(VERSION)
 
 function default_authors()
     name = LibGit2.getconfig("user.name", "")
@@ -103,7 +103,7 @@ RUN chmod -R 777 /app
 EXPOSE $dockerport
 # To affect entrypoint, set `ENV` rather than `ARG`
 ENV JULIA_DEPOT_PATH=\$JULIA_DEPOT_PATH
-ENTRYPOINT ["julia", "--project=/app", "-e", "import Jugsaw; include(\"app.jl\"); Jugsaw.Server.serve(Jugsaw.APP, host=$hostname, port=$dockerport);"]
+ENTRYPOINT ["julia", "--project=/app", "-e", "import Jugsaw; include(\\\"app.jl\\\"); Jugsaw.Server.serve(Jugsaw.APP, host=\"$hostname\", port=$dockerport);"]
 """
 end
 
